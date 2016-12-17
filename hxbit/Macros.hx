@@ -984,6 +984,12 @@ class Macros {
 				fields = fields.concat((macro class {
 					public function networkGetOwner() : hxbit.NetworkSerializable { return null; }
 				}).fields);
+
+			if( !Lambda.exists(fields, function(f) return f.name == "alive") )
+				fields = fields.concat((macro class {
+					public function alive() {}
+				}).fields);
+
 		}
 
 		var firstFID = startFID;
