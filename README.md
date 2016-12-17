@@ -106,3 +106,8 @@ s.beginLoad(bytes);
 ```
 Versioned data is slightly larger than unversioned one since it contains the Schema data of each serialized class.
 
+Currently versioning handles:
+ - removing fields (previous data is ignored)
+ - adding fields (they are set to default value: 0 for Int/Float, false for Bool, empty Array/Map/etc.)
+
+More convertions can be easily added in `Serializer.convertValue`, including custom ones if you extends Serializer. 
