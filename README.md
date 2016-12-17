@@ -84,7 +84,7 @@ class User implements hxbit.Serializable {
 }
 ```
 
-### Versioning
+## Versioning
 
 HxBit serialization is capable of performing versioning, by storing in serialized data the schema of each serialized class, then comparing it to the current schema when unserializing, making sure that data is not corrupted.
 
@@ -111,3 +111,84 @@ Currently versioning handles:
  - adding fields (they are set to default value: 0 for Int/Float, false for Bool, empty Array/Map/etc.)
 
 More convertions can be easily added in `Serializer.convertValue`, including custom ones if you extends Serializer. 
+
+## Networking
+
+Additionaly to serialization, HxBit supports synchronization of objects over network and Remote Procedure Call.
+
+### Example
+
+An example of networking in action can be found as part of the Heaps samples here: https://github.com/ncannasse/heaps/blob/master/samples/Network.hx
+
+In order to use Networking, your classes need to implement `hxbit.NetworkSerializable`. You also need to implement a `NetworkHost` such as done with Heaps here: https://github.com/ncannasse/heaps/blob/master/hxd/net/SocketHost.hx
+
+### Principles
+
+A host is a `NetworkHost` instance which handles communications betwen a server (or authority) and several clients.
+
+A NetworkSerializable can be shared over the network by setting `enableReplication = true` on it.
+
+When a shared Serializable field is modified, we store a bit to mark it as changed. When host.sync() is called (or when a RPC occurs), we send the modified fields over the network so the objects state is correctly replicated on other connected nodes.
+
+Only the authority or the object owner can modify the serializable fields. By default an object doesn't have a owner, you can override `networkGetOwner()` to specify it.
+
+In order to detect whenever a new object has been shared over the network, you must implement the `alive()` method, which will be triggered once an object has been fully initialized. 
+
+### Remote Procedure Calls (RPC)
+
+RPC can be easily performed by tagging a shared object member method with `@:rpc`:
+
+```haxe
+class Cursor implements hxbit.NetworkSerializable {
+   @:rpc public function blink() {
+      ...
+   }
+}
+```
+
+There are different RPC modes, which can be specified by using `@:rpc(mode)`:
+
+  - `all` (default) : When called on the client, will forward the call on the server, but not execute locally. When called on the server, will forward the call to the clients (and force its execution), then execute.
+  - `client` : When called on the server, will forward the call to the clients, but not execute locally. When called on the client, will execute locally. 
+  - `server` : When called on the client, will forward the call the server, but not execute locally. When called on the server, will execute locally.
+  - `owner` : When called on the client, will forward the call to the server if not the owner, or else execute locally. When called on the server, will forward the call to the owner. Will fail if there is no owner.
+  
+Return values are possible unless you are in `all` mode, and will add an extra callback to capture the result asynchronously:
+
+```haxe
+   @:rpc(server) public function sendAction( act : String ) : Bool {
+   }
+   
+   ...
+   sendAction("test", function(onResult) { ... });
+   
+```
+
+RPC executing on the client can change network properties on the current object without triggering errors or network data
+
+### Local change
+
+Sometimes you might want to perform some local change without triggering network data. You must be sure that the same changes occur on the server and all the connected clients or else you risk having unsynchronized states. 
+
+This can be performed by wrapping the changes as the following example shows:
+
+```haxe
+function teleport( t : Target ) {
+    networkLocalChanges(function() {
+       var pos = t.getPosition();
+       // changes to x/y will not be sent over the network
+       // clients are also allowed to change serialized properties this way
+       x = pos.x;
+       y = pos.y;
+    });
+}
+```
+
+### Cancel change
+
+You can also cancel the change of a property can calling `networkCancelProperty(propId)` the id of the property can be obtained from its name by accessing `networkProp<Name>`, with name being the name of the property with first letter uppercased (`networkPropPosition` for `position` for instance)
+
+### Save and load
+
+The whole set of currently shared network objects can be saved using host.saveState() and loaded using host.loadState(bytes). It uses the versionning decribed previously. Once loaded, call host.makeAlive() to make sure all alive() calls are made to object.
+
