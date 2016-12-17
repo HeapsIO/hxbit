@@ -67,6 +67,7 @@ enum PropTypeDesc<PropType> {
 	PVector( k : PropType );
 	PNull( t : PropType );
 	PUnknown;
+	PDynamic;
 }
 
 typedef PropType = {
@@ -130,6 +131,7 @@ class Macros {
 		case PVector(k): PVector(toFieldType(k));
 		case PNull(t): PNull(toFieldType(t));
 		case PUnknown: PUnknown;
+		case PDynamic: PDynamic;
 		};
 	}
 
@@ -238,6 +240,8 @@ class Macros {
 			}
 		case TEnum(e,_):
 			PEnum(e.toString());
+		case TDynamic(_):
+			PDynamic;
 		case TAnonymous(a):
 			var a = a.get();
 			var fields = [];
@@ -384,6 +388,8 @@ class Macros {
 		case PNull(t):
 			var e = serializeExpr(ctx, v, t);
 			return macro if( $v == null ) $ctx.addByte(0) else { $ctx.addByte(1); $e; };
+		case PDynamic:
+			return macro $ctx.addDynamic($v);
 		case PUnknown:
 			throw "assert";
 		}
@@ -486,6 +492,8 @@ class Macros {
 		case PNull(t):
 			var e = unserializeExpr(ctx, v, t);
 			return macro if( $ctx.getByte() == 0 ) $v = null else $e;
+		case PDynamic:
+			return macro $v = $ctx.getDynamic();
 		case PUnknown:
 			throw "assert";
 		}
@@ -676,7 +684,7 @@ class Macros {
 					var c = e.constructs.get(f);
 					switch( Context.follow(c.type) ) {
 					case TFun(args, _):
-						var eargs = [for( a in args ) macro hxbit.Macros.serializeValue(ctx,$i{a.name})];
+						var eargs = [for( a in args ) { var arg = { expr : EConst(CIdent(a.name)), pos : c.pos }; macro hxbit.Macros.serializeValue(ctx, $arg); }];
 						cases.push({
 							values : [{ expr : ECall({ expr : EConst(CIdent(c.name)), pos : pos },[for( a in args ) { expr : EConst(CIdent(a.name)), pos : pos }]), pos : pos }],
 							expr : macro {

@@ -297,6 +297,78 @@ class Serializer {
 		return s;
 	}
 
+	public function getDynamic() : Dynamic {
+		switch( getByte() ) {
+		case 0:
+			return null;
+		case 1:
+			return false;
+		case 2:
+			return true;
+		case 3:
+			return getInt();
+		case 4:
+			return getFloat();
+		case 5:
+			var o = {};
+			for( i in 0...getInt() )
+				Reflect.setField(o, getString(), getDynamic());
+			return o;
+		case 6:
+			return getString();
+		case 7:
+			return [for( i in 0...getInt() ) getDynamic()];
+		case 8:
+			return getBytes();
+		case x:
+			throw "Invalid dynamic prefix " + x;
+		}
+	}
+
+	public function addDynamic( v : Dynamic ) {
+		if( v == null ) {
+			addByte(0);
+			return;
+		}
+		switch( Type.typeof(v) ) {
+		case TBool:
+			addByte((v:Bool) ? 2 : 1);
+		case TInt:
+			addByte(3);
+			addInt(v);
+		case TFloat:
+			addByte(4);
+			addFloat(v);
+		case TObject:
+			var fields = Reflect.fields(v);
+			addByte(5);
+			addInt(fields.length);
+			for( f in fields ) {
+				addString(f);
+				addDynamic(Reflect.field(v, f));
+			}
+		case TClass(c):
+			switch( c ) {
+			case String:
+				addByte(6);
+				addString(v);
+			case Array:
+				addByte(7);
+				var a : Array<Dynamic> = v;
+				addInt(a.length);
+				for( v in a )
+					addDynamic(v);
+			case haxe.io.Bytes:
+				addByte(8);
+				addBytes(v);
+			default:
+				throw "Unsupported dynamic " + c;
+			}
+		case t:
+			throw "Unsupported dynamic " + t;
+		}
+	}
+
 	public inline function addCLID( clid : Int ) {
 		addByte(clid >> 8);
 		addByte(clid & 0xFF);
@@ -602,6 +674,8 @@ class Serializer {
 			default:
 				(getMap(function() return readValue(k), function() return readValue(v)) : Map<{},Dynamic>);
 			}
+		case PDynamic:
+			getDynamic();
 		case PUnknown:
 			throw "assert";
 		}
@@ -656,7 +730,9 @@ class Serializer {
 				}
 			}
 		case PMap(k, t):
-			addMap(v,function(v) writeValue(v,k), function(v) writeValue(v,t));
+			addMap(v, function(v) writeValue(v, k), function(v) writeValue(v, t));
+		case PDynamic:
+			addDynamic(v);
 		case PUnknown:
 			throw "assert";
 		}
