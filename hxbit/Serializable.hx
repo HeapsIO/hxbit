@@ -22,12 +22,21 @@
 package hxbit;
 
 @:autoBuild(hxbit.Macros.buildSerializable())
+/**
+  These fields are automatically generated when implementing the interface.
+**/
 interface Serializable {
+	/** Unique identifier for the object, automatically set on new() **/
 	public var __uid : Int;
+	/** Returns the unique class id for this object **/
 	public function getCLID() : Int;
+	/** Serialize the object id and fields using this Serializer **/
 	public function serialize( ctx : Serializer ) : Void;
+	/** Used internaly by unserializer **/
 	public function unserializeInit() : Void;
+	/** Unserialize object fields using this Serializer **/  
 	public function unserialize( ctx : Serializer ) : Void;
+	/** Returns the object data schema **/  
 	public function getSerializeSchema() : Schema;
 }
 

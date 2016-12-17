@@ -526,7 +526,10 @@ class Serializer {
 		return end();
 	}
 
-	public function beginLoadSave() {
+	public function beginLoad( bytes : haxe.io.Bytes, position = 0 ) {
+
+		setInput(bytes, position);
+
 		var classByName = new Map();
 		var schemas = [];
 		var mapIndexes = [];
@@ -585,9 +588,10 @@ class Serializer {
 			this.mapIndexes = mapIndexes;
 	}
 
-	public function endLoadSave() {
+	public function endLoad() {
 		convert = null;
 		mapIndexes = null;
+		setInput(null, 0);
 	}
 
 	function convertRef( i : Serializable, c : Convert ) {

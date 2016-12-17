@@ -258,14 +258,12 @@ class NetworkHost {
 	public function loadSave( bytes : haxe.io.Bytes ) {
 		ctx.refs = new Map();
 		@:privateAccess ctx.newObjects = [];
-		ctx.setInput(bytes, 0);
-		ctx.beginLoadSave();
+		ctx.beginLoad(bytes);
 		while( true ) {
 			var v = ctx.getAnyRef();
 			if( v == null ) break;
 		}
-		ctx.endLoadSave();
-		ctx.setInput(null, 0);
+		ctx.endLoad();
 	}
 
 	function mark(o:NetworkSerializable) {
