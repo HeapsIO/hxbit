@@ -166,6 +166,20 @@ Return values are possible unless you are in `all` mode, and will add an extra c
 
 RPC executing on the client can change network properties on the current object without triggering errors or network data
 
+## Filtering
+
+You might not want to send the property value everytime it is modified. You can specify the following metadata together with `@:s` in order to perform some filtering:
+
+ - `@:increment(value)` only send if the value has changed by more than the increment. For instance if you write `@:increment(10)` the value will only be sent if its tens value change.
+ - `@:condSend(cond)` only send if the cond is true. You can use `@:condSend(false)` to disable network sync for this property (but still keep it serializable - for instance for a server only value). You can also use `@:condSend(x > current)` to only send if the value `x` is greater than the last sent value for the current property. You can insert any expression here including calls.  
+ - `@:notMutable` is used to disable proxy creation on a property (see below)
+ 
+## Proxys
+
+In order to track changes inside a mutable value such as Array/Map/Vector/Structure, a proxy object will be used to wrap the value and make sure that all changes to it correctly set the mark bit.
+
+At the moment, each change in one of these structures will send the whole content again. In the future it might be possible to track each mutation and only send the information necessary to replicate this specific change.
+
 ### Local change
 
 Sometimes you might want to perform some local change without triggering network data. You must be sure that the same changes occur on the server and all the connected clients or else you risk having unsynchronized states. 
