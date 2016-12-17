@@ -3,7 +3,7 @@
 	"url" : "https://github.com/ncannasse/hxbit",
 	"license" : "BSD",
     "description" : "Binary serialization and network synchronization library",
-    "version" : "1.0.0",
+    "version" : "1.1.0",
 	"releasenote" : "",
 	"contributors" : ["ncannasse"],
 	"dependencies" : {}
