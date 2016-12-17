@@ -166,7 +166,7 @@ Return values are possible unless you are in `all` mode, and will add an extra c
 
 RPC executing on the client can change network properties on the current object without triggering errors or network data
 
-## Filtering
+### Filtering
 
 You might not want to send the property value everytime it is modified. You can specify the following metadata together with `@:s` in order to perform some filtering:
 
@@ -174,7 +174,7 @@ You might not want to send the property value everytime it is modified. You can 
  - `@:condSend(cond)` only send if the cond is true. You can use `@:condSend(false)` to disable network sync for this property (but still keep it serializable - for instance for a server only value). You can also use `@:condSend(x > current)` to only send if the value `x` is greater than the last sent value for the current property. You can insert any expression here including calls.  
  - `@:notMutable` is used to disable proxy creation on a property (see below)
  
-## Proxys
+### Proxys
 
 In order to track changes inside a mutable value such as Array/Map/Vector/Structure, a proxy object will be used to wrap the value and make sure that all changes to it correctly set the mark bit.
 
