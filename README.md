@@ -70,6 +70,7 @@ The following types are supported:
   - Map&lt;K,V&gt; : stored as size+1 prefix, then (K,V) pairs (0 prefix = null)
   - Null&lt;T&gt; : stored as a byte 0 for null, 1 followed by T either
   - Serializable (any other serializable instance) : stored with __uid, then class id and data if if was not already serialized
+  - Strutures { field : T... } : optimized to store a bit field of not null values, then only defined fields values 
 
 ### Default values
 
@@ -82,4 +83,26 @@ class User implements hxbit.Serializable {
     var someOtherField : Array<Int> = []; 
 }
 ```
+
+### Versioning
+
+HxBit serialization is capable of performing versioning, by storing in serialized data the schema of each serialized class, then comparing it to the current schema when unserializing, making sure that data is not corrupted.
+
+In order to save some data with versioning, use the following:
+
+```haxe
+var s = new hxbit.Serializer();
+s.beginSave();
+// ... serialize your data...
+var bytes = s.endSave();
+```
+
+And in order to load versionned data, use:
+
+```haxe
+var s = new hxbit.Serializer();
+s.beginLoad(bytes);
+// .. unserializer your data
+```
+Versioned data is slightly larger than unversioned one since it contains the Schema data of each serialized class.
 
