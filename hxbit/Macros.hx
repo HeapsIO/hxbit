@@ -591,7 +591,12 @@ class Macros {
 				kind : FFun({
 					args : [],
 					ret : null,
-					expr : macro { var schema = ${if( isSubSer ) macro super.getSerializeSchema() else macro new hxbit.Schema()}; $b{schema}; return schema; }
+					expr : macro {
+						var schema = ${if( isSubSer ) macro super.getSerializeSchema() else macro new hxbit.Schema()};
+						$b{schema};
+						schema.isFinal = hxbit.Serializer.isClassFinal(__clid);
+						return schema;
+					}
 				})
 			});
 		}

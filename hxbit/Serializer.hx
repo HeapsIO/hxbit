@@ -44,6 +44,9 @@ class Convert {
 			ourMap.set(ourSchema.fieldsNames[i], ourSchema.fieldsTypes[i]);
 		read = [];
 
+		if( ourSchema.isFinal != schema.isFinal )
+			throw "TODO : handle final flag change";
+
 		var map = new Map();
 		for( i in 0...schema.fieldsNames.length ) {
 			var oldT = schema.fieldsTypes[i];
@@ -176,6 +179,10 @@ class Serializer {
 			if( CL_BYID[cid] != null ) throw "Conflicting CLID between " + Type.getClassName(CL_BYID[cid]) + " and " + Type.getClassName(cl[i]);
 			CL_BYID[cid] = cl[i];
 		}
+	}
+
+	public static function isClassFinal( index : Int ) {
+		return CLIDS[index] == 0;
 	}
 
 	public var refs : Map<Int,Serializable>;

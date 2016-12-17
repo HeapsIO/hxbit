@@ -26,7 +26,8 @@ typedef FieldType = Macros.PropTypeDesc<FieldType>;
 #if !macro
 class Schema implements Serializable {
 
-	public var checkSum(get,never) : Int;
+	public var checkSum(get, never) : Int;
+	@:s public var isFinal : Bool;
 	@:s @:notMutable public var fieldsNames : Array<String>;
 	@:s @:notMutable public var fieldsTypes : Array<FieldType>;
 
