@@ -441,7 +441,7 @@ class Serializer {
 		if( CLIDS[clidx] != 0 ) {
 			var realIdx = getCLID();
 			c = cast CL_BYID[realIdx];
-			if( convert != null ) clidx = untyped c.__clid; // real class convert
+			if( convert != null ) clidx = (c:Dynamic).__clid; // real class convert
 		}
 		var i : T = Type.createEmptyInstance(c);
 		if( newObjects != null ) newObjects.push(i);
@@ -456,9 +456,8 @@ class Serializer {
 	}
 
 	public inline function getKnownRef<T:Serializable>( c : Class<T> ) : T {
-		return getRef(c, untyped c.__clid);
+		return getRef(c, (c:Dynamic).__clid);
 	}
-
 
 	public function beginSave() {
 		begin();
