@@ -112,6 +112,7 @@ class Serializer {
 	public function setInput(data, pos) {
 		input = data;
 		inPos = pos;
+		if( refs == null ) refs = new Map();
 	}
 
 	public function serialize( s : Serializable ) {
