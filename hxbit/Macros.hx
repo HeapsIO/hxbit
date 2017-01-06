@@ -1367,7 +1367,13 @@ class Macros {
 			// define type
 			var name = "ObjProxy_";
 			fields.sort(function(f1, f2) return Reflect.compare(f1.name, f2.name));
-			name += [for( f in fields ) f.name+"_" + ~/[<>.]/g.replace(f.type.t.toString(),"_")].join("_");
+			inline function typeName(t:PropType) {
+				var str = t.t.toString();
+				if( StringTools.startsWith(str, "StdTypes.") )
+					str = str.substr(9);
+				return str;
+			}
+			name += [for( f in fields ) f.name+"_" + ~/[<>.]/g.replace(typeName(f.type),"_")].join("_");
 			try {
 				return Context.getType("hxbit." + name).toComplexType();
 			} catch( e : Dynamic ) {
