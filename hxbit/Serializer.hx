@@ -47,6 +47,14 @@ class Serializer {
 		return idx;
 	}
 
+	static inline function hash(name:String) {
+		var v = 1;
+		for( i in 0...name.length )
+			v = v * 223 + StringTools.fastCodeAt(name,i);
+		v = 1 + ((v & 0x3FFFFFFF) % 65423);
+		return v;
+	}
+
 	static function initClassIDS() {
 		var cl = CLASSES;
 		var subClasses = [for( c in cl ) []];
@@ -63,13 +71,6 @@ class Serializer {
 			}
 		}
 
-		inline function hash(name:String) {
-			var v = 1;
-			for( i in 0...name.length )
-				v = v * 223 + StringTools.fastCodeAt(name,i);
-			v = 1 + ((v & 0x3FFFFFFF) % 65423);
-			return v;
-		}
 		CLIDS = [for( i in 0...CLASSES.length ) if( subClasses[i].length == 0 && !isSub[i] ) 0 else hash(Type.getClassName(cl[i]))];
 		CL_BYID = [];
 		for( i in 0...CLIDS.length ) {

@@ -677,7 +677,7 @@ class Macros {
 				return Context.getType("hxbit.enumSer." + name);
 			} catch( _ : Dynamic ) {
 				var pos = Context.currentPos();
-				var cases = [], ucases = [];
+				var cases = [], ucases = [], schemaExprs = [];
 				if( e.names.length >= 256 )
 					Context.error("Too many constructors", pos);
 				for( f in e.names ) {
@@ -693,18 +693,20 @@ class Macros {
 							}
 						});
 
-						var evals = [];
+						var evals = [], etypes = [];
 						for( a in args ) {
 							var aname = "_" + a.name;
 							var at = haxe.macro.TypeTools.applyTypeParameters(a.t,e.params,tparams).toComplexType();
 							evals.push(macro var $aname : $at);
 							evals.push(macro hxbit.Macros.unserializeValue(ctx,$i{aname}));
+							etypes.push(macro { var v : $at; hxbit.Macros.getFieldType(v); });
 						}
 						evals.push({ expr : ECall({ expr : EConst(CIdent(c.name)), pos : pos },[for( a in args ) { expr : EConst(CIdent("_"+a.name)), pos : pos }]), pos : pos });
 						ucases.push({
 							values : [macro $v{c.index+1}],
 							expr : { expr : EBlock(evals), pos : pos },
 						});
+						schemaExprs.push(macro s.fieldsTypes.push(PObj([for( t in [$b{etypes}] ) { name : "", type : t, opt : false }])));
 
 					default:
 						cases.push({
@@ -715,7 +717,9 @@ class Macros {
 							values : [macro $v{c.index+1}],
 							expr : { expr : EConst(CIdent(c.name)), pos : pos },
 						});
+						schemaExprs.push(macro s.fieldsTypes.push(null));
 					}
+					schemaExprs.push(macro s.fieldsNames.push($v{f}));
 				}
 				var t : TypeDefinition = {
 					name : name,
@@ -746,6 +750,16 @@ class Macros {
 							ret : pt.toComplexType(),
 						}),
 
+					},{
+						name : "getSchema",
+						access : [AStatic, APublic],
+						meta : [{name:":keep",pos:pos}],
+						pos : pos,
+						kind : FFun( {
+							args : [],
+							expr : macro { var s = new Schema(); $b{schemaExprs}; return s; },
+							ret : macro : hxbit.Schema,
+						}),
 					},{
 						name : "serialize",
 						access : [AInline, APublic],
