@@ -517,12 +517,6 @@ class Serializer {
 		if( version != 1 )
 			throw "Unsupported HXS version " + version;
 
-		/*
-			TODO : one last thing not checked is the fact that we can save some data in addKnownRef
-			if the class has no subclass.
-			We need to save this status in our class schema and adapt if it gets changed.
-		*/
-
 		while( true ) {
 			var clname = getString();
 			if( clname == null ) break;
