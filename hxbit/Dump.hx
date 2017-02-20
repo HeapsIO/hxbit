@@ -93,7 +93,8 @@ class Dump extends Serializer {
 		for( i in 0...schema.fieldsNames.length ) {
 			var n = schema.fieldsNames[i];
 			var t = schema.fieldsTypes[i];
-			Reflect.setField(o, n, readValue(t));
+			var v : Dynamic = readValue(t);
+			Reflect.setField(o, n, v);
 		}
 	}
 
@@ -101,6 +102,14 @@ class Dump extends Serializer {
 		switch( t ) {
 		case PSerializable(name):
 			var c = hclasses.get(name);
+			if( c == null ) {
+				var cl : Class<Serializable> = cast Type.resolveClass(name);
+				if( cl == null )
+					throw("Could not find class " + name);
+				trace("*** Class " + name+" was not listed in schemas! ***");
+				c = { name : name, schema : Type.createEmptyInstance(cl).getSerializeSchema(), index : -1 };
+				hclasses.set(name, c);
+			}
 			return dumpRef(c.name,c.schema);
 		case PEnum(name):
 			var index = getByte();

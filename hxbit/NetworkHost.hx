@@ -238,6 +238,11 @@ class NetworkHost {
 		clients = [];
 		aliveEvents = [];
 		pendingClients = [];
+		resetState();
+	}
+
+	public function resetState() {
+		hxbit.Serializer.resetCounters();
 		ctx = new Serializer();
 		@:privateAccess ctx.newObjects = [];
 		ctx.begin();
