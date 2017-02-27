@@ -1383,6 +1383,7 @@ class Macros {
 			fields.sort(function(f1, f2) return Reflect.compare(f1.name, f2.name));
 			inline function typeName(t:PropType) {
 				var str = t.t.toString();
+				str = str.split("<StdTypes.").join("<");
 				if( StringTools.startsWith(str, "StdTypes.") )
 					str = str.substr(9);
 				return str;
@@ -1403,6 +1404,7 @@ class Macros {
 					@:noCompletion public function networkSetBit(_) mark();
 					@:noCompletion public function bindHost(obj, bit) { this.obj = obj; this.bit = bit; }
 					@:noCompletion public function unbindHost() this.obj = null;
+					@:noCompletion public function toString() return hxbit.NetworkSerializable.BaseProxy.objToString(this);
 				}).fields;
 				for( f in fields ) {
 					var ft = f.type.t;

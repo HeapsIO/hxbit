@@ -65,6 +65,15 @@ class BaseProxy implements ProxyHost implements ProxyChild {
 	public inline function unbindHost() {
 		this.obj = null;
 	}
+	public static function objToString(o:Dynamic) {
+		var fl = Reflect.fields(o);
+		fl.remove("obj");
+		fl.remove("bit");
+		for( f in fl.copy() )
+			if( StringTools.startsWith(f, "__ref_") || Reflect.field(o, f) == null )
+				fl.remove(f);
+		return "{" + [for( f in fl ) f + " : " + Reflect.field(o, f)].join(",") + "}";
+	}
 }
 
 abstract NetworkProperty(Int) {
