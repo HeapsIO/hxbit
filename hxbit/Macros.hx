@@ -54,6 +54,7 @@ enum RpcMode {
 
 enum PropTypeDesc<PropType> {
 	PInt;
+	PInt64;
 	PFloat;
 	PBool;
 	PString;
@@ -117,6 +118,7 @@ class Macros {
 
 	static function toFieldType( t : PropType ) : Schema.FieldType {
 		return switch( t.d ) {
+		case PInt64: PInt64;
 		case PInt: PInt;
 		case PFloat: PFloat;
 		case PBool: PBool;
@@ -192,6 +194,8 @@ class Macros {
 		var desc = switch( t ) {
 		case TAbstract(a, pl):
 			switch( a.toString() ) {
+			case "haxe.Int64":
+				PInt64;
 			case "Float":
 				PFloat;
 			case "Int","UInt":
@@ -321,6 +325,8 @@ class Macros {
 			return serializeExpr(ctx, { expr : EField(v, "__value"), pos : v.pos }, t, true);
 
 		switch( t.d ) {
+		case PInt64:
+			return macro $ctx.addInt64($v);
 		case PFloat:
 			return macro $ctx.addFloat($v);
 		case PInt:
@@ -397,6 +403,8 @@ class Macros {
 
 	static function unserializeExpr( ctx : Expr, v : Expr, t : PropType ) {
 		switch( t.d ) {
+		case PInt64:
+			return macro $v = $ctx.getInt64();
 		case PFloat:
 			return macro $v = $ctx.getFloat();
 		case PInt:

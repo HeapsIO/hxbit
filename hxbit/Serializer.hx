@@ -149,6 +149,10 @@ class Serializer {
 		out.addInt32(v);
 	}
 
+	public inline function addInt64(v:haxe.Int64) {
+		out.addInt64(v);
+	}
+
 	public inline function addFloat(v:Float) {
 		out.addFloat(v);
 	}
@@ -245,6 +249,12 @@ class Serializer {
 	public inline function getInt32() {
 		var v = input.getInt32(inPos);
 		inPos += 4;
+		return v;
+	}
+
+	public inline function getInt64() {
+		var v = input.getInt64(inPos);
+		inPos += 8;
 		return v;
 	}
 
@@ -633,6 +643,7 @@ class Serializer {
 
 	function readValue( t : Schema.FieldType ) : Dynamic {
 		return switch( t ) {
+		case PInt64: getInt64();
 		case PInt: getInt();
 		case PFloat: getFloat();
 		case PAlias(t): readValue(t);
@@ -678,6 +689,8 @@ class Serializer {
 
 	function writeValue( v : Dynamic, t : Schema.FieldType )  {
 		switch( t ) {
+		case PInt64:
+			addInt64(v);
 		case PInt:
 			addInt(v);
 		case PFloat:
