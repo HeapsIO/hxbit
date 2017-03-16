@@ -104,6 +104,7 @@ class Convert {
 
 	public static function getDefault(t:Schema.FieldType) : Dynamic {
 		return switch( t ) {
+		case PInt64: haxe.Int64.make(0, 0);
 		case PInt: 0;
 		case PFloat: 0.;
 		case PArray(_): [];
