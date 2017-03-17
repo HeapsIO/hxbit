@@ -54,7 +54,6 @@ enum RpcMode {
 
 enum PropTypeDesc<PropType> {
 	PInt;
-	PInt64;
 	PFloat;
 	PBool;
 	PString;
@@ -69,6 +68,7 @@ enum PropTypeDesc<PropType> {
 	PNull( t : PropType );
 	PUnknown;
 	PDynamic;
+	PInt64;
 }
 
 typedef PropType = {
