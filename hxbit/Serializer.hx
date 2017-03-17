@@ -653,9 +653,18 @@ class Serializer {
 		case PVector(t): getVector(function() return readValue(t));
 		case PBytes: getBytes();
 		case PEnum(name):
-			var ser = "hxbit.enumSer." + name.split(".").join("_");
-			if( ser == null ) throw "No enum unserializer found for " + name;
-			return (Type.resolveClass(ser) : Dynamic).doUnserialize(this);
+			var ser : Dynamic = Type.resolveClass("hxbit.enumSer." + name.split(".").join("_"));
+			if( ser == null ) {
+				var e = Type.resolveEnum(name);
+				// an old enum can be tagged with @skipSerialize in order to allow loading old content.
+				// but this will only work if the enum does not have any constructor parameters !
+				if( e != null && Reflect.hasField(haxe.rtti.Meta.getType(e), "skipSerialize") ) {
+					getInt();
+					return null;
+				}
+				throw "No enum unserializer found for " + name;
+			}
+			return ser.doUnserialize(this);
 		case PSerializable(name): getKnownRef(Type.resolveClass(name));
 		case PNull(t): getByte() == 0 ? null : readValue(t);
 		case PObj(fields):
