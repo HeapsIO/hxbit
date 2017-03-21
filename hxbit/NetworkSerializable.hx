@@ -45,10 +45,6 @@ interface NetworkSerializable extends Serializable extends ProxyHost {
 	public function networkGetName( propId : Int, isRPC : Bool = false ) : String;
 }
 
-@:genericBuild(hxbit.Macros.buildSerializableProxy())
-class Proxy<T> {
-}
-
 class BaseProxy implements ProxyHost implements ProxyChild {
 	public var obj : ProxyHost;
 	public var bit : Int;

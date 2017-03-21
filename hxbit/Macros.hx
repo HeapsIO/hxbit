@@ -848,7 +848,7 @@ class Macros {
 		if( !p.isProxy )
 			return p.t;
 		var pt = p.t;
-		return macro : hxbit.NetworkSerializable.Proxy<$pt>;
+		return macro : hxbit.Proxy<$pt>;
 	}
 
 
