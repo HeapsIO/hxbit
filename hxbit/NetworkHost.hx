@@ -105,8 +105,11 @@ class NetworkClient {
 				o.__host = null;
 				o.networkRPC(ctx, fid, this);
 				o.__host = old;
-			} else
+			} else {
+				host.rpcClientValue = this;
 				o.networkRPC(ctx, fid, this);
+				host.rpcClientValue = null;
+			}
 
 			if( host.checkEOM ) ctx.addByte(NetworkHost.EOM);
 
@@ -391,10 +394,11 @@ class NetworkHost {
 	}
 
 	public function defaultLogger( ?filter : String -> Bool ) {
+		var t0 = haxe.Timer.stamp();
 		setLogger(function(str) {
 			if( filter != null && !filter(str) ) return;
 			str = (isAuth ? "[S] " : "[C] ") + str;
-			str = haxe.Timer.stamp() + " " + str;
+			str = Std.int((haxe.Timer.stamp() - t0)*100)/100 + " " + str;
 			#if	sys Sys.println(str); #else trace(str); #end
 		});
 	}
@@ -541,11 +545,14 @@ class NetworkHost {
 		// update sendRate
 		var now = haxe.Timer.stamp();
 		var dt = now - lastSentTime;
-		if( dt < 0.5 )
+		if( dt < 1 )
 			return;
 		var db = totalSentBytes - lastSentBytes;
 		var rate = db / dt;
-		sendRate = (sendRate + rate) * 0.5; // smooth
+		if( sendRate == 0 || rate == 0 || rate / sendRate > 3 || sendRate / rate > 3 )
+			sendRate = rate;
+		else
+			sendRate = sendRate * 0.8 + rate * 0.2; // smooth
 		lastSentTime = now;
 		lastSentBytes = totalSentBytes;
 	}
