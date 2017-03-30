@@ -1017,7 +1017,7 @@ class Macros {
 
 			if( !Lambda.exists(fields, function(f) return f.name == "alive") )
 				fields = fields.concat((macro class {
-					public function alive() {}
+					public function alive() { enableReplication = true; }
 				}).fields);
 
 		}
