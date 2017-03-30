@@ -221,7 +221,6 @@ class NetworkHost {
 	var markHead : NetworkSerializable;
 	var ctx : Serializer;
 	var pendingClients : Array<NetworkClient>;
-	var clients : Array<NetworkClient>;
 	var logger : String -> Void;
 	var hasData = false;
 	var rpcUID = Std.random(0x1000000);
@@ -229,6 +228,7 @@ class NetworkHost {
 	var targetClient : NetworkClient;
 	var rpcClientValue : NetworkClient;
 	var aliveEvents : Array<Void->Void>;
+	public var clients : Array<NetworkClient>;
 	public var self(default,null) : NetworkClient;
 
 	public function new() {
@@ -239,6 +239,15 @@ class NetworkHost {
 		aliveEvents = [];
 		pendingClients = [];
 		resetState();
+	}
+
+	public function isConnected(owner) {
+		if( self.ownerObject == owner )
+			return true;
+		for( c in clients )
+			if( c.ownerObject == owner )
+				return true;
+		return false;
 	}
 
 	public function resetState() {
