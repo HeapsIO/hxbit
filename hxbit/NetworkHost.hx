@@ -132,6 +132,13 @@ class NetworkClient {
 			var msg = ctx.getBytes();
 			host.onMessage(this, msg);
 
+		case NetworkHost.CUSTOM:
+			host.onCustom(this, ctx.getInt(), null);
+
+		case NetworkHost.BCUSTOM:
+			var id = ctx.getInt();
+			host.onCustom(this, id, ctx.getBytes());
+
 		case x:
 			error("Unknown message code " + x);
 		}
@@ -202,6 +209,8 @@ class NetworkHost {
 	static inline var RPC_RESULT = 7;
 	static inline var MSG		 = 8;
 	static inline var BMSG		 = 9;
+	static inline var CUSTOM	 = 10;
+	static inline var BCUSTOM	 = 11;
 	static inline var EOM		 = 0xFF;
 
 	public var checkEOM(get, never) : Bool;
@@ -242,6 +251,10 @@ class NetworkHost {
 		aliveEvents = [];
 		pendingClients = [];
 		resetState();
+	}
+
+	public function dispose() {
+		if( current == this ) current = null;
 	}
 
 	public function isConnected(owner) {
@@ -302,6 +315,9 @@ class NetworkHost {
 	public dynamic function onMessage( from : NetworkClient, msg : Dynamic ) {
 	}
 
+	function onCustom( from : NetworkClient, id : Int, ?data : haxe.io.Bytes ) {
+	}
+
 	public function sendMessage( msg : Dynamic, ?to : NetworkClient ) {
 		flush();
 		targetClient = to;
@@ -312,6 +328,17 @@ class NetworkHost {
 			ctx.addByte(MSG);
 			ctx.addString(haxe.Serializer.run(msg));
 		}
+		if( checkEOM ) ctx.addByte(EOM);
+		doSend();
+		targetClient = null;
+	}
+
+	function sendCustom( id : Int, ?data : haxe.io.Bytes, ?to : NetworkClient ) {
+		flush();
+		targetClient = to;
+		ctx.addByte(data == null ? BCUSTOM : CUSTOM);
+		ctx.addInt(id);
+		if( data != null ) ctx.addBytes(data);
 		if( checkEOM ) ctx.addByte(EOM);
 		doSend();
 		targetClient = null;
