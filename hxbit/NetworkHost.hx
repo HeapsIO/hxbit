@@ -186,13 +186,10 @@ class NetworkClient {
 		var pos = 0;
 		while( pos < length ) {
 			var oldPos = pos;
-			if( pos > 0 ) trace("MSG@" + pos);
 			pos = processMessage(data, pos);
 			if( host.checkEOM ) {
-				if( data.get(pos) != NetworkHost.EOM ) {
-					trace(data.length, pos, oldPos, pos - oldPos, Std.int(Math.min(length - pos, 128)));
+				if( data.get(pos) != NetworkHost.EOM )
 					throw "Message missing EOM " + data.sub(oldPos, pos - oldPos).toHex() + "..." + (data.sub(pos, Std.int(Math.min(length - pos, 128))).toHex());
-				}
 				pos++;
 			}
 		}
