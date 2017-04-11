@@ -175,17 +175,27 @@ class NetworkClient {
 		var len = input.readBytes(pendingBuffer, pendingPos, messageLength - pendingPos);
 		pendingPos += len;
 		if( pendingPos == messageLength ) {
-			pendingPos = 0;
-			while( pendingPos < messageLength ) {
-				var oldPos = pendingPos;
-				pendingPos = processMessage(pendingBuffer, pendingPos);
-				if( host.checkEOM && pendingBuffer.get(pendingPos++) != NetworkHost.EOM )
-					throw "Message missing EOM " + pendingBuffer.sub(oldPos, pendingPos - oldPos).toHex()+"..."+(pendingBuffer.sub(pendingPos,Std.int(Math.min(messageLength-pendingPos,128))).toHex());
-			}
+			processMessagesData(pendingBuffer, messageLength);
 			messageLength = -1;
 			return true;
 		}
 		return false;
+	}
+
+	function processMessagesData( data : haxe.io.Bytes, length : Int ) {
+		var pos = 0;
+		while( pos < length ) {
+			var oldPos = pos;
+			if( pos > 0 ) trace("MSG@" + pos);
+			pos = processMessage(data, pos);
+			if( host.checkEOM ) {
+				if( data.get(pos) != NetworkHost.EOM ) {
+					trace(data.length, pos, oldPos, pos - oldPos, Std.int(Math.min(length - pos, 128)));
+					throw "Message missing EOM " + data.sub(oldPos, pos - oldPos).toHex() + "..." + (data.sub(pos, Std.int(Math.min(length - pos, 128))).toHex());
+				}
+				pos++;
+			}
+		}
 	}
 
 	public function stop() {
@@ -336,7 +346,7 @@ class NetworkHost {
 	function sendCustom( id : Int, ?data : haxe.io.Bytes, ?to : NetworkClient ) {
 		flush();
 		targetClient = to;
-		ctx.addByte(data == null ? BCUSTOM : CUSTOM);
+		ctx.addByte(data == null ? CUSTOM : BCUSTOM);
 		ctx.addInt(id);
 		if( data != null ) ctx.addBytes(data);
 		if( checkEOM ) ctx.addByte(EOM);
