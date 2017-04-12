@@ -691,6 +691,8 @@ class Serializer {
 			}
 		case PDynamic:
 			getDynamic();
+		case PFlags(_):
+			getInt();
 		case PUnknown:
 			throw "assert";
 		}
@@ -750,6 +752,8 @@ class Serializer {
 			addMap(v, function(v) writeValue(v, k), function(v) writeValue(v, t));
 		case PDynamic:
 			addDynamic(v);
+		case PFlags(_):
+			addInt(v);
 		case PUnknown:
 			throw "assert";
 		}

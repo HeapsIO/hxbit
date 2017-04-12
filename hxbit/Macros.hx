@@ -69,6 +69,7 @@ enum PropTypeDesc<PropType> {
 	PUnknown;
 	PDynamic;
 	PInt64;
+	PFlags( t : PropType );
 }
 
 typedef PropType = {
@@ -132,6 +133,7 @@ class Macros {
 		case PAlias(t): return toFieldType(t);
 		case PVector(k): PVector(toFieldType(k));
 		case PNull(t): PNull(toFieldType(t));
+		case PFlags(t): PFlags(toFieldType(t));
 		case PUnknown: PUnknown;
 		case PDynamic: PDynamic;
 		};
@@ -180,6 +182,11 @@ class Macros {
 				}
 			case ":condSend" if( m.params.length == 1 ):
 				t.condSend = m.params[0];
+				switch( t.condSend.expr ) {
+				case EConst(CIdent("false")):
+					t.notMutable = true;
+				default:
+				}
 			case ":notMutable":
 				t.notMutable = true;
 			default:
@@ -230,7 +237,16 @@ class Macros {
 				var v = getPropType(pl[1]);
 				if( k == null || v == null ) return null;
 				isProxy = true;
-				PMap(k,v);
+				PMap(k, v);
+			case "hxbit.EnumFlagsProxy":
+				var e = getPropType(pl[0]);
+				if( e == null ) return null;
+				isProxy = true;
+				PFlags(e);
+			case "haxe.EnumFlags":
+				var e = getPropType(pl[0]);
+				if( e == null ) return null;
+				PFlags(e);
 			case name:
 				var t2 = Context.followWithAbstracts(t, true);
 				switch( t2 ) {
@@ -396,6 +412,8 @@ class Macros {
 			return macro if( $v == null ) $ctx.addByte(0) else { $ctx.addByte(1); $e; };
 		case PDynamic:
 			return macro $ctx.addDynamic($v);
+		case PFlags(t):
+			return serializeExpr(ctx, { expr : ECast(v, null), pos : v.pos }, { t : macro : Int, d : PInt });
 		case PUnknown:
 			throw "assert";
 		}
@@ -502,6 +520,12 @@ class Macros {
 			return macro if( $ctx.getByte() == 0 ) $v = null else $e;
 		case PDynamic:
 			return macro $v = $ctx.getDynamic();
+		case PFlags(_):
+			return macro {
+				var v : Int;
+				${unserializeExpr(ctx,macro v,{ t : macro : Int, d : PInt })};
+				$v = new hxbit.EnumFlagsProxy(v);
+			};
 		case PUnknown:
 			throw "assert";
 		}
@@ -830,7 +854,7 @@ class Macros {
 		if( t == null || t.isProxy )
 			return false;
 		switch( t.d ) {
-		case PMap(_), PArray(_), PObj(_), PVector(_):
+		case PMap(_), PArray(_), PObj(_), PVector(_), PFlags(_):
 			return !t.notMutable;
 		default:
 			return false;
@@ -1025,6 +1049,7 @@ class Macros {
 		var firstFID = startFID;
 		var flushExpr = [];
 		var syncExpr = [];
+		var initExpr = [];
 		var noComplete : Metadata = [ { name : ":noCompletion", pos : pos } ];
 		for( f in toSerialize ) {
 			var pos = f.f.pos;
@@ -1039,6 +1064,16 @@ class Macros {
 				ftype = getPropField(tt, f.f.meta);
 				if( ftype == null ) ftype = { t : t, d : PUnknown };
 				checkProxy(ftype);
+				if( ftype.isProxy ) {
+					switch( ftype.d ) {
+					case PFlags(_) if( e == null ): e = macro new hxbit.EnumFlagsProxy(0);
+					default:
+					}
+					if( e != null ) {
+						initExpr.push(macro this.$fname = $e);
+						e = null;
+					}
+				}
 				f.f.kind = FProp("default", "set", ftype.t, e);
 			case FProp(get, set, t, e):
 				if( t == null ) t = quickInferType(e);
@@ -1051,6 +1086,16 @@ class Macros {
 					Context.warning("Null setter is not respected when using NetworkSerializable", pos);
 				else if( set != "default" && set != "set" )
 					Context.error("Invalid setter", pos);
+				if( ftype.isProxy ) {
+					switch( ftype.d ) {
+					case PFlags(_) if( e == null ): e = macro new hxbit.EnumFlagsProxy(0);
+					default:
+					}
+					if( e != null ) {
+						initExpr.push(e);
+						e = null;
+					}
+				}
 				f.f.kind = FProp(get,"set", ftype.t, e);
 			default:
 				throw "assert";
@@ -1286,6 +1331,48 @@ class Macros {
 			});
 		}
 
+		if( initExpr.length != 0 || !isSubSer ) {
+			if( isSubSer )
+				initExpr.unshift(macro super.networkInitProxys());
+			else {
+				// inject in new
+				var found = false;
+				for( f in fields )
+					if( f.name == "new" ) {
+						switch( f.kind ) {
+						case FFun(f):
+							switch( f.expr.expr ) {
+							case EBlock(b): b.unshift(macro networkInitProxys());
+							default: f.expr = macro { networkInitProxys(); ${f.expr}; };
+							}
+							found = true;
+							break;
+						default: throw "assert";
+						}
+					}
+				if( !found ) {
+					// create a constructor
+					fields.push((macro class {
+						function new() {
+							networkInitProxys();
+						}
+					}).fields[0]);
+				}
+			}
+			fields.push({
+				name : "networkInitProxys",
+				pos : pos,
+				access : access,
+				meta : noComplete,
+				kind : FFun({
+					args : [],
+					ret : null,
+					expr : macro @:privateAccess $b{initExpr},
+				}),
+			});
+
+		}
+
 		if( rpc.length != 0 || !isSubSer ) {
 			var swExpr = { expr : ESwitch( { expr : EConst(CIdent("__id")), pos : pos }, rpcCases, macro throw "Unknown RPC identifier " + __id), pos : pos };
 			fields.push({
@@ -1461,6 +1548,8 @@ class Macros {
 				Context.defineType(t);
 				return TPath({ pack : ["hxbit"], name : name });
 			}
+		case PFlags(e):
+			return TPath( { pack : ["hxbit"], name : "EnumFlagsProxy", params : [TPType(e.t)] } );
 		default:
 		}
 		return null;

@@ -306,8 +306,8 @@ class NetworkHost {
 	function mark(o:NetworkSerializable) {
 		if( !isAuth ) {
 			var owner = o.networkGetOwner();
-			if( owner == null || clients[0].ownerObject != owner )
-				throw "Client can't set property on " + o + " without ownership ("+owner + " should be "+clients[0].ownerObject+")";
+			if( owner == null || self.ownerObject != owner )
+				throw "Client can't set property on " + o + " without ownership ("+owner + " should be "+self.ownerObject+")";
 			// allow to modify the property localy and send it to server
 		}
 		o.__next = markHead;

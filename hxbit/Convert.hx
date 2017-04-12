@@ -97,6 +97,10 @@ class Convert {
 			return sameType(a, b);
 		case [_, PAlias(b)]:
 			return sameType(a, b);
+		case [PInt, PFlags(_)]:
+			return true;
+		case [PFlags(_), PInt]:
+			return true;
 		default:
 			return Type.enumEq(a, b);
 		}
@@ -105,7 +109,7 @@ class Convert {
 	public static function getDefault(t:Schema.FieldType) : Dynamic {
 		return switch( t ) {
 		case PInt64: haxe.Int64.make(0, 0);
-		case PInt: 0;
+		case PInt, PFlags(_): 0;
 		case PFloat: 0.;
 		case PArray(_): [];
 		case PMap(k, _):
