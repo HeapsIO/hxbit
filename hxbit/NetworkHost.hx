@@ -63,7 +63,6 @@ class NetworkClient {
 			o.__bits = old;
 		case NetworkHost.REG:
 			var o : hxbit.NetworkSerializable = cast ctx.getAnyRef();
-			o.__host = host;
 			host.makeAlive();
 		case NetworkHost.UNREG:
 			var o : hxbit.NetworkSerializable = cast ctx.refs[ctx.getInt()];
@@ -449,18 +448,23 @@ class NetworkHost {
 		return o1.__uid - o2.__uid;
 	}
 
+	static function sortByUIDDesc(o1:Serializable, o2:Serializable) {
+		return o2.__uid - o1.__uid;
+	}
+
 	public function makeAlive() {
 		var objs = @:privateAccess ctx.newObjects;
 		if( objs.length == 0 )
 			return;
-		objs.sort(sortByUID);
+		objs.sort(sortByUIDDesc);
 		while( true ) {
-			var o = objs.shift();
+			var o = objs.pop();
 			if( o == null ) break;
 			var n = Std.instance(o, NetworkSerializable);
 			if( n == null ) continue;
 			if( logger != null )
 				logger("Alive " + n +"#" + n.__uid);
+			n.__host = this;
 			n.alive();
 		}
 		while( aliveEvents.length > 0 )
