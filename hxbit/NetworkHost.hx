@@ -88,7 +88,7 @@ class NetworkClient {
 				o.__host = null;
 				o.networkRPC(ctx, fid, this);
 				o.__host = old;
-			} else {
+			} else if( o != null ) {
 				host.rpcClientValue = this;
 				o.networkRPC(ctx, fid, this);
 				host.rpcClientValue = null;
@@ -104,6 +104,9 @@ class NetworkClient {
 				o.__host = null;
 				o.networkRPC(ctx, fid, this);
 				o.__host = old;
+			} else if( o == null ) {
+				ctx.addByte(NetworkHost.CANCEL_RPC);
+				ctx.addInt(resultID);
 			} else {
 				host.rpcClientValue = this;
 				o.networkRPC(ctx, fid, this);
@@ -122,6 +125,11 @@ class NetworkClient {
 			var callb = host.rpcWaits.get(resultID);
 			host.rpcWaits.remove(resultID);
 			callb(ctx);
+
+		case NetworkHost.CANCEL_RPC:
+
+			var resultID = ctx.getInt();
+			host.rpcWaits.remove(resultID);
 
 		case NetworkHost.MSG:
 			var msg = haxe.Unserializer.run(ctx.getString());
@@ -217,6 +225,7 @@ class NetworkHost {
 	static inline var BMSG		 = 9;
 	static inline var CUSTOM	 = 10;
 	static inline var BCUSTOM	 = 11;
+	static inline var CANCEL_RPC = 12;
 	static inline var EOM		 = 0xFF;
 
 	public var checkEOM(get, never) : Bool;
