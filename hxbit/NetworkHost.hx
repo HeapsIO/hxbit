@@ -82,13 +82,18 @@ class NetworkClient {
 			host.makeAlive();
 		case NetworkHost.RPC:
 			var o : hxbit.NetworkSerializable = cast ctx.refs[ctx.getInt()];
+			var size = ctx.getInt32();
 			var fid = ctx.getByte();
 			if( !host.isAuth ) {
 				var old = o.__host;
 				o.__host = null;
 				o.networkRPC(ctx, fid, this);
 				o.__host = old;
-			} else if( o != null ) {
+			} else if( o == null ) {
+				if( size < 0 )
+					throw "RPC on unreferenced object cannot be skip on this platform";
+				ctx.skip(size);
+			} else {
 				host.rpcClientValue = this;
 				o.networkRPC(ctx, fid, this);
 				host.rpcClientValue = null;
@@ -98,6 +103,7 @@ class NetworkClient {
 			var old = resultID;
 			resultID = ctx.getInt();
 			var o : hxbit.NetworkSerializable = cast ctx.refs[ctx.getInt()];
+			var size = ctx.getInt32();
 			var fid = ctx.getByte();
 			if( !host.isAuth ) {
 				var old = o.__host;
@@ -105,6 +111,9 @@ class NetworkClient {
 				o.networkRPC(ctx, fid, this);
 				o.__host = old;
 			} else if( o == null ) {
+				if( size < 0 )
+					throw "RPC on unreferenced object cannot be skip on this platform";
+				ctx.skip(size);
 				ctx.addByte(NetworkHost.CANCEL_RPC);
 				ctx.addInt(resultID);
 			} else {
@@ -255,6 +264,7 @@ class NetworkHost {
 	var targetClient : NetworkClient;
 	var rpcClientValue : NetworkClient;
 	var aliveEvents : Array<Void->Void>;
+	var rpcPosition : Int;
 	public var clients : Array<NetworkClient>;
 	public var self(default,null) : NetworkClient;
 
@@ -390,13 +400,20 @@ class NetworkHost {
 		} else
 			ctx.addByte(RPC);
 		ctx.addInt(o.__uid);
+		#if hl
+		rpcPosition = @:privateAccess ctx.out.pos;
+		#end
+		ctx.addInt32(-1);
 		ctx.addByte(id);
 		if( logger != null )
 			logger("RPC " + o +"."+o.networkGetName(id,true)+"()");
 		return ctx;
 	}
 
-	inline function endRPC() {
+	function endRPC() {
+		#if hl
+		@:privateAccess ctx.out.b.setI32(rpcPosition, ctx.out.pos - (rpcPosition + 5));
+		#end
 		if( checkEOM ) ctx.addByte(EOM);
 	}
 

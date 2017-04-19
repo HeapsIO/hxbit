@@ -246,6 +246,10 @@ class Serializer {
 		return v;
 	}
 
+	public inline function skip(size) {
+		inPos += size;
+	}
+
 	public inline function getInt32() {
 		var v = input.getInt32(inPos);
 		inPos += 4;
