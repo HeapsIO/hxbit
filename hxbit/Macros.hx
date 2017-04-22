@@ -741,6 +741,7 @@ class Macros {
 						schemaExprs.push(macro s.fieldsTypes.push(PObj([for( t in [$b{etypes}] ) { name : "", type : t, opt : false }])));
 
 					default:
+						if( c.name == "_" ) Context.error("Invalid enum constructor", c.pos);
 						cases.push({
 							values : [ { expr : EConst(CIdent(c.name)), pos : pos } ],
 							expr : macro ctx.addByte($v{c.index+1}),
