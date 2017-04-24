@@ -86,6 +86,13 @@ class Serializer {
 	}
 
 	public var refs : Map<Int,Serializable>;
+
+	/**
+		Set this before serializing in order to reaffect object ids starting UID
+	**/
+	public var remapIds(get, set) : Bool;
+
+	var remapObjs : Map<Serializable,Int>;
 	var newObjects : Array<Serializable>;
 	var out : haxe.io.BytesBuffer;
 	var input : haxe.io.Bytes;
@@ -96,6 +103,19 @@ class Serializer {
 
 	public function new() {
 		if( CLIDS == null ) initClassIDS();
+	}
+
+	function set_remapIds(b) {
+		remapObjs = b ? new Map() : null;
+		return b;
+	}
+
+	inline function get_remapIds() return remapObjs != null;
+
+	function remap( s : Serializable ) {
+		if( remapObjs.exists(s) ) return;
+		remapObjs.set(s, s.__uid);
+		s.__uid = allocUID();
 	}
 
 	public function begin() {
@@ -399,6 +419,7 @@ class Serializer {
 			addByte(0);
 			return;
 		}
+		if( remapIds ) remap(s);
 		addInt(s.__uid);
 		if( refs[s.__uid] != null )
 			return;
@@ -414,6 +435,7 @@ class Serializer {
 			addByte(0);
 			return;
 		}
+		if( remapIds ) remap(s);
 		addInt(s.__uid);
 		if( refs[s.__uid] != null )
 			return;
