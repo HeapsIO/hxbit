@@ -76,6 +76,15 @@ class Convert {
 		}
 	}
 
+	function toString() {
+		return [for( i in 0...write.length ) {
+			var w = write[i];
+			if( w.from == null ) "insert:"+w.defaultValue else
+			if( w.same ) i == w.index ? "s" : "@" + w.index else
+			"@" + w.index + ":" + w.to;
+		}].toString();
+	}
+
 	public static function sameType( a : Schema.FieldType, b : Schema.FieldType ) {
 		switch( [a, b] ) {
 		case [PMap(ak, av), PMap(bk, bv)]:

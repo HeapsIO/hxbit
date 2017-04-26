@@ -694,7 +694,7 @@ class Serializer {
 		case PSerializable(name): getKnownRef(Type.resolveClass(name));
 		case PNull(t): getByte() == 0 ? null : readValue(t);
 		case PObj(fields):
-			var bits = getByte();
+			var bits = getInt();
 			if( bits == 0 )
 				return null;
 			var o = {};
@@ -766,7 +766,7 @@ class Serializer {
 				for( i in 0...nullables.length )
 					if( Reflect.field(v, nullables[i].name) != null )
 						fbits |= 1 << i;
-				addByte(fbits + 1);
+				addInt(fbits + 1);
 				for( f in fields ) {
 					var nidx = nullables.indexOf(f);
 					var name = f.name;
