@@ -283,6 +283,18 @@ class Macros {
 				PArray(at);
 			case "haxe.io.Bytes":
 				PBytes;
+			case "haxe.ds.IntMap":
+				var tk = getPropType(toType(macro : Int));
+				var tv = getPropType(pl[0]);
+				if( tv == null )
+					return null;
+				PMap(tk, tv);
+			case "haxe.ds.StringMap":
+				var tk = getPropType(toType(macro : String));
+				var tv = getPropType(pl[0]);
+				if( tv == null )
+					return null;
+				PMap(tk, tv);
 			case name if( StringTools.startsWith(name, "hxbit.ObjProxy_") ):
 				var fields = c.get().fields.get();
 				for( f in fields )
@@ -511,9 +523,9 @@ class Macros {
 		case PAlias(at):
 			var cvt = at.t;
 			return macro {
-				var v : $cvt;
-				${unserializeExpr(ctx,macro v,at)};
-				$v = cast v;
+				var val : $cvt;
+				${unserializeExpr(ctx,macro val,at)};
+				$v = cast val;
 			};
 		case PNull(t):
 			var e = unserializeExpr(ctx, v, t);
