@@ -281,6 +281,14 @@ class Macros {
 				var at = getPropType(pl[0]);
 				if( at == null ) return null;
 				PArray(at);
+			case "haxe.ds.IntMap":
+				var vt = getPropType(pl[0]);
+				if( vt == null ) return null;
+				PMap({ t : macro : Int, d : PInt }, vt);
+			case "haxe.ds.StringMap":
+				var vt = getPropType(pl[0]);
+				if( vt == null ) return null;
+				PMap({ t : macro : String, d : PString }, vt);
 			case "haxe.io.Bytes":
 				PBytes;
 			case name if( StringTools.startsWith(name, "hxbit.ObjProxy_") ):
