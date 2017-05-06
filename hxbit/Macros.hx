@@ -96,14 +96,14 @@ class Macros {
 		return serializeExpr(ctx, v, pt);
 	}
 
-	public static macro function unserializeValue( ctx : Expr, v : Expr ) : Expr {
+	public static macro function unserializeValue( ctx : Expr, v : Expr, depth : Int = 0 ) : Expr {
 		var t = Context.typeof(v);
 		var pt = getPropType(t);
 		if( pt == null ) {
 			return macro { };
 		}
 		IN_ENUM_SER = StringTools.startsWith(Context.getLocalClass().toString(), "hxbit.enumSer.");
-		return unserializeExpr(ctx, v, pt);
+		return unserializeExpr(ctx, v, pt, depth);
 	}
 
 	public static macro function getFieldType( v : Expr ) {
@@ -419,7 +419,7 @@ class Macros {
 		}
 	}
 
-	static function unserializeExpr( ctx : Expr, v : Expr, t : PropType ) {
+	static function unserializeExpr( ctx : Expr, v : Expr, t : PropType, depth : Int ) {
 		switch( t.d ) {
 		case PInt64:
 			return macro $v = $ctx.getInt64();
@@ -434,12 +434,14 @@ class Macros {
 		case PMap(k,t):
 			var kt = k.t;
 			var vt = t.t;
-			var vk = { expr : EConst(CIdent("k")), pos : v.pos };
-			var vv = { expr : EConst(CIdent("v")), pos : v.pos };
+			var kname = "k" + depth;
+			var vname = "v" + depth;
+			var vk = { expr : EConst(CIdent(kname)), pos : v.pos };
+			var vv = { expr : EConst(CIdent(vname)), pos : v.pos };
 			return macro {
-				var k : $kt;
-				var v : $vt;
-				$v = $ctx.getMap(function() { hxbit.Macros.unserializeValue($ctx, $vk); return $vk; }, function() { hxbit.Macros.unserializeValue($ctx, $vv); return $vv; });
+				var $kname : $kt;
+				var $vname : $vt;
+				$v = $ctx.getMap(function() { hxbit.Macros.unserializeValue($ctx, $vk, $v{depth + 1}); return $vk; }, function() { hxbit.Macros.unserializeValue($ctx, $vv, $v{depth+1}); return $vv; });
 			};
 		case PEnum(_):
 			var et = t.t;
@@ -468,10 +470,10 @@ class Macros {
 							vars.push( { field : name, expr : { expr : EConst(CIdent(name)), pos:v.pos } } );
 							if( nidx < 0 ) {
 								exprs.unshift(macro var $name : $ct);
-								exprs.push(macro hxbit.Macros.unserializeValue($ctx, $i { name } ));
+								exprs.push(macro hxbit.Macros.unserializeValue($ctx, $i{name}, $v{depth+1}));
 							} else {
 								exprs.unshift(macro var $name : $ct = null);
-								exprs.push(macro if( fbits & $v { 1 << nidx } != 0 ) hxbit.Macros.unserializeValue($ctx, $i { name } ));
+								exprs.push(macro if( fbits & $v { 1 << nidx } != 0 ) hxbit.Macros.unserializeValue($ctx, $i{name}, $v{depth+1}));
 							}
 						}
 						exprs.push( { expr : EBinop(OpAssign,v, { expr : EObjectDecl(vars), pos:v.pos } ), pos:v.pos } );
@@ -484,16 +486,18 @@ class Macros {
 		case PArray(at):
 			var at = toProxy(at);
 			var ve = { expr : EConst(CIdent("e")), pos : v.pos };
+			var ename = "e" + depth;
 			return macro {
-				var e : $at;
-				$v = $ctx.getArray(function() { hxbit.Macros.unserializeValue($ctx, e); return e; });
+				var $ename : $at;
+				$v = $ctx.getArray(function() { hxbit.Macros.unserializeValue($ctx, $i{ename}, $v{depth+1}); return $i{ename}; });
 			};
 		case PVector(at):
 			var at = toProxy(at);
 			var ve = { expr : EConst(CIdent("e")), pos : v.pos };
+			var ename = "e" + depth;
 			return macro {
-				var e : $at;
-				$v = $ctx.getVector(function() { hxbit.Macros.unserializeValue($ctx, e); return e; });
+				var $ename : $at;
+				$v = $ctx.getVector(function() { hxbit.Macros.unserializeValue($ctx, $i{ename}, $v{depth+1}); return $i{ename}; });
 			};
 		case PSerializable(_):
 			function loop(t:ComplexType) {
@@ -510,20 +514,21 @@ class Macros {
 			return macro $v = $ctx.getRef($cexpr,@:privateAccess $cexpr.__clid);
 		case PAlias(at):
 			var cvt = at.t;
+			var vname = "v" + depth;
 			return macro {
-				var v : $cvt;
-				${unserializeExpr(ctx,macro v,at)};
-				$v = cast v;
+				var $vname : $cvt;
+				${unserializeExpr(ctx,macro $i{vname},at,depth+1)};
+				$v = cast $i{vname};
 			};
 		case PNull(t):
-			var e = unserializeExpr(ctx, v, t);
+			var e = unserializeExpr(ctx, v, t, depth);
 			return macro if( $ctx.getByte() == 0 ) $v = null else $e;
 		case PDynamic:
 			return macro $v = $ctx.getDynamic();
 		case PFlags(_):
 			return macro {
 				var v : Int;
-				${unserializeExpr(ctx,macro v,{ t : macro : Int, d : PInt })};
+				${unserializeExpr(ctx,macro v,{ t : macro : Int, d : PInt },depth + 1)};
 				$v = new hxbit.EnumFlagsProxy(v);
 			};
 		case PUnknown:
