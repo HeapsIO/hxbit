@@ -331,7 +331,7 @@ class Macros {
 	}
 
 	static function isNullable( t : PropType ) {
-		switch( t.d ) {
+		switch( toFieldType(t) ) {
 		case PInt, PFloat, PBool:
 			return false;
 		default:
