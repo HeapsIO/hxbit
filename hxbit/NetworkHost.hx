@@ -283,12 +283,16 @@ class NetworkHost {
 	}
 
 	public function isConnected(owner) {
+		return resolveClient(owner) != null;
+	}
+
+	public function resolveClient(owner) {
 		if( self.ownerObject == owner )
-			return true;
+			return self;
 		for( c in clients )
 			if( c.ownerObject == owner )
-				return true;
-		return false;
+				return c;
+		return null;
 	}
 
 	public function resetState() {
