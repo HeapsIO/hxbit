@@ -349,6 +349,7 @@ class NetworkHost {
 
 	public function sendMessage( msg : Dynamic, ?to : NetworkClient ) {
 		flush();
+		var prev = targetClient;
 		targetClient = to;
 		if( Std.is(msg, haxe.io.Bytes) ) {
 			ctx.addByte(BMSG);
@@ -359,18 +360,19 @@ class NetworkHost {
 		}
 		if( checkEOM ) ctx.addByte(EOM);
 		doSend();
-		targetClient = null;
+		targetClient = prev;
 	}
 
 	function sendCustom( id : Int, ?data : haxe.io.Bytes, ?to : NetworkClient ) {
 		flush();
+		var prev = targetClient;
 		targetClient = to;
 		ctx.addByte(data == null ? CUSTOM : BCUSTOM);
 		ctx.addInt(id);
 		if( data != null ) ctx.addBytes(data);
 		if( checkEOM ) ctx.addByte(EOM);
 		doSend();
-		targetClient = null;
+		targetClient = prev;
 	}
 
 	function setTargetOwner( owner : NetworkSerializable ) {
@@ -605,6 +607,16 @@ class NetworkHost {
 			o = n;
 		}
 		markHead = null;
+	}
+
+	function isCustomMessage( bytes : haxe.io.Bytes, id : Int ) {
+		if( bytes.length < 2 )
+			return false;
+		ctx.setInput(bytes, 0);
+		var k = ctx.getByte();
+		if( k != CUSTOM && k != BCUSTOM )
+			return false;
+		return ctx.getInt() == id;
 	}
 
 	public function flush() {
