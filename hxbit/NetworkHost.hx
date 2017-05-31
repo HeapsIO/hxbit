@@ -84,15 +84,15 @@ class NetworkClient {
 			var o : hxbit.NetworkSerializable = cast ctx.refs[ctx.getInt()];
 			var size = ctx.getInt32();
 			var fid = ctx.getByte();
-			if( !host.isAuth ) {
+			if( o == null ) {
+				if( size < 0 )
+					throw "RPC on unreferenced object cannot be skip on this platform";
+				ctx.skip(size);
+			} else if( !host.isAuth ) {
 				var old = o.__host;
 				o.__host = null;
 				o.networkRPC(ctx, fid, this);
 				o.__host = old;
-			} else if( o == null ) {
-				if( size < 0 )
-					throw "RPC on unreferenced object cannot be skip on this platform";
-				ctx.skip(size);
 			} else {
 				host.rpcClientValue = this;
 				o.networkRPC(ctx, fid, this);
@@ -105,17 +105,17 @@ class NetworkClient {
 			var o : hxbit.NetworkSerializable = cast ctx.refs[ctx.getInt()];
 			var size = ctx.getInt32();
 			var fid = ctx.getByte();
-			if( !host.isAuth ) {
-				var old = o.__host;
-				o.__host = null;
-				o.networkRPC(ctx, fid, this);
-				o.__host = old;
-			} else if( o == null ) {
+			if( o == null ) {
 				if( size < 0 )
 					throw "RPC on unreferenced object cannot be skip on this platform";
 				ctx.skip(size);
 				ctx.addByte(NetworkHost.CANCEL_RPC);
 				ctx.addInt(resultID);
+			} else if( !host.isAuth ) {
+				var old = o.__host;
+				o.__host = null;
+				o.networkRPC(ctx, fid, this);
+				o.__host = old;
 			} else {
 				host.rpcClientValue = this;
 				o.networkRPC(ctx, fid, this);
