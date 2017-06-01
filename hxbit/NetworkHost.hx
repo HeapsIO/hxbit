@@ -54,7 +54,12 @@ class NetworkClient {
 		var mid = ctx.getByte();
 		switch( mid ) {
 		case NetworkHost.SYNC:
-			var o : hxbit.NetworkSerializable = cast ctx.refs[ctx.getInt()];
+			var oid = ctx.getInt();
+			var o : hxbit.NetworkSerializable = cast ctx.refs[oid];
+			if( o == null ) {
+				host.logError("Could not sync object", oid);
+				return bytes.length; // discard whole data, might skip some other things
+			}
 			var old = o.__bits;
 			var oldH = o.__host;
 			o.__host = null;
@@ -65,9 +70,14 @@ class NetworkClient {
 			var o : hxbit.NetworkSerializable = cast ctx.getAnyRef();
 			host.makeAlive();
 		case NetworkHost.UNREG:
-			var o : hxbit.NetworkSerializable = cast ctx.refs[ctx.getInt()];
-			o.__host = null;
-			ctx.refs.remove(o.__uid);
+			var oid = ctx.getInt();
+			var o : hxbit.NetworkSerializable = cast ctx.refs[oid];
+			if( o == null ) {
+				host.logError("Could not unregister object", oid);
+			} else {
+				o.__host = null;
+				ctx.refs.remove(o.__uid);
+			}
 		case NetworkHost.FULLSYNC:
 			ctx.refs = new Map();
 			@:privateAccess {
@@ -81,12 +91,14 @@ class NetworkClient {
 			}
 			host.makeAlive();
 		case NetworkHost.RPC:
-			var o : hxbit.NetworkSerializable = cast ctx.refs[ctx.getInt()];
+			var oid = ctx.getInt();
+			var o : hxbit.NetworkSerializable = cast ctx.refs[oid];
 			var size = ctx.getInt32();
 			var fid = ctx.getByte();
 			if( o == null ) {
 				if( size < 0 )
 					throw "RPC on unreferenced object cannot be skip on this platform";
+				host.logError("RPC @" + fid + " on unreferenced object", oid);
 				ctx.skip(size);
 			} else if( !host.isAuth ) {
 				var old = o.__host;
@@ -102,12 +114,14 @@ class NetworkClient {
 
 			var old = resultID;
 			resultID = ctx.getInt();
-			var o : hxbit.NetworkSerializable = cast ctx.refs[ctx.getInt()];
+			var oid = ctx.getInt();
+			var o : hxbit.NetworkSerializable = cast ctx.refs[oid];
 			var size = ctx.getInt32();
 			var fid = ctx.getByte();
 			if( o == null ) {
 				if( size < 0 )
 					throw "RPC on unreferenced object cannot be skip on this platform";
+				host.logError("RPC @" + fid + " on unreferenced object", oid);
 				ctx.skip(size);
 				ctx.addByte(NetworkHost.CANCEL_RPC);
 				ctx.addInt(resultID);
@@ -168,7 +182,6 @@ class NetworkClient {
 			host.logger("RPC RESULT #" + resultID);
 
 		var ctx = host.ctx;
-		host.hasData = true;
 		host.targetClient = this;
 		ctx.addByte(NetworkHost.RPC_RESULT);
 		ctx.addInt(resultID);
@@ -191,15 +204,14 @@ class NetworkClient {
 		var len = input.readBytes(pendingBuffer, pendingPos, messageLength - pendingPos);
 		pendingPos += len;
 		if( pendingPos == messageLength ) {
-			processMessagesData(pendingBuffer, messageLength);
+			processMessagesData(pendingBuffer, 0, messageLength);
 			messageLength = -1;
 			return true;
 		}
 		return false;
 	}
 
-	function processMessagesData( data : haxe.io.Bytes, length : Int ) {
-		var pos = 0;
+	function processMessagesData( data : haxe.io.Bytes, pos : Int, length : Int ) {
 		while( pos < length ) {
 			var oldPos = pos;
 			pos = processMessage(data, pos);
@@ -258,7 +270,6 @@ class NetworkHost {
 	var ctx : Serializer;
 	var pendingClients : Array<NetworkClient>;
 	var logger : String -> Void;
-	var hasData = false;
 	var rpcUID = Std.random(0x1000000);
 	var rpcWaits = new Map<Int,Serializer->Void>();
 	var targetClient : NetworkClient;
@@ -341,6 +352,10 @@ class NetworkHost {
 		return rpcClientValue == null ? self : rpcClientValue;
 	}
 
+	public dynamic function logError( msg : String, ?objectId : Int ) {
+		throw msg + (objectId == null ? "":  "(" + objectId + ")");
+	}
+
 	public dynamic function onMessage( from : NetworkClient, msg : Dynamic ) {
 	}
 
@@ -395,7 +410,6 @@ class NetworkHost {
 
 	function beginRPC(o:NetworkSerializable, id:Int, onResult:Serializer->Void) {
 		flushProps();
-		hasData = true;
 		if( ctx.refs[o.__uid] == null )
 			throw "Can't call RPC on an object not previously transferred";
 		if( onResult != null ) {
@@ -509,8 +523,11 @@ class NetworkHost {
 
 	function register( o : NetworkSerializable ) {
 		o.__host = this;
-		if( ctx.refs[o.__uid] != null )
+		var o2 = ctx.refs[o.__uid];
+		if( o2 != null ) {
+			if( o2 != (o:Serializable) ) logError("Register conflict between objects " + o + " and " + o2, o.__uid);
 			return;
+		}
 		if( !isAuth ) {
 			var owner = o.networkGetOwner();
 			if( owner == null || owner != self.ownerObject )
@@ -566,7 +583,6 @@ class NetworkHost {
 			ctx.out = new haxe.io.BytesBuffer();
 		}
 		send(bytes);
-		hasData = false;
 	}
 
 	function send( bytes : haxe.io.Bytes ) {
@@ -600,7 +616,6 @@ class NetworkHost {
 				ctx.addInt(o.__uid);
 				o.networkFlush(ctx);
 				if( checkEOM ) ctx.addByte(EOM);
-				hasData = true;
 			}
 			var n = o.__next;
 			o.__next = null;
@@ -609,10 +624,10 @@ class NetworkHost {
 		markHead = null;
 	}
 
-	function isCustomMessage( bytes : haxe.io.Bytes, id : Int ) {
-		if( bytes.length < 2 )
+	function isCustomMessage( bytes : haxe.io.Bytes, id : Int, pos = 0 ) {
+		if( bytes.length - pos < 2 )
 			return false;
-		ctx.setInput(bytes, 0);
+		ctx.setInput(bytes, pos);
 		var k = ctx.getByte();
 		if( k != CUSTOM && k != BCUSTOM )
 			return false;
@@ -621,7 +636,7 @@ class NetworkHost {
 
 	public function flush() {
 		flushProps();
-		if( hasData ) doSend();
+		if( @:privateAccess ctx.out.length > 0 ) doSend();
 		// update sendRate
 		var now = haxe.Timer.stamp();
 		var dt = now - lastSentTime;
