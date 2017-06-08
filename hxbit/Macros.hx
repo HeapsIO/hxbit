@@ -93,7 +93,7 @@ class Macros {
 			return macro { };
 		}
 		IN_ENUM_SER = StringTools.startsWith(Context.getLocalClass().toString(), "hxbit.enumSer.");
-		return serializeExpr(ctx, v, pt);
+		return withPos(serializeExpr(ctx, v, pt),v.pos);
 	}
 
 	public static macro function unserializeValue( ctx : Expr, v : Expr, depth : Int = 0 ) : Expr {
