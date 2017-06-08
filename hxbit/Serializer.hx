@@ -233,7 +233,7 @@ class Serializer {
 			return;
 		}
 		var keys = Lambda.array({ iterator : a.keys });
-		addByte(keys.length + 1);
+		addInt(keys.length + 1);
 		for( k in keys ) {
 			fk(k);
 			ft(a.get(k));
