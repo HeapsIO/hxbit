@@ -98,7 +98,8 @@ class NetworkClient {
 			if( o == null ) {
 				if( size < 0 )
 					throw "RPC on unreferenced object cannot be skip on this platform";
-				host.logError("RPC @" + fid + " on unreferenced object", oid);
+				if( !host.isAuth )
+					host.logError("RPC @" + fid + " on unreferenced object", oid);
 				ctx.skip(size);
 			} else if( !host.isAuth ) {
 				var old = o.__host;
@@ -121,7 +122,8 @@ class NetworkClient {
 			if( o == null ) {
 				if( size < 0 )
 					throw "RPC on unreferenced object cannot be skip on this platform";
-				host.logError("RPC @" + fid + " on unreferenced object", oid);
+				if( !host.isAuth )
+					host.logError("RPC @" + fid + " on unreferenced object", oid);
 				ctx.skip(size);
 				ctx.addByte(NetworkHost.CANCEL_RPC);
 				ctx.addInt(resultID);
