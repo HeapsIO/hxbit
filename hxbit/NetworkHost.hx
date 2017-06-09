@@ -191,7 +191,7 @@ class NetworkClient {
 			host.onCustom(this, id, ctx.getBytes());
 
 		case x:
-			error("Unknown message code " + x);
+			error("Unknown message code " + x+" @"+pos+":"+bytes.toHex());
 		}
 		return @:privateAccess ctx.inPos;
 	}
@@ -237,8 +237,11 @@ class NetworkClient {
 			var oldPos = pos;
 			pos = processMessage(data, pos);
 			if( host.checkEOM ) {
-				if( data.get(pos) != NetworkHost.EOM )
-					throw "Message missing EOM " + data.sub(oldPos, pos - oldPos).toHex() + "..." + (data.sub(pos, Std.int(Math.min(length - pos, 128))).toHex());
+				if( data.get(pos) != NetworkHost.EOM ) {
+					var len = length - oldPos;
+					if( len > 128 ) len = 128;
+					throw "Message missing EOM @"+(pos - oldPos)+":"+data.sub(oldPos, len).toHex();
+				}
 				pos++;
 			}
 		}
