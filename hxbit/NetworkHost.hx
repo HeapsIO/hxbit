@@ -20,6 +20,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 package hxbit;
+import hxbit.NetworkSerializable.NetworkSerializer;
 
 class NetworkClient {
 
@@ -51,6 +52,10 @@ class NetworkClient {
 	function processMessage( bytes : haxe.io.Bytes, pos : Int ) {
 		var ctx = host.ctx;
 		ctx.setInput(bytes, pos);
+
+		if( ctx.error )
+			host.logError("Unhandled previous error");
+
 		var mid = ctx.getByte();
 		switch( mid ) {
 		case NetworkHost.SYNC:
@@ -66,8 +71,12 @@ class NetworkClient {
 			o.networkSync(ctx);
 			o.__host = oldH;
 			o.__bits = old;
+			if( ctx.error )
+				host.logError("Found unreferenced object while syncing " + o);
 		case NetworkHost.REG:
 			var o : hxbit.NetworkSerializable = cast ctx.getAnyRef();
+			if( ctx.error )
+				host.logError("Found unreferenced object while registering " + o);
 			host.makeAlive();
 		case NetworkHost.UNREG:
 			var oid = ctx.getInt();
@@ -85,10 +94,12 @@ class NetworkClient {
 				hxbit.Serializer.SEQ = ctx.getByte();
 				ctx.newObjects = [];
 			};
+			ctx.enableChecks = false;
 			while( true ) {
 				var o = ctx.getAnyRef();
 				if( o == null ) break;
 			}
+			ctx.enableChecks = true;
 			host.makeAlive();
 		case NetworkHost.RPC:
 			var oid = ctx.getInt();
@@ -104,11 +115,12 @@ class NetworkClient {
 			} else if( !host.isAuth ) {
 				var old = o.__host;
 				o.__host = null;
-				o.networkRPC(ctx, fid, this);
+				if( !o.networkRPC(ctx, fid, this) )
+					host.logError("RPC @" + fid + " on " + o + " has unreferenced object parameter");
 				o.__host = old;
 			} else {
 				host.rpcClientValue = this;
-				o.networkRPC(ctx, fid, this);
+				o.networkRPC(ctx, fid, this); // ignore result (client made an RPC on since-then removed object - it has been canceled)
 				host.rpcClientValue = null;
 			}
 		case NetworkHost.RPC_WITH_RESULT:
@@ -130,11 +142,18 @@ class NetworkClient {
 			} else if( !host.isAuth ) {
 				var old = o.__host;
 				o.__host = null;
-				o.networkRPC(ctx, fid, this);
+				if( !o.networkRPC(ctx, fid, this) ) {
+					host.logError("RPC @" + fid + " on " + o + " has unreferenced object parameter");
+					ctx.addByte(NetworkHost.CANCEL_RPC);
+					ctx.addInt(resultID);
+				}
 				o.__host = old;
 			} else {
 				host.rpcClientValue = this;
-				o.networkRPC(ctx, fid, this);
+				if( !o.networkRPC(ctx, fid, this) ) {
+					ctx.addByte(NetworkHost.CANCEL_RPC);
+					ctx.addInt(resultID);
+				}
 				host.rpcClientValue = null;
 			}
 
@@ -269,11 +288,11 @@ class NetworkHost {
 	var lastSentTime : Float = 0.;
 	var lastSentBytes = 0;
 	var markHead : NetworkSerializable;
-	var ctx : Serializer;
+	var ctx : NetworkSerializer;
 	var pendingClients : Array<NetworkClient>;
 	var logger : String -> Void;
 	var rpcUID = Std.random(0x1000000);
-	var rpcWaits = new Map<Int,Serializer->Void>();
+	var rpcWaits = new Map<Int,NetworkSerializer->Void>();
 	var targetClient : NetworkClient;
 	var rpcClientValue : NetworkClient;
 	var aliveEvents : Array<Void->Void>;
@@ -310,7 +329,7 @@ class NetworkHost {
 
 	public function resetState() {
 		hxbit.Serializer.resetCounters();
-		ctx = new Serializer();
+		ctx = new NetworkSerializer();
 		@:privateAccess ctx.newObjects = [];
 		ctx.begin();
 	}
@@ -328,6 +347,7 @@ class NetworkHost {
 	}
 
 	public function loadSave( bytes : haxe.io.Bytes ) {
+		ctx.enableChecks = false;
 		ctx.refs = new Map();
 		@:privateAccess ctx.newObjects = [];
 		ctx.beginLoad(bytes);
@@ -336,6 +356,7 @@ class NetworkHost {
 			if( v == null ) break;
 		}
 		ctx.endLoad();
+		ctx.enableChecks = true;
 	}
 
 	function mark(o:NetworkSerializable) {
@@ -410,7 +431,7 @@ class NetworkHost {
 		return targetClient != null; // owner not connected
 	}
 
-	function beginRPC(o:NetworkSerializable, id:Int, onResult:Serializer->Void) {
+	function beginRPC(o:NetworkSerializable, id:Int, onResult:NetworkSerializer->Void) {
 		flushProps();
 		if( ctx.refs[o.__uid] == null )
 			throw "Can't call RPC on an object not previously transferred";
@@ -460,7 +481,9 @@ class NetworkHost {
 		c.seqID = seq;
 
 		clients.push(c);
+
 		var refs = ctx.refs;
+		ctx.enableChecks = false;
 		ctx.begin();
 		ctx.addByte(FULLSYNC);
 		ctx.addByte(c.seqID);
@@ -469,6 +492,8 @@ class NetworkHost {
 				ctx.addAnyRef(o);
 		ctx.addAnyRef(null);
 		if( checkEOM ) ctx.addByte(EOM);
+		ctx.enableChecks = true;
+
 		targetClient = c;
 		doSend();
 		targetClient = null;

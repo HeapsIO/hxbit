@@ -40,7 +40,7 @@ interface NetworkSerializable extends Serializable extends ProxyHost {
 
 	public function networkFlush( ctx : Serializer ) : Void;
 	public function networkSync( ctx : Serializer ) : Void;
-	public function networkRPC( ctx : Serializer, rpcID : Int, clientResult : NetworkHost.NetworkClient ) : Void;
+	public function networkRPC( ctx : NetworkSerializer, rpcID : Int, clientResult : NetworkHost.NetworkClient ) : Bool;
 	public function networkGetOwner() : NetworkSerializable;
 	public function networkGetName( propId : Int, isRPC : Bool = false ) : String;
 }
@@ -83,5 +83,45 @@ abstract NetworkProperty(Int) {
 	}
 
 	@:op(a|b) inline function opOr(a:NetworkProperty) return new NetworkProperty(this | a.toInt());
+
+}
+
+class NetworkSerializer extends Serializer {
+
+	var hasError = false;
+
+	public var enableChecks = true;
+	public var error(get, never) : Bool;
+
+	function get_error() {
+		if( !hasError )
+			return false;
+		hasError = false;
+		return true;
+	}
+
+	override function addObjRef(s:Serializable) {
+		if( !enableChecks ) {
+			super.addObjRef(s);
+			return;
+		}
+		addInt(s.__uid);
+		var ns = Std.instance(s, NetworkSerializable);
+		if( ns != null && ns.__host == null ) throw "Can't send unbound object " + s + " over network";
+		addBool( refs.exists(s.__uid) );
+	}
+
+	override function getObjRef() {
+		if( !enableChecks )
+			return super.getObjRef();
+		var id = getInt();
+		if( id == 0 ) return 0;
+		var b = getBool();
+		if( b && !refs.exists(id) ) {
+			hasError = true;
+			return 0;
+		}
+		return id;
+	}
 
 }

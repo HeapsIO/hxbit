@@ -414,13 +414,21 @@ class Serializer {
 		return (getByte() << 8) | getByte();
 	}
 
+	function addObjRef( s : Serializable ) {
+		addInt(s.__uid);
+	}
+
+	function getObjRef() {
+		return getInt();
+	}
+
 	public function addAnyRef( s : Serializable ) {
 		if( s == null ) {
 			addByte(0);
 			return;
 		}
 		if( remapIds ) remap(s);
-		addInt(s.__uid);
+		addObjRef(s);
 		if( refs[s.__uid] != null )
 			return;
 		refs[s.__uid] = s;
@@ -436,7 +444,7 @@ class Serializer {
 			return;
 		}
 		if( remapIds ) remap(s);
-		addInt(s.__uid);
+		addObjRef(s);
 		if( refs[s.__uid] != null )
 			return;
 		refs[s.__uid] = s;
@@ -449,7 +457,7 @@ class Serializer {
 	}
 
 	public function getAnyRef() : Serializable {
-		var id = getInt();
+		var id = getObjRef();
 		if( id == 0 ) return null;
 		if( refs[id] != null )
 			return cast refs[id];
@@ -470,7 +478,7 @@ class Serializer {
 	}
 
 	public function getRef<T:Serializable>( c : Class<T>, clidx : Int ) : T {
-		var id = getInt();
+		var id = getObjRef();
 		if( id == 0 ) return null;
 		if( refs[id] != null )
 			return cast refs[id];

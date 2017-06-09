@@ -1204,11 +1204,13 @@ class Macros {
 
 				if( hasReturnVal ) {
 					doCall = macro onResult($fcall);
-					resultCall = withPos(macro function(__ctx) {
+					resultCall = withPos(macro function(__ctx:hxbit.NetworkSerializable.NetworkSerializer) {
 						var v = cast null;
 						if( false ) v = $fcall;
 						hxbit.Macros.unserializeValue(__ctx, v);
+						if( __ctx.error ) return false;
 						onResult(v);
+						return true;
 					},f.expr.pos);
 					rpcArgs = rpcArgs.copy();
 					rpcArgs.push( { name : "onResult", type: f.ret == null ? null : TFunction([f.ret], macro:Void) } );
@@ -1289,7 +1291,7 @@ class Macros {
 				exprs.push(macro if( false ) $fcall); // force typing
 				for( a in f.args )
 					exprs.push(macro hxbit.Macros.unserializeValue(__ctx, $i { a.name } ));
-
+				exprs.push(macro if( __ctx.error ) return false);
 				if( hasReturnVal ) {
 					exprs.push({ expr : EVars([ { name : "result", type : f.ret, expr : fcall } ]), pos : p } );
 					exprs.push(macro {
@@ -1398,9 +1400,9 @@ class Macros {
 				access : access,
 				meta : noComplete,
 				kind : FFun({
-					args : [ { name : "__ctx", type : macro : hxbit.Serializer }, { name : "__id", type : macro : Int }, { name : "__clientResult", type : macro : hxbit.NetworkHost.NetworkClient } ],
-					ret : null,
-					expr : if( isSubSer && firstRPCID > 0 ) macro { if( __id < $v { firstRPCID } ) { super.networkRPC(__ctx, __id, __clientResult); return; } $swExpr; } else swExpr,
+					args : [ { name : "__ctx", type : macro : hxbit.NetworkSerializable.NetworkSerializer }, { name : "__id", type : macro : Int }, { name : "__clientResult", type : macro : hxbit.NetworkHost.NetworkClient } ],
+					ret : macro : Bool,
+					expr : if( isSubSer && firstRPCID > 0 ) macro { if( __id < $v { firstRPCID } ) return super.networkRPC(__ctx, __id, __clientResult); $swExpr; return true; } else macro { $swExpr; return true; }
 				}),
 			});
 		}
