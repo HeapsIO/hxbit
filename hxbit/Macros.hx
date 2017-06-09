@@ -103,7 +103,7 @@ class Macros {
 			return macro { };
 		}
 		IN_ENUM_SER = StringTools.startsWith(Context.getLocalClass().toString(), "hxbit.enumSer.");
-		return unserializeExpr(ctx, v, pt, depth);
+		return withPos(unserializeExpr(ctx, v, pt, depth),v.pos);
 	}
 
 	public static macro function getFieldType( v : Expr ) {
@@ -1204,12 +1204,12 @@ class Macros {
 
 				if( hasReturnVal ) {
 					doCall = macro onResult($fcall);
-					resultCall = macro function(__ctx) {
+					resultCall = withPos(macro function(__ctx) {
 						var v = cast null;
 						if( false ) v = $fcall;
 						hxbit.Macros.unserializeValue(__ctx, v);
 						onResult(v);
-					};
+					},f.expr.pos);
 					rpcArgs = rpcArgs.copy();
 					rpcArgs.push( { name : "onResult", type: f.ret == null ? null : TFunction([f.ret], macro:Void) } );
 				}
