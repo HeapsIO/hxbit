@@ -50,8 +50,10 @@ class Serializer {
 	static inline function hash(name:String) {
 		var v = 1;
 		for( i in 0...name.length )
-			v = v * 223 + StringTools.fastCodeAt(name,i);
+			v = Std.int(v * 223 + StringTools.fastCodeAt(name,i));
+
 		v = 1 + ((v & 0x3FFFFFFF) % 65423);
+
 		return v;
 	}
 
