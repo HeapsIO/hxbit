@@ -84,6 +84,36 @@ class User implements hxbit.Serializable {
 }
 ```
 
+### Unsupported types
+
+If you want to serialize unsupported types, you could implement your own serialization through the optional methods `customSerialize` and `customUnserialize`.
+
+```haxe
+class Float32ArrayContainer implements hxbit.Serializable {
+
+    public var value:Float32Array;
+
+    ...
+
+    @:keep
+    public function customSerialize(ctx : hxbit.Serializer) {
+        ctx.addInt(value.length);
+        for(i in 0...value.length)
+            ctx.addFloat(value[i]);
+    }
+
+    @:keep
+    public function customUnserialize(ctx : hxbit.Serializer) {
+        var length = ctx.getInt();
+        var tempArray = new Array<Float>();
+        for(i in 0...length)
+            tempArray.push(ctx.getFloat());
+
+        value = new Float32Array(tempArray);
+    }
+}
+```
+
 ## Versioning
 
 HxBit serialization is capable of performing versioning, by storing in serialized data the schema of each serialized class, then comparing it to the current schema when unserializing, making sure that data is not corrupted.

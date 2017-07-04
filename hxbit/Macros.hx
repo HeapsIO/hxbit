@@ -559,15 +559,31 @@ class Macros {
 			return null;
 		var fields = Context.getBuildFields();
 		var toSerialize = [];
+		var addCustomSerializable = false;
+		var addCustomUnserializable = false;
+
+		var sup = cl.superClass;
+		var isSubSer = sup != null && isSerializable(sup.t);
+		var hasNonSerializableParent = sup != null && !isSerializable(sup.t);
 
 		if( !Context.defined("display") )
 		for( f in fields ) {
+			if( f.name == "customSerialize" && ( f.access.indexOf(AOverride) < 0 || hasNonSerializableParent ) ) {
+				addCustomSerializable = true;
+			}
+			if( f.name == "customUnserialize" && ( f.access.indexOf(AOverride) < 0 || hasNonSerializableParent ) ) {
+				addCustomUnserializable = true;
+			}
 			if( f.meta == null ) continue;
 			for( meta in f.meta )
 				if( meta.name == ":s" ) {
 					toSerialize.push({ f : f, m : meta });
 					break;
 				}
+		}
+
+		if( addCustomSerializable != addCustomUnserializable ) {
+			Context.error("customSerialize and customUnserialize must both exist or both be removed!",cl.pos);
 		}
 
 		var fieldsInits = [];
@@ -580,9 +596,6 @@ class Macros {
 			default:
 			}
 		}
-
-		var sup = cl.superClass;
-		var isSubSer = sup != null && isSerializable(sup.t);
 
 		var pos = Context.currentPos();
 		var el = [], ul = [];
@@ -621,8 +634,8 @@ class Macros {
 			kind : FFun({ args : [], ret : macro : Int, expr : macro return __clid }),
 		});
 
-		var needSerialize = toSerialize.length != 0 || !isSubSer;
-		var needUnserialize = needSerialize || fieldsInits.length != 0;
+		var needSerialize = toSerialize.length != 0 || !isSubSer || addCustomSerializable;
+		var needUnserialize = needSerialize || fieldsInits.length != 0 || addCustomUnserializable;
 
 		if( needSerialize ) {
 			fields.push({
@@ -632,7 +645,11 @@ class Macros {
 				kind : FFun({
 					args : [ { name : "__ctx", type : macro : hxbit.Serializer } ],
 					ret : null,
-					expr : macro @:privateAccess { ${ if( isSubSer ) macro super.serialize(__ctx) else macro { } }; $b{el} }
+					expr : macro @:privateAccess {
+						${ if( isSubSer ) macro super.serialize(__ctx) else macro { } };
+						$b{el};
+						${ if( addCustomSerializable ) macro this.customSerialize(__ctx) else macro { } };
+					}
 				}),
 			});
 			var schema = [for( s in toSerialize ) {
@@ -671,7 +688,11 @@ class Macros {
 			});
 
 		if( needUnserialize ) {
-			var unserExpr = macro @:privateAccess { ${ if( isSubSer ) macro super.unserialize(__ctx) else macro { } }; $b{ul} };
+			var unserExpr = macro @:privateAccess {
+				${ if( isSubSer ) macro super.unserialize(__ctx) else macro { } };
+				$b{ul}
+				${ if( addCustomUnserializable ) macro this.customUnserialize(__ctx) else macro { } };
+			};
 
 			for( f in fields )
 				if( f.name == "unserialize" ) {
