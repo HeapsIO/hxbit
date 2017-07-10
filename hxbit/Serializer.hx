@@ -512,7 +512,7 @@ class Serializer {
 		usedClasses = [];
 	}
 
-	public function endSave() {
+	public function endSave( savePosition = 0 ) {
 		var content = end();
 		begin();
 		var classes = [];
@@ -529,6 +529,7 @@ class Serializer {
 		}
 		var schemaData = end();
 		begin();
+		out.addBytes(content, 0, savePosition);
 		addString("HXS");
 		addByte(1);
 		for( i in 0...classes.length ) {
@@ -540,7 +541,7 @@ class Serializer {
 		addString(null);
 		addInt(schemaData.length);
 		out.add(schemaData);
-		out.add(content);
+		out.addBytes(content,savePosition,content.length - savePosition);
 		return end();
 	}
 
