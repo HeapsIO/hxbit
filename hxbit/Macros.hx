@@ -247,6 +247,11 @@ class Macros {
 				var e = getPropType(pl[0]);
 				if( e == null ) return null;
 				PFlags(e);
+			case "Null":
+				var p = getPropType(pl[0]);
+				if( p != null && !isNullable(p) )
+					p = { d : PNull(p), t : TPath( { pack : [], name : "Null", params : [TPType(p.t)] } ) };
+				return p;
 			case name:
 				var t2 = Context.followWithAbstracts(t, true);
 				switch( t2 ) {
