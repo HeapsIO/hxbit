@@ -315,6 +315,15 @@ class Serializer {
 		}
 	}
 
+	public inline function addBytesSub( b : haxe.io.Bytes, pos : Int, len : Int ) {
+		if( b == null )
+			addByte(0);
+		else {
+			addInt(len + 1);
+			out.addBytes(b, pos, len);
+		}
+	}
+
 	public inline function getString() {
 		var len = getInt();
 		if( len == 0 )

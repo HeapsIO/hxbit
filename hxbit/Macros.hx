@@ -587,6 +587,12 @@ class Macros {
 				}
 		}
 
+		if( cl.meta.has(":serializeSuperClass") ) {
+			if( toSerialize.length != 0 || !isSubSer )
+				Context.error("Cannot use serializeSuperClass on this class", cl.pos);
+			return null;
+		}
+
 		if( addCustomSerializable != addCustomUnserializable ) {
 			Context.error("customSerialize and customUnserialize must both exist or both be removed!",cl.pos);
 		}
