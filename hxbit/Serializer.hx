@@ -21,6 +21,8 @@
  */
 package hxbit;
 
+#if !macro
+
 class Serializer {
 
 	static var UID = 0;
@@ -102,6 +104,7 @@ class Serializer {
 	var usedClasses : Array<Bool> = [];
 	var convert : Array<Convert>;
 	var mapIndexes : Array<Int>;
+	var knownStructs : Array<StructSerializable>;
 
 	public function new() {
 		if( CLIDS == null ) initClassIDS();
@@ -123,12 +126,14 @@ class Serializer {
 	public function begin() {
 		out = new haxe.io.BytesBuffer();
 		refs = new Map();
+		knownStructs = [];
 	}
 
 	public function end() {
 		var bytes = out.getBytes();
 		out = null;
 		refs = null;
+		knownStructs = null;
 		return bytes;
 	}
 
@@ -136,6 +141,7 @@ class Serializer {
 		input = data;
 		inPos = pos;
 		if( refs == null ) refs = new Map();
+		if( knownStructs == null ) knownStructs = [];
 	}
 
 	public function serialize( s : Serializable ) {
@@ -146,6 +152,7 @@ class Serializer {
 
 	public function unserialize<T:Serializable>( data : haxe.io.Bytes, c : Class<T>, startPos = 0 ) : T {
 		refs = new Map();
+		knownStructs = [];
 		setInput(data, startPos);
 		return getKnownRef(c);
 	}
@@ -423,6 +430,54 @@ class Serializer {
 
 	public inline function getCLID() {
 		return (getByte() << 8) | getByte();
+	}
+
+	public function addStruct( s : StructSerializable ) {
+		if( s == null ) {
+			addByte(0);
+			return;
+		}
+		var c : Serializable = Std.is(s, Serializable) ? cast s : null;
+		if( c != null ) {
+			addByte(1);
+			addAnyRef(c);
+			return;
+		}
+		var index = knownStructs.indexOf(s);
+		if( index >= 0 ) {
+			addByte(2);
+			addInt(index);
+			return;
+		}
+		knownStructs.push(s);
+		addByte(3);
+		var c = Type.getClass(s);
+		if( c == null ) throw s + " does not have a class ?";
+		addString(Type.getClassName(c));
+		@:privateAccess s.customSerialize(this);
+		addByte(0xFF);
+	}
+
+	public function getStruct<T:StructSerializable>() : T {
+		switch( getByte() ) {
+		case 0:
+			return null;
+		case 1:
+			return cast this.getAnyRef();
+		case 2:
+			return cast knownStructs[getInt()];
+		case 3:
+			var cname = getString();
+			var cl = Type.resolveClass(cname);
+			if( cl == null ) throw "Missing struct class " + cname;
+			var s : StructSerializable = Type.createEmptyInstance(cl);
+			knownStructs.push(s);
+			@:privateAccess s.customUnserialize(this);
+			if( getByte() != 0xFF ) throw "Invalid customUnserialize for "+s;
+			return cast s;
+		default:
+			throw "assert";
+		}
 	}
 
 	function addObjRef( s : Serializable ) {
@@ -739,6 +794,8 @@ class Serializer {
 			getDynamic();
 		case PFlags(_):
 			getInt();
+		case PStruct:
+			getStruct();
 		case PUnknown:
 			throw "assert";
 		}
@@ -800,9 +857,13 @@ class Serializer {
 			addDynamic(v);
 		case PFlags(_):
 			addInt(v);
+		case PStruct:
+			addStruct(v);
 		case PUnknown:
 			throw "assert";
 		}
 	}
 
 }
+
+#end

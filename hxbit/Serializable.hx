@@ -21,6 +21,8 @@
  */
 package hxbit;
 
+#if !macro
+
 @:autoBuild(hxbit.Macros.buildSerializable())
 /**
   These fields are automatically generated when implementing the interface.
@@ -34,12 +36,15 @@ interface Serializable {
 	public function serialize( ctx : Serializer ) : Void;
 	/** Used internaly by unserializer **/
 	public function unserializeInit() : Void;
-	/** Unserialize object fields using this Serializer **/  
+	/** Unserialize object fields using this Serializer **/
 	public function unserialize( ctx : Serializer ) : Void;
-	/** Returns the object data schema **/  
+	/** Returns the object data schema **/
 	public function getSerializeSchema() : Schema;
 }
 
 @:genericBuild(hxbit.Macros.buildSerializableEnum())
 class SerializableEnum<T> {
 }
+
+#end
+

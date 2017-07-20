@@ -70,6 +70,7 @@ enum PropTypeDesc<PropType> {
 	PDynamic;
 	PInt64;
 	PFlags( t : PropType );
+	PStruct;
 }
 
 typedef PropType = {
@@ -134,26 +135,35 @@ class Macros {
 		case PVector(k): PVector(toFieldType(k));
 		case PNull(t): PNull(toFieldType(t));
 		case PFlags(t): PFlags(toFieldType(t));
+		case PStruct: PStruct;
 		case PUnknown: PUnknown;
 		case PDynamic: PDynamic;
 		};
 	}
 
-	static function isSerializable( c : Ref<ClassType> ) {
+	static function lookupInterface( c : Ref<ClassType>, name : String ) {
 		while( true ) {
 			var cg = c.get();
-			for( i in cg.interfaces )
-				switch( i.t.toString() ) {
-				case "hxbit.Serializable", "hxbit.NetworkSerializable":
+			for( i in cg.interfaces ) {
+				if( i.t.toString() == name )
 					return true;
-				default:
-				}
+				if( lookupInterface(i.t, name) )
+					return true;
+			}
 			var sup = cg.superClass;
 			if( sup == null )
 				break;
 			c = sup.t;
 		}
 		return false;
+	}
+
+	static function isSerializable( c : Ref<ClassType> ) {
+		return lookupInterface(c, "hxbit.Serializable");
+	}
+
+	static function isStructSerializable( c : Ref<ClassType> ) {
+		return lookupInterface(c, "hxbit.StructSerializable");
 	}
 
 	static function getPropField( ft : Type, meta : Metadata ) {
@@ -308,6 +318,8 @@ class Macros {
 			default:
 				if( isSerializable(c) )
 					PSerializable(c.toString());
+				else if( isStructSerializable(c) )
+					PStruct;
 				else
 					return null;
 			}
@@ -430,6 +442,8 @@ class Macros {
 			return macro $ctx.addDynamic($v);
 		case PFlags(t):
 			return serializeExpr(ctx, { expr : ECast(v, null), pos : v.pos }, { t : macro : Int, d : PInt });
+		case PStruct:
+			return macro $ctx.addStruct($v);
 		case PUnknown:
 			throw "assert";
 		}
@@ -547,6 +561,8 @@ class Macros {
 				${unserializeExpr(ctx,macro v,{ t : macro : Int, d : PInt },depth + 1)};
 				$v = new hxbit.EnumFlagsProxy(v);
 			};
+		case PStruct:
+			return macro $v = $ctx.getStruct();
 		case PUnknown:
 			throw "assert";
 		}
