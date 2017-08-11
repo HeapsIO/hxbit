@@ -28,6 +28,9 @@ class ArrayProxyData<T> extends BaseProxy {
 	public function new(v) {
 		array = v;
 	}
+	public function iterator() {
+		return array.iterator();
+	}
 }
 
 abstract ArrayProxy<T>(ArrayProxyData<T>) {
