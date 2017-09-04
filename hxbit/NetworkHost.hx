@@ -294,6 +294,7 @@ class NetworkHost {
 	var ctx : NetworkSerializer;
 	var pendingClients : Array<NetworkClient>;
 	var logger : String -> Void;
+	var stats : NetworkStats;
 	var rpcUID = Std.random(0x1000000);
 	var rpcWaits = new Map<Int,NetworkSerializer->Void>();
 	var targetClient : NetworkClient;
@@ -453,12 +454,16 @@ class NetworkHost {
 		ctx.addByte(id);
 		if( logger != null )
 			logger("RPC " + o +"."+o.networkGetName(id,true)+"()");
+		if( stats != null )
+			stats.beginRPC(o, id);
 		return ctx;
 	}
 
 	function endRPC() {
 		#if hl
 		@:privateAccess ctx.out.b.setI32(rpcPosition, ctx.out.pos - (rpcPosition + 5));
+		if( stats != null )
+			stats.endRPC(@:privateAccess ctx.out.pos - rpcPosition);
 		#end
 		if( checkEOM ) ctx.addByte(EOM);
 	}
@@ -549,6 +554,10 @@ class NetworkHost {
 
 	public function setLogger( log : String -> Void ) {
 		this.logger = log;
+	}
+
+	public function setStats( stats ) {
+		this.stats = stats;
 	}
 
 	function register( o : NetworkSerializable ) {
@@ -642,6 +651,8 @@ class NetworkHost {
 					}
 					logger("SYNC " + o + "#" + o.__uid + " " + props.join("|"));
 				}
+				if( stats != null )
+					stats.sync(o);
 				ctx.addByte(SYNC);
 				ctx.addInt(o.__uid);
 				o.networkFlush(ctx);
