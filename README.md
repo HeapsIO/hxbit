@@ -79,7 +79,7 @@ When unserializing, the class constructor is not called. If you want to have som
 ```haxe
 class User implements hxbit.Serializable {
     ...
-    // when unserializing, someOtherField will be set to [] instead of nulll
+    // when unserializing, someOtherField will be set to [] instead of null
     var someOtherField : Array<Int> = []; 
 }
 ```
