@@ -1337,8 +1337,11 @@ class Macros {
 
 				var exprs = [ { expr : EVars([for( a in f.args ) { name : a.name, type : a.type, expr : macro cast null } ]), pos : p } ];
 				exprs.push(macro if( false ) $fcall); // force typing
-				for( a in f.args )
-					exprs.push(macro hxbit.Macros.unserializeValue(__ctx, $i { a.name } ));
+				for( a in f.args ) {
+					var e = macro hxbit.Macros.unserializeValue(__ctx, $i{ a.name });
+					e.pos = p;
+					exprs.push(e);
+				}
 				exprs.push(macro if( __ctx.error ) return false);
 				if( hasReturnVal ) {
 					exprs.push({ expr : EVars([ { name : "result", type : f.ret, expr : fcall } ]), pos : p } );
