@@ -89,7 +89,7 @@ class NetworkStats {
 			print = #if sys Sys.println #else function(str) trace(str) #end;
 		print("Network stats:");
 		for( p in all )
-			print("  "+p.cl.name+"." + p.name+" count = " + p.count + ", bytes = " + p.bytes+" "+hxd.Math.fmt(p.bytes*100.0/tot)+"%");
+			print("  "+p.cl.name+"." + p.name+" count = " + p.count + ", bytes = " + p.bytes+" "+(Std.int(p.bytes*1000.0/tot)/10)+"%");
 	}
 
 	public function reset() {
