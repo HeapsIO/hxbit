@@ -219,7 +219,7 @@ class Macros {
 				PInt;
 			case "Bool":
 				PBool;
-			case "Map":
+			case "Map", "haxe.ds.Map":
 				var tk = getPropType(pl[0]);
 				var tv = getPropType(pl[1]);
 				if( tk == null || tv == null )
