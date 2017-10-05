@@ -1335,7 +1335,7 @@ class Macros {
 				r.f.access.remove(APublic);
 				r.f.meta.push( { name : ":noCompletion", pos : p } );
 
-				var exprs = [ { expr : EVars([for( a in f.args ) { name : a.name, type : a.type, expr : macro cast null } ]), pos : p } ];
+				var exprs = [ { expr : EVars([for( a in f.args ) { name : a.name, type : a.opt ? TPath({ pack : [], name : "Null", params : [TPType(a.type)] }) : a.type, expr : macro cast null } ]), pos : p } ];
 				exprs.push(macro if( false ) $fcall); // force typing
 				for( a in f.args ) {
 					var e = macro hxbit.Macros.unserializeValue(__ctx, $i{ a.name });
