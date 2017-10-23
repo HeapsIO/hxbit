@@ -288,6 +288,7 @@ class NetworkHost {
 	public var sendRate : Float = 0.;
 	public var totalSentBytes : Int = 0;
 
+	var perPacketBytes = 20; // IP + UDP headers
 	var lastSentTime : Float = 0.;
 	var lastSentBytes = 0;
 	var markHead : NetworkSerializable;
@@ -626,12 +627,12 @@ class NetworkHost {
 
 	function send( bytes : haxe.io.Bytes ) {
 		if( targetClient != null ) {
-			totalSentBytes += bytes.length;
+			totalSentBytes += (bytes.length + perPacketBytes);
 			targetClient.send(bytes);
 		}
 		else {
-			totalSentBytes += bytes.length * clients.length;
-			if( clients.length == 0 ) totalSentBytes += bytes.length; // still count for statistics
+			totalSentBytes += (bytes.length + perPacketBytes) * clients.length;
+			if( clients.length == 0 ) totalSentBytes += bytes.length + perPacketBytes; // still count for statistics
 			for( c in clients )
 				c.send(bytes);
 		}
