@@ -787,6 +787,8 @@ class Serializer {
 				(getMap(function() return readValue(k), function() return readValue(v)) : Map<Int,Dynamic>);
 			case PString:
 				(getMap(function() return readValue(k), function() return readValue(v)) : Map<String,Dynamic>);
+			case PEnum(_):
+				(getMap(function() return readValue(k), function() return readValue(v)) : Map<Schema.FieldType/*any enum*/,Dynamic>);
 			default:
 				(getMap(function() return readValue(k), function() return readValue(v)) : Map<{},Dynamic>);
 			}
@@ -846,13 +848,25 @@ class Serializer {
 				addInt(fbits + 1);
 				for( f in fields ) {
 					var nidx = nullables.indexOf(f);
-					var name = f.name;
 					if( nidx >= 0 && fbits & (1 << nidx) == 0 ) continue;
 					writeValue(Reflect.field(v, f.name), f.type);
 				}
 			}
 		case PMap(k, t):
-			addMap(v, function(v) writeValue(v, k), function(v) writeValue(v, t));
+			switch( k ) {
+			case PInt:
+				var v : Map<Int,Dynamic> = v;
+				addMap(v, function(v) writeValue(v, k), function(v) writeValue(v, t));
+			case PString:
+				var v : Map<String,Dynamic> = v;
+				addMap(v, function(v) writeValue(v, k), function(v) writeValue(v, t));
+			case PEnum(_):
+				var v : Map<Schema.FieldType,Dynamic> = v;
+				addMap(v, function(v) writeValue(v, k), function(v) writeValue(v, t));
+			default:
+				var v : Map<{},Dynamic> = v;
+				addMap(v, function(v) writeValue(v, k), function(v) writeValue(v, t));
+			}
 		case PDynamic:
 			addDynamic(v);
 		case PFlags(_):
