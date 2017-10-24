@@ -788,7 +788,16 @@ class Serializer {
 			case PString:
 				(getMap(function() return readValue(k), function() return readValue(v)) : Map<String,Dynamic>);
 			case PEnum(_):
-				(getMap(function() return readValue(k), function() return readValue(v)) : Map<Schema.FieldType/*any enum*/,Dynamic>);
+				var len = getInt();
+				if( len == 0 )
+					return null;
+				var m = new haxe.ds.EnumValueMap<Dynamic,Dynamic>();
+				while( --len > 0 ) {
+					var k = readValue(k);
+					var v = readValue(v);
+					m.set(k, v);
+				}
+				return m;
 			default:
 				(getMap(function() return readValue(k), function() return readValue(v)) : Map<{},Dynamic>);
 			}
@@ -861,8 +870,17 @@ class Serializer {
 				var v : Map<String,Dynamic> = v;
 				addMap(v, function(v) writeValue(v, k), function(v) writeValue(v, t));
 			case PEnum(_):
-				var v : Map<Schema.FieldType,Dynamic> = v;
-				addMap(v, function(v) writeValue(v, k), function(v) writeValue(v, t));
+				var v : haxe.ds.EnumValueMap<Dynamic,Dynamic> = v;
+				if( v == null ) {
+					addByte(0);
+					return;
+				}
+				var keys = Lambda.array({ iterator : v.keys });
+				addInt(keys.length + 1);
+				for( vk in keys ) {
+					writeValue(vk, k);
+					writeValue(v.get(vk), t);
+				}
 			default:
 				var v : Map<{},Dynamic> = v;
 				addMap(v, function(v) writeValue(v, k), function(v) writeValue(v, t));
