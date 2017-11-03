@@ -368,7 +368,7 @@ class NetworkHost {
 		if( !isAuth ) {
 			var owner = o.networkGetOwner();
 			if( owner == null || self.ownerObject != owner )
-				throw "Client can't set property on " + o + " without ownership ("+owner + " should be "+self.ownerObject+")";
+				throw "Client can't set property on " + o + " without ownership";
 			// allow to modify the property localy and send it to server
 		}
 		o.__next = markHead;
@@ -571,7 +571,7 @@ class NetworkHost {
 		if( !isAuth ) {
 			var owner = o.networkGetOwner();
 			if( owner == null || owner != self.ownerObject )
-				throw "Can't register "+o+" without ownership (" + owner + " should be " + self.ownerObject + ")";
+				throw "Can't register "+o+" without ownership";
 		}
 		if( logger != null )
 			logger("Register " + o + "#" + o.__uid);
@@ -602,7 +602,7 @@ class NetworkHost {
 		if( !isAuth ) {
 			var owner = o.networkGetOwner();
 			if( owner == null || owner != self.ownerObject )
-				throw "Can't unregister "+o+" without ownership (" + owner + " should be " + self.ownerObject + ")";
+				throw "Can't unregister "+o+" without ownership";
 		}
 		flushProps(); // send changes
 		o.__host = null;
