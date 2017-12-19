@@ -21,18 +21,18 @@ abstract EnumFlagsProxy<T:EnumValue>(EnumFlagsData<T>) {
 
 	inline function get___value() return this.value;
 
-	public inline function has(e) {
+	public inline function has(e:T) {
 		return __value.has(e);
 	}
 
-	public inline function set(e) {
+	public inline function set(e:T) {
 		if( !has(e) ) {
 			this.mark();
 			__value.set(e);
 		}
 	}
 
-	public inline function unset(e) {
+	public inline function unset(e:T) {
 		if( has(e) ) {
 			this.mark();
 			__value.unset(e);
@@ -56,7 +56,7 @@ abstract EnumFlagsProxy<T:EnumValue>(EnumFlagsData<T>) {
 	}
 
 	@:from static inline function fromFlags<T:EnumValue>( f : haxe.EnumFlags<T> ) {
-		return new EnumFlagsProxy(f.toInt());
+		return new EnumFlagsProxy<T>(f.toInt());
 	}
 
 }
