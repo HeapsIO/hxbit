@@ -1273,11 +1273,12 @@ class Macros {
 					@:privateAccess __host.endRPC();
 				};
 
+				if( hasReturnVal && r.mode != Client && r.mode != Server )
+					Context.error("Cannot use return value with default rpc mode, use @:rpc(server|client)", r.f.pos);
+
 				var rpcExpr = switch( r.mode ) {
 				case All:
 
-					if( hasReturnVal )
-						Context.error("Cannot use return value with default rpc mode, use @:rpc(server|client)", r.f.pos);
 					macro {
 						if( __host != null ) {
 							$forwardRPC;
@@ -1350,8 +1351,28 @@ class Macros {
 						hxbit.Macros.serializeValue(__ctx, result);
 					});
 				} else {
-					if( r.mode == All )
+					switch( r.mode ) {
+					case All:
 						exprs.push(macro if( __host != null && __host.isAuth ) $forwardRPC);
+					case Owner:
+						// check again when receiving the RPC if we are on the good owner
+						// the server might relay to the actual owner or simply drop if not connected
+						exprs.push(macro {
+							var owner = networkGetOwner();
+							if( owner == null ) return true;
+							if( owner != __host.self.ownerObject ) @:privateAccess {
+								var old = __host.targetClient;
+								if( __host.setTargetOwner(owner) ) {
+									$forwardRPC;
+									__host.setTargetOwner(null);
+								}
+								__host.targetClient = old;
+								return true;
+							}
+						});
+					case Client, Server:
+						// execute now
+					}
 					exprs.push(fcall);
 				}
 
