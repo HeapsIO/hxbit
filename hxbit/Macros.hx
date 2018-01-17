@@ -29,7 +29,7 @@ using haxe.macro.ComplexTypeTools;
 
 enum RpcMode {
 	/*
-		When called on the client: will forward the call on the server, but not execute locally.
+		When called on the client: will forward the call on the server (if networkAllows(RPC) allows it), but not execute locally.
 		When called on the server: will forward the call to the clients (and force its execution), then execute.
 		This is the default behavior.
 	*/
@@ -38,16 +38,15 @@ enum RpcMode {
 		When called on the server: will forward the call to the clients, but not execute locally.
 		When called on the client: will execute locally.
 	*/
-	Client;
+	Clients;
 	/*
-		When called on the client: will forward the call the server, but not execute locally.
+		When called on the client: will forward the call the server (if networkAllows(RPCServer) allows it), but not execute locally.
 		When called on the server: will execute locally.
 	*/
 	Server;
 	/*
-		When called on the client: will forward the call to the server if not the owner, or else execute locally.
-		When called on the server: will forward the call to the owner.
-		Will fail if there is no owner.
+		When called on the client: will forward the call to the server (if networkAllows(RPC) allows it), but not execute locally.
+		When called on the server: will forward the call to the owners as defined by networkAllows(Ownership).
 	*/
 	Owner;
 }
@@ -1057,7 +1056,7 @@ class Macros {
 					if( meta.params.length != 0 )
 						switch( meta.params[0].expr ) {
 						case EConst(CIdent("all")):
-						case EConst(CIdent("client")): mode = Client;
+						case EConst(CIdent("clients")): mode = Clients;
 						case EConst(CIdent("server")): mode = Server;
 						case EConst(CIdent("owner")): mode = Owner;
 						default:
@@ -1079,7 +1078,7 @@ class Macros {
 				@:noCompletion public var __bits : Int = 0;
 				@:noCompletion public var __next : hxbit.NetworkSerializable;
 				@:noCompletion public inline function networkSetBit( b : Int ) {
-					if( __host != null && (__next != null || @:privateAccess __host.mark(this)) )
+					if( __host != null && (__host.isAuth || @:privateAccess __host.checkWrite(this,b)) && (__next != null || @:privateAccess __host.mark(this)) )
 						__bits |= 1 << b;
 				}
 				public var enableReplication(get, set) : Bool;
@@ -1099,9 +1098,11 @@ class Macros {
 				}
 			}).fields);
 
-			if( !Lambda.exists(fields, function(f) return f.name == "networkGetOwner") )
+			if( !Lambda.exists(fields, function(f) return f.name == "networkAllow") )
 				fields = fields.concat((macro class {
-					public function networkGetOwner() : hxbit.NetworkSerializable { return null; }
+					public function networkAllow( mode : hxbit.NetworkSerializable.Operation, prop : Int, client : hxbit.NetworkSerializable ) {
+						return false;
+					}
 				}).fields);
 
 			if( !Lambda.exists(fields, function(f) return f.name == "alive") )
@@ -1273,20 +1274,23 @@ class Macros {
 					@:privateAccess __host.endRPC();
 				};
 
-				if( hasReturnVal && r.mode != Client && r.mode != Server )
-					Context.error("Cannot use return value with default rpc mode, use @:rpc(server|client)", r.f.pos);
+				if( hasReturnVal && r.mode != Server )
+					Context.error("Cannot use return value with default rpc mode, use @:rpc(server)", r.f.pos);
 
 				var rpcExpr = switch( r.mode ) {
 				case All:
-
 					macro {
 						if( __host != null ) {
+							if( !__host.isAuth && !networkAllow(RPC, $v{id}, __host.self.ownerObject) ) {
+								__host.logError("Calling RPC on an not allowed object");
+								return;
+							}
 							$forwardRPC;
 							if( !__host.isAuth ) return;
 						}
 						$doCall;
 					}
-				case Client:
+				case Clients:
 					macro {
 						if( __host != null && __host.isAuth ) {
 							$forwardRPC;
@@ -1296,7 +1300,12 @@ class Macros {
 					}
 				case Server:
 					macro {
-						if( __host != null && !__host.isAuth ) {
+						if( __host == null ) return; // not shared object --> no server
+						if( !__host.isAuth ) {
+							if( !networkAllow(RPCServer, $v{id}, __host.self.ownerObject) ) {
+								__host.logError("Calling RPC on an not allowed object");
+								return;
+							}
 							$forwardRPC;
 							return;
 						}
@@ -1304,19 +1313,26 @@ class Macros {
 					}
 				case Owner:
 					macro {
-						if( __host == null ) return;
-						var owner = networkGetOwner();
-						if( owner == null ) throw "Calling RPC(owner) function on a not owned object";
-						if( owner != __host.self.ownerObject ) @:privateAccess {
-							var old = __host.targetClient;
-							if( __host.setTargetOwner(owner) ) {
-								$forwardRPC;
-								__host.setTargetOwner(null);
+						if( __host == null )
+							return; // no distant target possible (networkAllow = false)
+						if( __host.isAuth ) {
+							// multiple forward possible
+							@:privateAccess __host.dispatchClients(function(client) {
+								if( networkAllow(Ownership,$v{id},client.ownerObject) && __host.setTargetOwner(client.ownerObject) ) {
+									$forwardRPC;
+									__host.setTargetOwner(null);
+								}
+							});
+							if( networkAllow(Ownership, $v{id}, __host.self.ownerObject) )
+								$doCall;
+						} else {
+							if( !networkAllow(RPC, $v{id}, __host.self.ownerObject) ) {
+								__host.logError("Calling RPC on a not allowed object");
+								return;
 							}
-							__host.targetClient = old;
-							return;
+							// might ping-pong, but need to preserve order
+							$forwardRPC;
 						}
-						$doCall;
 					}
 				};
 
@@ -1351,29 +1367,58 @@ class Macros {
 						hxbit.Macros.serializeValue(__ctx, result);
 					});
 				} else {
+
+					// -- when receiving the rpc, check for additional security
+
 					switch( r.mode ) {
 					case All:
-						exprs.push(macro if( __host != null && __host.isAuth ) $forwardRPC);
+						exprs.push(macro {
+							if( __host != null && __host.isAuth ) {
+								// check again
+								if( !networkAllow(RPC,$v{id},__host.rpcClient.ownerObject) )
+									return false;
+								$forwardRPC;
+							}
+							$fcall;
+						});
 					case Owner:
 						// check again when receiving the RPC if we are on the good owner
 						// the server might relay to the actual owner or simply drop if not connected
 						exprs.push(macro {
-							var owner = networkGetOwner();
-							if( owner == null ) return true;
-							if( owner != __host.self.ownerObject ) @:privateAccess {
-								var old = __host.targetClient;
-								if( __host.setTargetOwner(owner) ) {
-									$forwardRPC;
-									__host.setTargetOwner(null);
-								}
-								__host.targetClient = old;
-								return true;
+							if( __host != null && __host.isAuth ) {
+								// check again
+								if( !networkAllow(RPC, $v{id}, __host.rpcClient.ownerObject) )
+									return false;
+								// multiple forward possible
+								@:privateAccess __host.dispatchClients(function(client) {
+									if( networkAllow(Ownership,$v{id},client.ownerObject) && __host.setTargetOwner(client.ownerObject) ) {
+										$forwardRPC;
+										__host.setTargetOwner(null);
+									}
+								});
+								// only execute if ownership
+								if( !networkAllow(Ownership, $v{id}, __host.self.ownerObject) )
+									return true;
 							}
+							$fcall;
 						});
-					case Client, Server:
-						// execute now
+					case Clients:
+						exprs.push(macro {
+							if( __host != null ) {
+								// should only be called by server
+								__host.logError("assert");
+								return false;
+							}
+							$fcall;
+						});
+					case Server:
+						exprs.push(macro {
+							if( __host == null || !__host.isAuth ) throw "assert";
+							if( !networkAllow(RPCServer, $v{id}, __host.rpcClient.ownerObject) )
+								return false;
+							$fcall;
+						});
 					}
-					exprs.push(fcall);
 				}
 
 				rpcCases.push({ values : [{ expr : EConst(CInt(""+id)), pos : p }], guard : null, expr : { expr : EBlock(exprs), pos : p } });
@@ -1394,7 +1439,6 @@ class Macros {
 			} else {
 				flushExpr.unshift(macro ctx.addInt(__bits));
 				flushExpr.push(macro __bits = 0);
-				syncExpr.unshift(macro __bits = ctx.getInt());
 			}
 			flushExpr.unshift(macro var b = __bits);
 			fields.push({

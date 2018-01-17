@@ -30,6 +30,34 @@ interface ProxyChild {
 	public function unbindHost() : Void;
 }
 
+@:enum
+abstract Operation(Int) {
+	/**
+		Allows initiating RPC on client side (only "normal" and "owner" rpc are checked against it).
+	**/
+	public var RPC = 0;
+	/**
+		Tells if the client is allowed to call a rpc(server) for this object
+	**/
+	public var RPCServer = 1;
+	/**
+		Tells if the client is to be the target of the rpc(owner) messages
+	**/
+	public var Ownership = 2;
+	/**
+		Tells if the client is allowed to set fields for this object
+	**/
+	public var SetField = 3;
+	/**
+		Tells if the client is allowed to enable replication for this object
+	**/
+	public var Register = 4;
+	/**
+		Tells if the client is allowed to disable replication for this object
+	**/
+	public var Unregister = 5;
+}
+
 @:autoBuild(hxbit.Macros.buildNetworkSerializable())
 interface NetworkSerializable extends Serializable extends ProxyHost {
 	public var __host : NetworkHost;
@@ -41,7 +69,7 @@ interface NetworkSerializable extends Serializable extends ProxyHost {
 	public function networkFlush( ctx : Serializer ) : Void;
 	public function networkSync( ctx : Serializer ) : Void;
 	public function networkRPC( ctx : NetworkSerializer, rpcID : Int, clientResult : NetworkHost.NetworkClient ) : Bool;
-	public function networkGetOwner() : NetworkSerializable;
+	public function networkAllow( op : Operation, propId : Int, client : NetworkSerializable ) : Bool;
 	public function networkGetName( propId : Int, isRPC : Bool = false ) : String;
 }
 

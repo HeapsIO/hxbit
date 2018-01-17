@@ -65,9 +65,19 @@ class NetworkClient {
 				host.logError("Could not sync object", oid);
 				return bytes.length; // discard whole data, might skip some other things
 			}
+			var bits = ctx.getInt();
+			if( host.isAuth ) {
+				for( i in 0...32 ) {
+					if( bits & (1 << i) != 0 && !o.networkAllow(SetField, i, ownerObject) ) {
+						host.logError("Client setting unallowed property " + o.networkGetName(i) + " on " + o, o.__uid);
+						return bytes.length;
+					}
+				}
+			}
 			var old = o.__bits;
 			var oldH = o.__host;
 			o.__host = null;
+			o.__bits = bits;
 			o.networkSync(ctx);
 			o.__host = oldH;
 			o.__bits = old;
@@ -364,13 +374,15 @@ class NetworkHost {
 		ctx.enableChecks = true;
 	}
 
-	function mark(o:NetworkSerializable) {
-		if( !isAuth ) {
-			var owner = o.networkGetOwner();
-			if( owner == null || self.ownerObject != owner )
-				throw "Client can't set property on " + o + " without ownership";
-			// allow to modify the property localy and send it to server
+	function checkWrite( o : NetworkSerializable, vid : Int ) {
+		if( !isAuth && !o.networkAllow(SetField,vid,self.ownerObject) ) {
+			logError("Setting a property on a not allowed object", o.__uid);
+			return false;
 		}
+		return true;
+	}
+
+	function mark(o:NetworkSerializable) {
 		o.__next = markHead;
 		markHead = o;
 		return true;
@@ -561,6 +573,13 @@ class NetworkHost {
 		this.stats = stats;
 	}
 
+	inline function dispatchClients( callb : NetworkClient -> Void ) {
+		var old = targetClient;
+		for( c in clients )
+			callb(c);
+		targetClient = old;
+	}
+
 	function register( o : NetworkSerializable ) {
 		o.__host = this;
 		var o2 = ctx.refs[o.__uid];
@@ -568,11 +587,8 @@ class NetworkHost {
 			if( o2 != (o:Serializable) ) logError("Register conflict between objects " + o + " and " + o2, o.__uid);
 			return;
 		}
-		if( !isAuth ) {
-			var owner = o.networkGetOwner();
-			if( owner == null || owner != self.ownerObject )
-				throw "Can't register "+o+" without ownership";
-		}
+		if( !isAuth && !o.networkAllow(Register,0,self.ownerObject) )
+			throw "Can't register "+o+" without ownership";
 		if( logger != null )
 			logger("Register " + o + "#" + o.__uid);
 		ctx.addByte(REG);
@@ -599,11 +615,8 @@ class NetworkHost {
 	function unregister( o : NetworkSerializable ) {
 		if( o.__host == null )
 			return;
-		if( !isAuth ) {
-			var owner = o.networkGetOwner();
-			if( owner == null || owner != self.ownerObject )
-				throw "Can't unregister "+o+" without ownership";
-		}
+		if( !isAuth && !o.networkAllow(Unregister,0,self.ownerObject) )
+			throw "Can't unregister "+o+" without ownership";
 		flushProps(); // send changes
 		o.__host = null;
 		o.__bits = 0;
