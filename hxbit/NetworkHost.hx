@@ -28,9 +28,11 @@ class NetworkClient {
 	var resultID : Int;
 	public var seqID : Int;
 	public var ownerObject : NetworkSerializable;
+	public var lastMessage : Float;
 
 	public function new(h) {
 		this.host = h;
+		lastMessage = haxe.Timer.stamp();
 	}
 
 	public function sync() {
@@ -243,6 +245,8 @@ class NetworkClient {
 	}
 
 	function processMessagesData( data : haxe.io.Bytes, pos : Int, length : Int ) {
+		if( length > 0 )
+			lastMessage = haxe.Timer.stamp();
 		while( pos < length ) {
 			var oldPos = pos;
 			pos = processMessage(data, pos);
@@ -282,6 +286,8 @@ class NetworkHost {
 	static inline var BCUSTOM	 = 11;
 	static inline var CANCEL_RPC = 12;
 	static inline var EOM		 = 0xFF;
+
+	public static var CLIENT_TIMEOUT = 60. * 60.; // 1 hour timeout
 
 	public var checkEOM(get, never) : Bool;
 	inline function get_checkEOM() return true;
@@ -705,6 +711,11 @@ class NetworkHost {
 			sendRate = sendRate * 0.8 + rate * 0.2; // smooth
 		lastSentTime = now;
 		lastSentBytes = totalSentBytes;
+
+		// check for unresponsive clients (nothing received from them)
+		for( c in clients )
+			if( now - c.lastMessage > CLIENT_TIMEOUT )
+				c.stop();
 	}
 
 	static function enableReplication( o : NetworkSerializable, b : Bool ) {
