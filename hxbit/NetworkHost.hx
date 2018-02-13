@@ -65,14 +65,14 @@ class NetworkClient {
 			var o : hxbit.NetworkSerializable = cast ctx.refs[oid];
 			if( o == null ) {
 				host.logError("Could not sync object", oid);
-				return bytes.length; // discard whole data, might skip some other things
+				return -1; // discard whole data, might skip some other things
 			}
 			var bits = ctx.getInt();
 			if( host.isAuth ) {
 				for( i in 0...32 ) {
 					if( bits & (1 << i) != 0 && !o.networkAllow(SetField, i, ownerObject) ) {
 						host.logError("Client setting unallowed property " + o.networkGetName(i) + " on " + o, o.__uid);
-						return bytes.length;
+						return -1;
 					}
 				}
 			}
@@ -250,6 +250,8 @@ class NetworkClient {
 		while( pos < length ) {
 			var oldPos = pos;
 			pos = processMessage(data, pos);
+			if( pos < 0 )
+				break;
 			if( host.checkEOM ) {
 				if( data.get(pos) != NetworkHost.EOM ) {
 					var len = length - oldPos;
