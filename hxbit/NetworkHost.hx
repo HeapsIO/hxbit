@@ -516,9 +516,11 @@ class NetworkHost {
 		ctx.begin();
 		ctx.addByte(FULLSYNC);
 		ctx.addByte(c.seqID);
-		for( o in refs )
-			if( o != null )
-				ctx.addAnyRef(o);
+
+		var objs = [for( o in refs ) if( o != null ) o];
+		objs.sort(sortByUID);
+		for( o in objs )
+			ctx.addAnyRef(o);
 		ctx.addAnyRef(null);
 		if( checkEOM ) ctx.addByte(EOM);
 		ctx.enableChecks = true;
