@@ -182,6 +182,7 @@ There are different RPC modes, which can be specified by using `@:rpc(mode)`:
   - `client` : When called on the server, will forward the call to the clients, but not execute locally. When called on the client, will execute locally. 
   - `server` : When called on the client, will forward the call the server, but not execute locally. When called on the server, will execute locally.
   - `owner` : When called on the client, will forward the call to the server if not the owner, or else execute locally. When called on the server, will forward the call to the owner. Will fail if there is no owner.
+  - `immediate` : Like `all` but executes immediately locally
   
 Return values are possible unless you are in `all` mode, and will add an extra callback to capture the result asynchronously:
 
