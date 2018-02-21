@@ -80,7 +80,9 @@ class NetworkClient {
 			var oldH = o.__host;
 			o.__host = null;
 			o.__bits = bits;
+			host.syncingProperties = true;
 			o.networkSync(ctx);
+			host.syncingProperties = false;
 			o.__host = oldH;
 			o.__bits = old;
 			if( ctx.error )
@@ -305,6 +307,7 @@ class NetworkHost {
 
 	public var sendRate : Float = 0.;
 	public var totalSentBytes : Int = 0;
+	public var syncingProperties = false;
 
 	var perPacketBytes = 20; // IP + UDP headers
 	var lastSentTime : Float = 0.;
