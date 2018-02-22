@@ -85,6 +85,10 @@ class NetworkClient {
 			host.syncingProperties = false;
 			o.__host = oldH;
 			o.__bits = old;
+
+			if( host.isAuth && (o.__next != null || host.mark(o))) {
+				o.__bits |= bits;
+			}
 			if( ctx.error )
 				host.logError("Found unreferenced object while syncing " + o);
 		case NetworkHost.REG:
