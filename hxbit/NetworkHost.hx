@@ -76,6 +76,16 @@ class NetworkClient {
 					}
 				}
 			}
+			if( host.logger != null ) {
+				var props = [];
+				var i = 0;
+				while( 1 << i <= bits ) {
+					if( bits & (1 << i) != 0 )
+						props.push(o.networkGetName(i));
+					i++;
+				}
+				host.logger("SYNC< " + o + "#" + o.__uid + " " + props.join("|"));
+			}
 			var old = o.__bits;
 			var oldH = o.__host;
 			o.__host = null;
@@ -680,7 +690,7 @@ class NetworkHost {
 							props.push(o.networkGetName(i));
 						i++;
 					}
-					logger("SYNC " + o + "#" + o.__uid + " " + props.join("|"));
+					logger("SYNC> " + o + "#" + o.__uid + " " + props.join("|"));
 				}
 				if( stats != null )
 					stats.sync(o);
