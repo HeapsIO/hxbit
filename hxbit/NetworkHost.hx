@@ -76,13 +76,29 @@ class NetworkClient {
 					}
 				}
 			}
+			if( host.logger != null ) {
+				var props = [];
+				var i = 0;
+				while( 1 << i <= bits ) {
+					if( bits & (1 << i) != 0 )
+						props.push(o.networkGetName(i));
+					i++;
+				}
+				host.logger("SYNC< " + o + "#" + o.__uid + " " + props.join("|"));
+			}
 			var old = o.__bits;
 			var oldH = o.__host;
 			o.__host = null;
 			o.__bits = bits;
+			host.syncingProperties = true;
 			o.networkSync(ctx);
+			host.syncingProperties = false;
 			o.__host = oldH;
 			o.__bits = old;
+
+			if( host.isAuth && (o.__next != null || host.mark(o))) {
+				o.__bits |= bits;
+			}
 			if( ctx.error )
 				host.logError("Found unreferenced object while syncing " + o);
 		case NetworkHost.REG:
@@ -305,6 +321,7 @@ class NetworkHost {
 
 	public var sendRate : Float = 0.;
 	public var totalSentBytes : Int = 0;
+	public var syncingProperties = false;
 
 	var perPacketBytes = 20; // IP + UDP headers
 	var lastSentTime : Float = 0.;
@@ -673,7 +690,7 @@ class NetworkHost {
 							props.push(o.networkGetName(i));
 						i++;
 					}
-					logger("SYNC " + o + "#" + o.__uid + " " + props.join("|"));
+					logger("SYNC> " + o + "#" + o.__uid + " " + props.join("|"));
 				}
 				if( stats != null )
 					stats.sync(o);

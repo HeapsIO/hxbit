@@ -49,6 +49,10 @@ enum RpcMode {
 		When called on the server: will forward the call to the owners as defined by networkAllows(Ownership).
 	*/
 	Owner;
+	/*
+		Like `All`, but executes immediately locally
+	*/
+	Immediate;
 }
 
 enum PropTypeDesc<PropType> {
@@ -1059,8 +1063,9 @@ class Macros {
 						case EConst(CIdent("clients")): mode = Clients;
 						case EConst(CIdent("server")): mode = Server;
 						case EConst(CIdent("owner")): mode = Owner;
+						case EConst(CIdent("immediate")): mode = Immediate;
 						default:
-							Context.error("Unexpected Rpc mode : should be all|client|server|owner", meta.params[0].pos);
+							Context.error("Unexpected Rpc mode : should be all|client|server|owner|immediate", meta.params[0].pos);
 						}
 					rpc.push( { f : f, mode:mode } );
 					superRPC.set(f.name, true);
@@ -1334,6 +1339,17 @@ class Macros {
 							$forwardRPC;
 						}
 					}
+				case Immediate:
+					macro {
+						if( __host != null ) {
+							if( !__host.isAuth && !networkAllow(RPC, $v{id}, __host.self.ownerObject) ) {
+								__host.logError("Calling RPC on an not allowed object");
+								return;
+							}
+							$forwardRPC;
+						}
+						$doCall;
+					}
 				};
 
 				var rpc : Field = {
@@ -1416,6 +1432,22 @@ class Macros {
 							if( __host == null || !__host.isAuth ) throw "assert";
 							if( !networkAllow(RPCServer, $v{id}, __host.rpcClient.ownerObject) )
 								return false;
+							$fcall;
+						});
+					case Immediate:
+						exprs.push(macro {
+							if( __host != null && __host.isAuth ) {
+								// check again
+								if( !networkAllow(RPC,$v{id},__host.rpcClient.ownerObject) )
+									return false;
+								
+								@:privateAccess __host.dispatchClients(function(client) {
+									if(client != __host.rpcClient && __host.setTargetOwner(client.ownerObject) ) {
+										$forwardRPC;
+										__host.setTargetOwner(null);
+									}
+								});
+							}
 							$fcall;
 						});
 					}
