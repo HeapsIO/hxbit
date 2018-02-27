@@ -45,7 +45,7 @@ This allows you to serialize/unserialize using this code:
 var s = new hxbit.Serializer();
 var bytes = s.serialize(user);
 ....
-var u = new hxbit.Unserializer();
+var u = new hxbit.Serializer();
 var user = u.unserialize(bytes, User);
 ....
 ```
