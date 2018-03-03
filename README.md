@@ -160,7 +160,7 @@ A NetworkSerializable can be shared over the network by setting `enableReplicati
 
 When a shared Serializable field is modified, we store a bit to mark it as changed. When host.sync() is called (or when a RPC occurs), we send the modified fields over the network so the objects state is correctly replicated on other connected nodes.
 
-Only the authority or the object owner can modify the serializable fields. By default an object doesn't have a owner, you can override `networkGetOwner()` to specify it.
+Only the authority can modify the serializable fields and call normal RPCs. By default an object doesn't have any ownership rights, you can define the `networkAllow()` method to specify it.
 
 In order to detect whenever a new object has been shared over the network, you must implement the `alive()` method, which will be triggered once an object has been fully initialized. 
 
@@ -180,8 +180,8 @@ There are different RPC modes, which can be specified by using `@:rpc(mode)`:
 
   - `all` (default) : When called on the client, will forward the call on the server, but not execute locally. When called on the server, will forward the call to the clients (and force its execution), then execute.
   - `client` : When called on the server, will forward the call to the clients, but not execute locally. When called on the client, will execute locally. 
-  - `server` : When called on the client, will forward the call the server, but not execute locally. When called on the server, will execute locally.
-  - `owner` : When called on the client, will forward the call to the server if not the owner, or else execute locally. When called on the server, will forward the call to the owner. Will fail if there is no owner.
+  - `server` : When called on the client: will forward the call the server (if networkAllow(RPCServer) allows it), but not execute locally. When called on the server, will execute locally.
+  - `owner` : When called on the client: will forward the call to the server (if networkAllow(RPC) allows it), but not execute locally. When called on the server: will forward the call to the owners as defined by networkAllow(Ownership).
   - `immediate` : Like `all` but executes immediately locally
   
 Return values are possible unless you are in `all` mode, and will add an extra callback to capture the result asynchronously:

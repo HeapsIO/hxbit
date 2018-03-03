@@ -40,13 +40,13 @@ enum RpcMode {
 	*/
 	Clients;
 	/*
-		When called on the client: will forward the call the server (if networkAllows(RPCServer) allows it), but not execute locally.
+		When called on the client: will forward the call the server (if networkAllow(RPCServer) allows it), but not execute locally.
 		When called on the server: will execute locally.
 	*/
 	Server;
 	/*
-		When called on the client: will forward the call to the server (if networkAllows(RPC) allows it), but not execute locally.
-		When called on the server: will forward the call to the owners as defined by networkAllows(Ownership).
+		When called on the client: will forward the call to the server (if networkAllow(RPC) allows it), but not execute locally.
+		When called on the server: will forward the call to the owners as defined by networkAllow(Ownership).
 	*/
 	Owner;
 	/*
