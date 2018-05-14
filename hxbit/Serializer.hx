@@ -766,7 +766,7 @@ class Serializer {
 				throw "No enum unserializer found for " + name;
 			}
 			return ser.doUnserialize(this);
-		case PSerializable(name): getKnownRef(Type.resolveClass(name));
+		case PSerializable(name): getKnownRef(cast Type.resolveClass(name));
 		case PNull(t): getByte() == 0 ? null : readValue(t);
 		case PObj(fields):
 			var bits = getInt();
