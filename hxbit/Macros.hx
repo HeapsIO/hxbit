@@ -203,7 +203,8 @@ class Macros {
 			case ":notMutable":
 				t.notMutable = true;
 			default:
-				Context.error("Unsupported network metadata", m.pos);
+				if(m.name.charAt(0) == ":")
+					Context.error("Unsupported network metadata", m.pos);
 			}
 		}
 		return t;
@@ -1342,7 +1343,7 @@ class Macros {
 				case Immediate:
 					macro {
 						if( __host != null ) {
-							if( !__host.isAuth && !networkAllow(RPC, $v{id}, __host.self.ownerObject) ) {
+							if( !__host.isAuth && !networkAllow(Ownership, $v{id}, __host.self.ownerObject) ) {
 								__host.logError("Calling RPC on an not allowed object");
 								return;
 							}
@@ -1438,7 +1439,7 @@ class Macros {
 						exprs.push(macro {
 							if( __host != null && __host.isAuth ) {
 								// check again
-								if( !networkAllow(RPC,$v{id},__host.rpcClient.ownerObject) )
+								if( !networkAllow(Ownership,$v{id},__host.rpcClient.ownerObject) )
 									return false;
 								
 								@:privateAccess __host.dispatchClients(function(client) {
