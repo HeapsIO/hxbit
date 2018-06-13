@@ -580,7 +580,7 @@ class Macros {
 
 	public static function buildSerializable() {
 		var cl = Context.getLocalClass().get();
-		if( cl.isInterface )
+		if( cl.isInterface || Context.defined("display") )
 			return null;
 		var fields = Context.getBuildFields();
 		var toSerialize = [];
@@ -591,7 +591,6 @@ class Macros {
 		var isSubSer = sup != null && isSerializable(sup.t);
 		var hasNonSerializableParent = sup != null && !isSerializable(sup.t);
 
-		if( !Context.defined("display") )
 		for( f in fields ) {
 			if( f.name == "customSerialize" && ( f.access.indexOf(AOverride) < 0 || hasNonSerializableParent ) ) {
 				addCustomSerializable = true;
@@ -988,7 +987,7 @@ class Macros {
 
 	public static function buildNetworkSerializable() {
 		var cl = Context.getLocalClass().get();
-		if( cl.isInterface )
+		if( cl.isInterface || Context.defined("display") )
 			return null;
 		var fields = Context.getBuildFields();
 		var toSerialize = [];
@@ -1025,7 +1024,6 @@ class Macros {
 			}
 		}
 
-		if( !Context.defined("display") )
 		for( f in fields ) {
 
 			if( superRPC.exists(f.name) ) {
@@ -1441,7 +1439,7 @@ class Macros {
 								// check again
 								if( !networkAllow(Ownership,$v{id},__host.rpcClient.ownerObject) )
 									return false;
-								
+
 								@:privateAccess __host.dispatchClients(function(client) {
 									if(client != __host.rpcClient && __host.setTargetOwner(client.ownerObject) ) {
 										$forwardRPC;
