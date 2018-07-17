@@ -711,8 +711,8 @@ class Serializer {
 
 	function convertValue( v : Dynamic, from : Schema.FieldType, to : Schema.FieldType ) : Dynamic {
 
-		if( v == null && isNullable(to) )
-			return null;
+		if( v == null )
+			return Convert.getDefault(to);
 
 		if( Convert.sameType(from,to) )
 			return v;
@@ -737,6 +737,24 @@ class Serializer {
 				Reflect.setField(v2, f.name, field);
 			}
 			return v2;
+		case [PNull(from),_]:
+			return convertValue(v, from, to);
+		case [_,PNull(to)]:
+			return convertValue(v, from, to);
+		case [PInt, PFloat]:
+			return (v:Int) * 1.0;
+		case [PFloat, PInt]:
+			return Std.int(v);
+		case [PSerializable(_),PSerializable(to)]:
+			var v2 = Std.instance(v, Type.resolveClass(to));
+			if( v2 != null ) return v2;
+		case [PArray(from),PArray(to)]:
+			var arr : Array<Dynamic> = v;
+			return [for( v in arr ) convertValue(v,from,to)];
+		case [PAlias(from),_]:
+			return convertValue(v, from, to);
+		case [_,PAlias(to)]:
+			return convertValue(v, from, to);
 		default:
 		}
 		throw "Cannot convert " + v + " from " + from + " to " + to;
