@@ -22,12 +22,15 @@
 package hxbit;
 
 class ConvertField {
+	public var path : String;
 	public var index : Int;
 	public var same : Bool;
 	public var defaultValue : Dynamic;
 	public var from : Null<Schema.FieldType>;
 	public var to : Null<Schema.FieldType>;
-	public function new(from, to) {
+	public var conv : Dynamic -> Dynamic;
+	public function new(path,from, to) {
+		this.path = path;
 		this.from = from;
 		this.to = to;
 	}
@@ -38,7 +41,7 @@ class Convert {
 	public var read : Array<ConvertField>;
 	public var write : Array<ConvertField>;
 
-	public function new( ourSchema : Schema, schema : Schema ) {
+	public function new( classPath : String, ourSchema : Schema, schema : Schema ) {
 		var ourMap = new Map();
 		for( i in 0...ourSchema.fieldsNames.length )
 			ourMap.set(ourSchema.fieldsNames[i], ourSchema.fieldsTypes[i]);
@@ -51,12 +54,14 @@ class Convert {
 		for( i in 0...schema.fieldsNames.length ) {
 			var oldT = schema.fieldsTypes[i];
 			var newT = ourMap.get(schema.fieldsNames[i]);
-			var c = new ConvertField(oldT, newT);
+			var c = new ConvertField(classPath+"."+schema.fieldsNames[i],oldT, newT);
 			if( newT != null ) {
 				if( sameType(oldT, newT) )
 					c.same = true;
-				else
+				else {
+					c.conv = convFuns.get(c.path);
 					c.defaultValue = getDefault(newT);
+				}
 			}
 			c.index = read.length;
 			read.push(c);
@@ -68,7 +73,7 @@ class Convert {
 			var newT = ourSchema.fieldsTypes[i];
 			var c = map.get(ourSchema.fieldsNames[i]);
 			if( c == null ) {
-				c = new ConvertField(null, newT);
+				c = new ConvertField(null, null, newT);
 				// resolve default value using a specific method ?
 				c.defaultValue = getDefault(newT);
 			}
@@ -132,6 +137,11 @@ class Convert {
 		case PAlias(t): getDefault(t);
 		case PEnum(_), PNull(_), PObj(_), PSerializable(_), PString, PUnknown, PBytes, PDynamic, PStruct: null;
 		};
+	}
+
+	static var convFuns : Map<String,Dynamic -> Dynamic> = new Map();
+	public static function registerConverter( path : String, f : Dynamic -> Dynamic ) {
+		convFuns.set(path, f);
 	}
 
 }
