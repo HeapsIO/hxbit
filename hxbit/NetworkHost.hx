@@ -26,6 +26,7 @@ class NetworkClient {
 
 	var host : NetworkHost;
 	var resultID : Int;
+	var needAlive : Bool;
 	public var seqID : Int;
 	public var ownerObject : NetworkSerializable;
 	public var lastMessage : Float;
