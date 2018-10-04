@@ -534,6 +534,7 @@ class NetworkHost {
 			if( !found ) break;
 			seq++;
 		}
+		if( seq > 0xFF ) throw "Out of sequence number";
 		ctx.addByte(seq);
 		c.seqID = seq;
 
@@ -622,7 +623,7 @@ class NetworkHost {
 		o.__host = this;
 		var o2 = ctx.refs[o.__uid];
 		if( o2 != null ) {
-			if( o2 != (o:Serializable) ) logError("Register conflict between objects " + o + " and " + o2, o.__uid);
+			if( o2 != (o:Serializable) ) logError("Register conflict between objects", o.__uid);
 			return;
 		}
 		if( !isAuth && !o.networkAllow(Register,0,self.ownerObject) )
