@@ -921,6 +921,21 @@ class Serializer {
 		}
 	}
 
+	public static function save( value : Serializable ) {
+		var s = new Serializer();
+		s.beginSave();
+		s.addKnownRef(value);
+		return s.endSave();
+	}
+
+	public static function load<T:Serializable>( bytes : haxe.io.Bytes, cl : Class<T> ) : T {
+		var s = new Serializer();
+		s.beginLoad(bytes);
+		var value = s.getKnownRef(cl);
+		s.endLoad();
+		return value;
+	}
+
 }
 
 #end
