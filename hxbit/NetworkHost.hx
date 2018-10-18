@@ -26,6 +26,7 @@ class NetworkClient {
 
 	var host : NetworkHost;
 	var resultID : Int;
+	var needAlive : Bool;
 	public var seqID : Int;
 	public var ownerObject : NetworkSerializable;
 	public var lastMessage : Float;
@@ -59,6 +60,12 @@ class NetworkClient {
 			host.logError("Unhandled previous error");
 
 		var mid = ctx.getByte();
+
+		if( needAlive && mid != NetworkHost.REG ) {
+			needAlive = false;
+			host.makeAlive();
+		}
+
 		switch( mid ) {
 		case NetworkHost.SYNC:
 			var oid = ctx.getInt();
@@ -105,7 +112,7 @@ class NetworkClient {
 			var o : hxbit.NetworkSerializable = cast ctx.getAnyRef();
 			if( ctx.error )
 				host.logError("Found unreferenced object while registering " + o);
-			host.makeAlive();
+			needAlive = true;
 		case NetworkHost.UNREG:
 			var oid = ctx.getInt();
 			var o : hxbit.NetworkSerializable = cast ctx.refs[oid];
@@ -276,6 +283,10 @@ class NetworkClient {
 				}
 				pos++;
 			}
+		}
+		if( needAlive ) {
+			needAlive = false;
+			host.makeAlive();
 		}
 	}
 
@@ -523,6 +534,7 @@ class NetworkHost {
 			if( !found ) break;
 			seq++;
 		}
+		if( seq > 0xFF ) throw "Out of sequence number";
 		ctx.addByte(seq);
 		c.seqID = seq;
 
@@ -611,7 +623,7 @@ class NetworkHost {
 		o.__host = this;
 		var o2 = ctx.refs[o.__uid];
 		if( o2 != null ) {
-			if( o2 != (o:Serializable) ) logError("Register conflict between objects " + o + " and " + o2, o.__uid);
+			if( o2 != (o:Serializable) ) logError("Register conflict between objects", o.__uid);
 			return;
 		}
 		if( !isAuth && !o.networkAllow(Register,0,self.ownerObject) )

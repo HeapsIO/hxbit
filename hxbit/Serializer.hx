@@ -655,7 +655,7 @@ class Serializer {
 				var schema = getKnownRef(Schema);
 				refs.remove(schema.__uid);
 				if( ourSchema != null )
-					convert[mapIndexes[index]] = new Convert(ourSchema, schema);
+					convert[mapIndexes[index]] = new Convert(Type.getClassName(CLASSES[mapIndexes[index]]),ourSchema, schema);
 			}
 		} else {
 			// skip schema data
@@ -687,8 +687,10 @@ class Serializer {
 				if( !w.same ) {
 					if( v == null )
 						v = w.defaultValue;
+					else if( w.conv != null )
+						v = w.conv(v);
 					else
-						v = convertValue(v, w.from, w.to);
+						v = convertValue(w.path, v, w.from, w.to);
 				}
 			}
 			writeValue(v, w.to);
@@ -709,10 +711,10 @@ class Serializer {
 		}
 	}
 
-	function convertValue( v : Dynamic, from : Schema.FieldType, to : Schema.FieldType ) : Dynamic {
+	function convertValue( path : String, v : Dynamic, from : Schema.FieldType, to : Schema.FieldType ) : Dynamic {
 
-		if( v == null && isNullable(to) )
-			return null;
+		if( v == null )
+			return Convert.getDefault(to);
 
 		if( Convert.sameType(from,to) )
 			return v;
@@ -726,7 +728,7 @@ class Serializer {
 				for( f2 in obj1 )
 					if( f2.name == f.name ) {
 						found = true;
-						field = convertValue(Reflect.field(v, f2.name), f2.type, f.type);
+						field = convertValue(path+"."+f2.name, Reflect.field(v, f2.name), f2.type, f.type);
 						break;
 					}
 				if( !found ) {
@@ -737,9 +739,32 @@ class Serializer {
 				Reflect.setField(v2, f.name, field);
 			}
 			return v2;
+		case [PNull(from),_]:
+			return convertValue(path, v, from, to);
+		case [_,PNull(to)]:
+			return convertValue(path, v, from, to);
+		case [PInt, PFloat]:
+			return (v:Int) * 1.0;
+		case [PFloat, PInt]:
+			return Std.int(v);
+		case [PSerializable(_),PSerializable(to)]:
+			var v2 = Std.instance(v, Type.resolveClass(to));
+			if( v2 != null ) return v2;
+		case [PArray(from),PArray(to)]:
+			var arr : Array<Dynamic> = v;
+			return [for( v in arr ) convertValue(path+"[]", v,from,to)];
+		case [PAlias(from),_]:
+			return convertValue(path, v, from, to);
+		case [_,PAlias(to)]:
+			return convertValue(path, v, from, to);
 		default:
 		}
-		throw "Cannot convert " + v + " from " + from + " to " + to;
+
+		var conv = @:privateAccess hxbit.Convert.convFuns.get(path);
+		if( conv != null )
+			return conv(v);
+
+		throw 'Cannot convert $path($v) from $from to $to';
 	}
 
 	function readValue( t : Schema.FieldType ) : Dynamic {
@@ -894,6 +919,21 @@ class Serializer {
 		case PUnknown:
 			throw "assert";
 		}
+	}
+
+	public static function save( value : Serializable ) {
+		var s = new Serializer();
+		s.beginSave();
+		s.addKnownRef(value);
+		return s.endSave();
+	}
+
+	public static function load<T:Serializable>( bytes : haxe.io.Bytes, cl : Class<T> ) : T {
+		var s = new Serializer();
+		s.beginLoad(bytes);
+		var value = s.getKnownRef(cl);
+		s.endLoad();
+		return value;
 	}
 
 }

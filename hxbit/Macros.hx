@@ -212,6 +212,7 @@ class Macros {
 
 	static function getPropType( t : haxe.macro.Type ) : PropType {
 		var isProxy = false;
+		var isMutable = true;
 		var desc = switch( t ) {
 		case TAbstract(a, pl):
 			switch( a.toString() ) {
@@ -284,12 +285,16 @@ class Macros {
 		case TAnonymous(a):
 			var a = a.get();
 			var fields = [];
+			isMutable = false;
 			for( f in a.fields ) {
 				if( f.meta.has(":noSerialize") )
 					continue;
 				var ft = getPropField(f.type, f.meta.get());
 				if( ft == null ) return null;
 				fields.push( { name : f.name, type : ft, opt : f.meta.has(":optional") } );
+				#if (haxe_ver >= 4)
+				if( !f.isFinal ) isMutable = true;
+				#end
 			}
 			PObj(fields);
 		case TInst(c, pl):
@@ -348,6 +353,7 @@ class Macros {
 			t : t.toComplexType(),
 		};
 		if( isProxy ) p.isProxy = isProxy;
+		if( !isMutable ) p.notMutable = true;
 		return p;
 	}
 
@@ -580,7 +586,7 @@ class Macros {
 
 	public static function buildSerializable() {
 		var cl = Context.getLocalClass().get();
-		if( cl.isInterface )
+		if( cl.isInterface || Context.defined("display") )
 			return null;
 		var fields = Context.getBuildFields();
 		var toSerialize = [];
@@ -591,7 +597,6 @@ class Macros {
 		var isSubSer = sup != null && isSerializable(sup.t);
 		var hasNonSerializableParent = sup != null && !isSerializable(sup.t);
 
-		if( !Context.defined("display") )
 		for( f in fields ) {
 			if( f.name == "customSerialize" && ( f.access.indexOf(AOverride) < 0 || hasNonSerializableParent ) ) {
 				addCustomSerializable = true;
@@ -988,7 +993,7 @@ class Macros {
 
 	public static function buildNetworkSerializable() {
 		var cl = Context.getLocalClass().get();
-		if( cl.isInterface )
+		if( cl.isInterface || Context.defined("display") )
 			return null;
 		var fields = Context.getBuildFields();
 		var toSerialize = [];
@@ -1025,7 +1030,6 @@ class Macros {
 			}
 		}
 
-		if( !Context.defined("display") )
 		for( f in fields ) {
 
 			if( superRPC.exists(f.name) ) {
@@ -1441,7 +1445,7 @@ class Macros {
 								// check again
 								if( !networkAllow(Ownership,$v{id},__host.rpcClient.ownerObject) )
 									return false;
-								
+
 								@:privateAccess __host.dispatchClients(function(client) {
 									if(client != __host.rpcClient && __host.setTargetOwner(client.ownerObject) ) {
 										$forwardRPC;
