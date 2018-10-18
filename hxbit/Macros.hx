@@ -1070,7 +1070,7 @@ class Macros {
 						case EConst(CIdent("owner")): mode = Owner;
 						case EConst(CIdent("immediate")): mode = Immediate;
 						default:
-							Context.error("Unexpected Rpc mode : should be all|client|server|owner|immediate", meta.params[0].pos);
+							Context.error("Unexpected Rpc mode : should be all|clients|server|owner|immediate", meta.params[0].pos);
 						}
 					rpc.push( { f : f, mode:mode } );
 					superRPC.set(f.name, true);
