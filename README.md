@@ -179,7 +179,7 @@ class Cursor implements hxbit.NetworkSerializable {
 There are different RPC modes, which can be specified by using `@:rpc(mode)`:
 
   - `all` (default) : When called on the client, will forward the call on the server, but not execute locally. When called on the server, will forward the call to the clients (and force its execution), then execute.
-  - `client` : When called on the server, will forward the call to the clients, but not execute locally. When called on the client, will execute locally. 
+  - `clients` : When called on the server, will forward the call to the clients, but not execute locally. When called on the client, will execute locally. 
   - `server` : When called on the client: will forward the call the server (if networkAllow(RPCServer) allows it), but not execute locally. When called on the server, will execute locally.
   - `owner` : When called on the client: will forward the call to the server (if networkAllow(RPC) allows it), but not execute locally. When called on the server: will forward the call to the owners as defined by networkAllow(Ownership).
   - `immediate` : Like `all` but executes immediately locally
