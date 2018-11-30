@@ -859,7 +859,7 @@ class Macros {
 					},{
 						name : "getSchema",
 						access : [AStatic, APublic],
-						meta : [{name:":keep",pos:pos}],
+						meta : [{name:":ifFeature",pos:pos, params:[macro "hxbit.Dump.readValue"]}],
 						pos : pos,
 						kind : FFun( {
 							args : [],
