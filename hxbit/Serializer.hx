@@ -241,7 +241,7 @@ class Serializer {
 			addByte(0);
 			return;
 		}
-		var keys = Lambda.array({ iterator : a.keys });
+		var keys = [for (k in a.keys()) k];
 		addInt(keys.length + 1);
 		for( k in keys ) {
 			fk(k);
@@ -900,7 +900,7 @@ class Serializer {
 					addByte(0);
 					return;
 				}
-				var keys = Lambda.array({ iterator : v.keys });
+				var keys = [for (k in v.keys()) k];
 				addInt(keys.length + 1);
 				for( vk in keys ) {
 					writeValue(vk, k);
