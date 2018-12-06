@@ -40,6 +40,7 @@ class ArrayProxyIterator<T> {
 	public var count : Int;
 	public inline function new(a) {
 		this.a = a;
+		this.index = 0;
 		this.count = a.length;
 	}
 	public inline function hasNext() return index < count;
