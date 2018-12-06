@@ -91,7 +91,7 @@ class NetworkClient {
 						props.push(o.networkGetName(i));
 					i++;
 				}
-				host.logger("SYNC< " + o + "#" + o.__uid + " " + props.join("|"));
+				host.logger("SYNC < " + o + "#" + o.__uid + " " + props.join("|"));
 			}
 			var old = o.__bits;
 			var oldH = o.__host;
@@ -157,6 +157,9 @@ class NetworkClient {
 				host.rpcClientValue = this;
 				o.networkRPC(ctx, fid, this); // ignore result (client made an RPC on since-then removed object - it has been canceled)
 				host.rpcClientValue = null;
+			}
+			if(host.logger != null) {
+				host.logger("RPC < " + o+"#"+o.__uid + " " + o.networkGetName(fid,true));
 			}
 		case NetworkHost.RPC_WITH_RESULT:
 
@@ -502,7 +505,7 @@ class NetworkHost {
 		ctx.addInt32(-1);
 		ctx.addByte(id);
 		if( logger != null )
-			logger("RPC " + o +"."+o.networkGetName(id,true)+"()");
+			logger("RPC > " + o+"#"+o.__uid + " " + o.networkGetName(id,true));
 		if( stats != null )
 			stats.beginRPC(o, id);
 		return ctx;
@@ -702,7 +705,7 @@ class NetworkHost {
 							props.push(o.networkGetName(i));
 						i++;
 					}
-					logger("SYNC> " + o + "#" + o.__uid + " " + props.join("|"));
+					logger("SYNC > " + o + "#" + o.__uid + " " + props.join("|"));
 				}
 				if( stats != null )
 					stats.sync(o);
