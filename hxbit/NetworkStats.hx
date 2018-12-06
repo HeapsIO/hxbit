@@ -82,19 +82,19 @@ class NetworkStats {
 				switch( kt ) {
 				case PInt:
 					var m : Map<Int,Dynamic> = v;
-					var keys = [for (k in m.keys() k];
+					var keys = [for (k in m.keys()) k];
 					size += intSize(keys.length + 1);
 					for( v in keys )
 						size += intSize(v) + calcPropSize(vt, m.get(v));
 				case PString:
 					var m : Map<String,Dynamic> = v;
-					var keys = [for (k in m.keys() k];
+					var keys = [for (k in m.keys()) k];
 					size += intSize(keys.length + 1);
 					for( v in keys )
 						size += calcPropSize(kt, v) + calcPropSize(vt, m.get(v));
 				default:
 					var m : haxe.Constraints.IMap<Dynamic,Dynamic> = v;
-					var keys = [for (k in m.keys() k];
+					var keys = [for (k in m.keys()) k];
 					size += intSize(keys.length + 1);
 					for( v in keys )
 						size += calcPropSize(kt, v) + calcPropSize(vt, m.get(v));
