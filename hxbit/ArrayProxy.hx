@@ -33,6 +33,19 @@ class ArrayProxyData<T> extends BaseProxy {
 	}
 }
 
+@:generic
+class ArrayProxyIterator<T> {
+	public var a : Array<T>;
+	public var index : Int;
+	public var count : Int;
+	public inline function new(a) {
+		this.a = a;
+		this.count = a.length;
+	}
+	public inline function hasNext() return index < count;
+	public inline function next() return a[index++];
+}
+
 abstract ArrayProxy<T>(ArrayProxyData<T>) {
 
 	@:noCompletion public var __value(get, never) : Array<T>;
@@ -66,7 +79,7 @@ abstract ArrayProxy<T>(ArrayProxyData<T>) {
 	}
 
 	public inline function iterator() {
-		return this.array.iterator();
+		return new ArrayProxyIterator(__value);
 	}
 
 	public inline function join( s : String ) {
@@ -198,7 +211,7 @@ abstract ArrayProxy2<T:ProxyChild>(ArrayProxyData<T>) {
 	}
 
 	public inline function iterator() {
-		return this.array.iterator();
+		return new ArrayProxyIterator(__value);
 	}
 
 	public inline function join( s : String ) {
