@@ -550,10 +550,21 @@ class Serializer {
 			return cast refs[id];
 		var rid = id & SEQ_MASK;
 		if( UID < rid ) UID = rid;
-		if( CLIDS[clidx] != 0 ) {
-			var realIdx = getCLID();
-			c = cast CL_BYID[realIdx];
-			if( convert != null ) clidx = (c:Dynamic).__clid; // real class convert
+		if( convert != null && convert[clidx] != null ) {
+			var conv = convert[clidx];
+			if( conv.hadCID ) {
+				var realIdx = getCLID();
+				if( conv.hasCID ) {
+					c = cast CL_BYID[realIdx];
+					clidx = (c:Dynamic).__clid;
+				}
+			}
+		} else {
+			if( CLIDS[clidx] != 0 ) {
+				var realIdx = getCLID();
+				c = cast CL_BYID[realIdx];
+				if( convert != null ) clidx = (c:Dynamic).__clid; // real class convert
+			}
 		}
 		var i : T = Type.createEmptyInstance(c);
 		if( newObjects != null ) newObjects.push(i);

@@ -40,15 +40,16 @@ class Convert {
 
 	public var read : Array<ConvertField>;
 	public var write : Array<ConvertField>;
+	public var hasCID : Bool;
+	public var hadCID : Bool;
 
 	public function new( classPath : String, ourSchema : Schema, schema : Schema ) {
 		var ourMap = new Map();
 		for( i in 0...ourSchema.fieldsNames.length )
 			ourMap.set(ourSchema.fieldsNames[i], ourSchema.fieldsTypes[i]);
 		read = [];
-
-		if( ourSchema.isFinal != schema.isFinal )
-			throw "TODO : handle final flag change";
+		hadCID = !schema.isFinal;
+		hasCID = !ourSchema.isFinal;
 
 		var map = new Map();
 		for( i in 0...schema.fieldsNames.length ) {
