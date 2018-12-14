@@ -85,6 +85,19 @@ class Serializer {
 		}
 	}
 
+	static var __SIGN = null;
+	public static function getSignature() : haxe.io.Bytes {
+		if( __SIGN != null ) return __SIGN;
+		var s = new Serializer();
+		s.begin();
+		s.addInt(CLASSES.length);
+		for( i in 0...CLASSES.length ) {
+			s.addInt(CLIDS[i]);
+			s.addInt32((Type.createEmptyInstance(CLASSES[i]) : Serializable).getSerializeSchema().checkSum);
+		}
+		return __SIGN = haxe.crypto.Md5.make(s.end());
+	}
+
 	public static function isClassFinal( index : Int ) {
 		return CLIDS[index] == 0;
 	}

@@ -129,6 +129,9 @@ class NetworkClient {
 				hxbit.Serializer.SEQ = ctx.getByte();
 				ctx.newObjects = [];
 			};
+			var sign = ctx.getBytes();
+			if( sign.compare(Serializer.getSignature()) != 0 )
+				host.logError("Network signature mismatch");
 			ctx.enableChecks = false;
 			while( true ) {
 				var o = ctx.getAnyRef();
@@ -548,6 +551,7 @@ class NetworkHost {
 		ctx.begin();
 		ctx.addByte(FULLSYNC);
 		ctx.addByte(c.seqID);
+		ctx.addBytes(Serializer.getSignature());
 
 		var objs = [for( o in refs ) if( o != null ) o];
 		objs.sort(sortByUID);
