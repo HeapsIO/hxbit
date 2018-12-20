@@ -135,7 +135,10 @@ class NetworkSerializer extends Serializer {
 		}
 		addInt(s.__uid);
 		var ns = Std.instance(s, NetworkSerializable);
-		if( ns != null && ns.__host == null ) throw "Can't send unbound object " + s + " over network";
+		if( ns != null && ns.__host == null ) {
+			out = new haxe.io.BytesBuffer(); // prevent garbaged data from being kept
+			throw "Can't send unbound object " + s + " over network";
+		}
 		addBool( refs.exists(s.__uid) );
 	}
 
