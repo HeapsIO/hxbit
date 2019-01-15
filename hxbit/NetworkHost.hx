@@ -151,15 +151,8 @@ class NetworkClient {
 					host.logError("RPC @" + fid + " on unreferenced object", oid);
 				ctx.skip(size);
 			} else if( !host.isAuth ) {
-				#if release
-				var old = o.__host;
-				o.__host = null;
-				#end
 				if( !o.networkRPC(ctx, fid, this) )
 					host.logError("RPC @" + fid + " on " + o + " has unreferenced object parameter");
-				#if release
-				o.__host = old;
-				#end
 			} else {
 				host.rpcClientValue = this;
 				o.networkRPC(ctx, fid, this); // ignore result (client made an RPC on since-then removed object - it has been canceled)
