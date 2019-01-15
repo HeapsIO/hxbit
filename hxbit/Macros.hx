@@ -50,7 +50,8 @@ enum RpcMode {
 	*/
 	Owner;
 	/*
-		Like `All`, but executes immediately locally
+		When called on the client: will forward the call to the server and other clients (if networkAllows(RPC) allows it) and execute locally immediately.
+		When called on the server: will forward the call to the clients (and force its execution), then execute.
 	*/
 	Immediate;
 }
@@ -1425,11 +1426,6 @@ class Macros {
 						});
 					case Clients:
 						exprs.push(macro {
-							if( __host != null ) {
-								// should only be called by server
-								__host.logError("assert");
-								return false;
-							}
 							$fcall;
 						});
 					case Server:
