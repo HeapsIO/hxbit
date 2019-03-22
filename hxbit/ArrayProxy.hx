@@ -95,6 +95,10 @@ abstract ArrayProxy<T>(ArrayProxyData<T>) {
 		return this.array.map(t);
 	}
 
+	public function mark() {
+		this.mark();
+	}
+
 	public inline function pop() : Null<T> {
 		this.mark();
 		return this.array.pop();
@@ -225,6 +229,10 @@ abstract ArrayProxy2<T:ProxyChild>(ArrayProxyData<T>) {
 
 	public function map<S>( t : T->S ) {
 		return this.array.map(t);
+	}
+
+	public function mark() {
+		this.mark();
 	}
 
 	public inline function pop() : Null<T> {
