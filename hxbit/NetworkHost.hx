@@ -273,14 +273,15 @@ class NetworkClient {
 	function processMessagesData( data : haxe.io.Bytes, pos : Int, length : Int ) {
 		if( length > 0 )
 			lastMessage = haxe.Timer.stamp();
-		while( pos < length ) {
+		var end = pos + length;
+		while( pos < end ) {
 			var oldPos = pos;
 			pos = processMessage(data, pos);
 			if( pos < 0 )
 				break;
 			if( host.checkEOM ) {
 				if( data.get(pos) != NetworkHost.EOM ) {
-					var len = length - oldPos;
+					var len = end - oldPos;
 					if( len > 128 ) len = 128;
 					throw "Message missing EOM @"+(pos - oldPos)+":"+data.sub(oldPos, len).toHex();
 				}
