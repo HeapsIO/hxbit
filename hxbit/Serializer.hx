@@ -743,6 +743,10 @@ class Serializer {
 		if( Convert.sameType(from,to) )
 			return v;
 
+		var conv = @:privateAccess hxbit.Convert.convFuns.get(path);
+		if( conv != null )
+			return conv(v);
+
 		switch( [from, to] ) {
 		case [PObj(obj1), PObj(obj2)]:
 			var v2 = {};
@@ -769,6 +773,10 @@ class Serializer {
 			return convertValue(path, v, from, to);
 		case [PInt, PFloat]:
 			return (v:Int) * 1.0;
+		case [PBool, PInt]:
+			return (v:Bool) ? 1 : 0;
+		case [PBool, PFloat]:
+			return (v:Bool) ? 1. : 0.;
 		case [PFloat, PInt]:
 			return Std.int(v);
 		case [PSerializable(_),PSerializable(to)]:
@@ -783,10 +791,6 @@ class Serializer {
 			return convertValue(path, v, from, to);
 		default:
 		}
-
-		var conv = @:privateAccess hxbit.Convert.convFuns.get(path);
-		if( conv != null )
-			return conv(v);
 
 		throw 'Cannot convert $path($v) from $from to $to';
 	}
