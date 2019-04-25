@@ -27,6 +27,7 @@ class NetworkClient {
 	var host : NetworkHost;
 	var resultID : Int;
 	var needAlive : Bool;
+	var wasSync : Bool;
 	public var seqID : Int;
 	public var ownerObject : NetworkSerializable;
 	public var lastMessage : Float;
@@ -64,6 +65,14 @@ class NetworkClient {
 		if( needAlive && mid != NetworkHost.REG ) {
 			needAlive = false;
 			host.makeAlive();
+		}
+
+		if( !wasSync && !host.isAuth ) {
+			switch( mid ) {
+			case NetworkHost.FULLSYNC, NetworkHost.MSG, NetworkHost.BMSG, NetworkHost.CUSTOM, NetworkHost.BCUSTOM:
+			default:
+				host.logError("Message "+mid+" was received before sync");
+			}
 		}
 
 		switch( mid ) {
@@ -123,6 +132,7 @@ class NetworkClient {
 				ctx.refs.remove(o.__uid);
 			}
 		case NetworkHost.FULLSYNC:
+			wasSync = true;
 			ctx.refs = new Map();
 			@:privateAccess {
 				hxbit.Serializer.UID = 0;
