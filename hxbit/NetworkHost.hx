@@ -46,7 +46,7 @@ class NetworkClient {
 	}
 
 	public function sendMessage( msg : Dynamic ) {
-		host.sendMessage(msg, this);
+		if( host != null ) host.sendMessage(msg, this);
 	}
 
 	function error( msg : String ) {
