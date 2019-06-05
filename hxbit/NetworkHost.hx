@@ -608,7 +608,7 @@ class NetworkHost {
 		while( true ) {
 			var o = objs.pop();
 			if( o == null ) break;
-			var n = Std.instance(o, NetworkSerializable);
+			var n = #if haxe4 Std.downcast #else Std.instance #end (o, NetworkSerializable);
 			if( n == null ) continue;
 			if( logger != null )
 				logger("Alive " + n +"#" + n.__uid);

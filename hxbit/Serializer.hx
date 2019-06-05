@@ -780,7 +780,7 @@ class Serializer {
 		case [PFloat, PInt]:
 			return Std.int(v);
 		case [PSerializable(_),PSerializable(to)]:
-			var v2 = Std.instance(v, Type.resolveClass(to));
+			var v2 = #if haxe4 Std.downcast #else Std.instance #end(v, Type.resolveClass(to));
 			if( v2 != null ) return v2;
 		case [PArray(from),PArray(to)]:
 			var arr : Array<Dynamic> = v;
