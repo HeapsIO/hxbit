@@ -1181,6 +1181,10 @@ class Macros {
 			var markExpr = macro networkSetBit($v{ bitID });
 			markExpr = makeMarkExpr(fields, fname, ftype, markExpr);
 
+			var compExpr : Expr = macro this.$fname != v;
+			if(ftype.d.match(PEnum(_)))
+				compExpr = macro !Type.enumEq(this.$fname, v);
+
 			var markFun = "__net_mark_" + f.f.name;
 			fields.push( {
 				name : markFun,
@@ -1191,7 +1195,7 @@ class Macros {
 					args : [{ name : "v", type : ftype.t }],
 					ret : ftype.t,
 					expr : macro {
-						if( this.$fname != v ) {
+						if( $compExpr ) {
 							$markExpr;
 							${if( ftype.isProxy ) macro (if( v != null ) v.bindHost(this,$v{bitID})) else macro {}};
 						}
