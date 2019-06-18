@@ -130,6 +130,7 @@ class NetworkClient {
 			} else {
 				o.__host = null;
 				ctx.refs.remove(o.__uid);
+				host.onUnregister(o);
 			}
 		case NetworkHost.FULLSYNC:
 			wasSync = true;
@@ -447,6 +448,9 @@ class NetworkHost {
 	}
 
 	public dynamic function onMessage( from : NetworkClient, msg : Dynamic ) {
+	}
+
+	public dynamic function onUnregister(o : hxbit.NetworkSerializable) {
 	}
 
 	function onCustom( from : NetworkClient, id : Int, ?data : haxe.io.Bytes ) {
