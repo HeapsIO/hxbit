@@ -1601,7 +1601,7 @@ class Macros {
 		var needRef = false;
 		if( t.increment != null ) {
 			needRef = true;
-			mark = macro if( Math.floor(this.$fname / $v{t.increment}) != this.$rname ) { this.$rname = Math.floor(this.$fname / $v{t.increment}); $mark; };
+			mark = macro if( Math.floor(v / $v{t.increment}) != this.$rname ) { this.$rname = Math.floor(v / $v{t.increment}); $mark; };
 		}
 		if( t.condSend != null ) {
 			function loop(e:Expr) {
@@ -1616,7 +1616,7 @@ class Macros {
 				return macro {}; // no marking
 			var condSend = loop(t.condSend);
 			needRef = true;
-			mark = macro if( $condSend ) { this.$rname = this.$fname; $mark; };
+			mark = macro if( $condSend ) { this.$rname = v; $mark; };
 		}
 		if( needRef && fields != null )
 			fields.push({
