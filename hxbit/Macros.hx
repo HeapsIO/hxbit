@@ -599,6 +599,9 @@ class Macros {
 		var hasNonSerializableParent = sup != null && !isSerializable(sup.t);
 
 		for( f in fields ) {
+			// has already been processed
+			if( f.name == "__clid" )
+				return null;
 			if( f.name == "customSerialize" && ( f.access.indexOf(AOverride) < 0 || hasNonSerializableParent ) ) {
 				addCustomSerializable = true;
 			}
