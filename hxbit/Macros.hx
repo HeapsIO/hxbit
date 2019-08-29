@@ -782,6 +782,7 @@ class Macros {
 		case TEnum(e, tparams):
 			var e = e.get();
 			var name = e.pack.length == 0 ? e.name : e.pack.join("_") + "_" + e.name;
+			name = name.charAt(0).toUpperCase() + name.substr(1);
 			try {
 				return Context.getType("hxbit.enumSer." + name);
 			} catch( _ : Dynamic ) {
