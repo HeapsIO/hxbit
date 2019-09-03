@@ -795,6 +795,17 @@ class Serializer {
 		throw 'Cannot convert $path($v) from $from to $to';
 	}
 
+	static var ENUM_CLASSES = new Map();
+	function getEnumClass( name : String ) : Dynamic {
+		var cl = ENUM_CLASSES.get(name);
+		if( cl != null ) return cl;
+		var path = name.split(".").join("_");
+		path = path.charAt(0).toUpperCase() + path.substr(1);
+		cl = Type.resolveClass("hxbit.enumSer." + path);
+		if( cl != null ) ENUM_CLASSES.set(name,cl);
+		return cl;
+	}
+
 	function readValue( t : Schema.FieldType ) : Dynamic {
 		return switch( t ) {
 		case PInt64: getInt64();
@@ -807,7 +818,7 @@ class Serializer {
 		case PVector(t): getVector(function() return readValue(t));
 		case PBytes: getBytes();
 		case PEnum(name):
-			var ser : Dynamic = Type.resolveClass("hxbit.enumSer." + name.split(".").join("_"));
+			var ser : Dynamic = getEnumClass(name);
 			if( ser == null ) {
 				var e = Type.resolveEnum(name);
 				// an old enum can be tagged with @skipSerialize in order to allow loading old content.
@@ -886,9 +897,9 @@ class Serializer {
 		case PBytes:
 			addBytes(v);
 		case PEnum(name):
-			var ser = "hxbit.enumSer." + name.split(".").join("_");
+			var ser : Dynamic = getEnumClass(name);
 			if( ser == null ) throw "No enum unserializer found for " + name;
-			(Type.resolveClass(ser) : Dynamic).doSerialize(this,v);
+			ser.doSerialize(this,v);
 		case PSerializable(_):
 			addKnownRef(v);
 		case PNull(t):
