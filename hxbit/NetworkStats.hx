@@ -218,9 +218,9 @@ class NetworkStats {
 			tot += p.bytes;
 		if( print == null )
 			print = #if sys Sys.println #else function(str) trace(str) #end;
-		print("Network stats:");
+		print("Stats\tClass name\tCount\tBytes\t%");
 		for( p in all )
-			print("  "+p.cl.name+"." + p.name+" count = " + p.count + ", bytes = " + p.bytes+" "+(Std.int(p.bytes*1000.0/tot)/10)+"%");
+			print("\t"+p.cl.name+"." + p.name+"\t" + p.count + "\t" + p.bytes + "\t" + (Std.int(p.bytes*1000.0/tot)/10));
 	}
 
 	public function reset() {
