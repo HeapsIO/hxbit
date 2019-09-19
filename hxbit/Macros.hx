@@ -1438,8 +1438,7 @@ class Macros {
 						});
 					case Server:
 						exprs.push(macro {
-							if( __host == null || !__host.isAuth ) throw "assert";
-							if( !networkAllow(RPCServer, $v{id}, __host.rpcClient.ownerObject) )
+							if( __host == null || !__host.isAuth || !networkAllow(RPCServer, $v{id}, __host.rpcClient.ownerObject) )
 								return false;
 							$fcall;
 						});
