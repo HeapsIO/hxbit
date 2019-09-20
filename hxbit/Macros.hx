@@ -570,7 +570,7 @@ class Macros {
 			return macro {
 				var v : Int;
 				${unserializeExpr(ctx,macro v,{ t : macro : Int, d : PInt },depth + 1)};
-				$v = new hxbit.EnumFlagsProxy(v);
+				$v = ${t.isProxy ? macro new hxbit.EnumFlagsProxy(v) : macro new haxe.EnumFlags(v)};
 			};
 		case PStruct:
 			return macro $v = $ctx.getStruct();
