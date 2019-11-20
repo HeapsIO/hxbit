@@ -70,10 +70,6 @@ abstract ArrayProxy<T>(ArrayProxyData<T>) {
 		return this.array.filter(t);
 	}
 
-	public function find( t : T->Bool ) {
-		return this.array.find(t);
-	}
-
 	public inline function indexOf(x:T, ?fromIndex) {
 		return this.array.indexOf(x, fromIndex);
 	}
@@ -207,10 +203,6 @@ abstract ArrayProxy2<T:ProxyChild>(ArrayProxyData<T>) {
 
 	public function filter( t : T->Bool ) {
 		return this.array.filter(t);
-	}
-
-	public function find( t : T->Bool ) {
-		return this.array.find(t);
 	}
 
 	public inline function indexOf(x:T, ?fromIndex) {
