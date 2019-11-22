@@ -1293,8 +1293,8 @@ class Macros {
 					@:privateAccess __host.endRPC();
 				};
 
-				if( hasReturnVal && r.mode != Server )
-					Context.error("Cannot use return value with default rpc mode, use @:rpc(server)", r.f.pos);
+				if( hasReturnVal && r.mode != Server && r.mode != Owner )
+					Context.error("Cannot use return value with default rpc mode, use @:rpc(server) or @:rpc(owner)", r.f.pos);
 
 				var rpcExpr = switch( r.mode ) {
 				case All:
