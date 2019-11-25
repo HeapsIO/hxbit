@@ -609,6 +609,7 @@ class NetworkHost {
 		if( objs.length == 0 )
 			return;
 		objs.sort(sortByUIDDesc);
+		var ns = [];
 		while( true ) {
 			var o = objs.pop();
 			if( o == null ) break;
@@ -617,8 +618,10 @@ class NetworkHost {
 			if( logger != null )
 				logger("Alive " + n +"#" + n.__uid);
 			n.__host = this;
-			n.alive();
+			ns.push(n);
 		}
+		for( n in ns )
+			n.alive();
 		while( aliveEvents.length > 0 )
 			aliveEvents.shift()();
 	}
