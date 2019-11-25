@@ -724,6 +724,12 @@ class Serializer {
 		var oldIn = input;
 		var oldPos = inPos;
 		setInput(bytes, 0);
+		var obj = Reflect.field(i,"oldHxBitFields");
+		if( obj != null ) {
+			for( r in c.read )
+				if( !r.written )
+					Reflect.setField(obj,r.path.split(".").pop(),values[r.index]);
+		}
 		i.unserialize(this);
 		setInput(oldIn, oldPos);
 	}
@@ -780,7 +786,9 @@ class Serializer {
 		case [PFloat, PInt]:
 			return Std.int(v);
 		case [PSerializable(_),PSerializable(to)]:
-			var v2 = #if haxe4 Std.downcast #else Std.instance #end(v, Type.resolveClass(to));
+			var cl = Type.resolveClass(to);
+			if( cl == null ) throw "Missing target class "+to;
+			var v2 = #if haxe4 Std.downcast #else Std.instance #end(v, cl);
 			if( v2 != null ) return v2;
 		case [PArray(from),PArray(to)]:
 			var arr : Array<Dynamic> = v;

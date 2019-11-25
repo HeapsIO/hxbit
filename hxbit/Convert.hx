@@ -29,6 +29,7 @@ class ConvertField {
 	public var from : Null<Schema.FieldType>;
 	public var to : Null<Schema.FieldType>;
 	public var conv : Dynamic -> Dynamic;
+	public var written : Bool;
 	public function new(path,from, to) {
 		this.path = path;
 		this.from = from;
@@ -77,7 +78,8 @@ class Convert {
 				c = new ConvertField(null, null, newT);
 				// resolve default value using a specific method ?
 				c.defaultValue = getDefault(newT);
-			}
+			} else
+				c.written = true;
 			write.push(c);
 		}
 	}
