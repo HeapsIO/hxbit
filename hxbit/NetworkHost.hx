@@ -609,19 +609,18 @@ class NetworkHost {
 		if( objs.length == 0 )
 			return;
 		objs.sort(sortByUIDDesc);
-		var ns = [];
+		for( o in objs ) {
+			var n = #if haxe4 Std.downcast #else Std.instance #end (o, NetworkSerializable);
+			if( n == null ) continue;
+			n.__host = this;
+		}
 		while( true ) {
 			var o = objs.pop();
 			if( o == null ) break;
 			var n = #if haxe4 Std.downcast #else Std.instance #end (o, NetworkSerializable);
 			if( n == null ) continue;
-			if( logger != null )
-				logger("Alive " + n +"#" + n.__uid);
-			n.__host = this;
-			ns.push(n);
-		}
-		for( n in ns )
 			n.alive();
+		}
 		while( aliveEvents.length > 0 )
 			aliveEvents.shift()();
 	}
