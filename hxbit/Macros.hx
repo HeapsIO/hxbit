@@ -211,6 +211,18 @@ class Macros {
 		return t;
 	}
 
+	static function getNativePath( e : BaseType ) {
+		var name = e.pack.length == 0 ? e.name : e.pack.join(".") + "." + e.name;
+		// handle @:native on enum
+		for( m in e.meta.get() )
+			if( m.name == ":native" && m.params.length == 1 )
+				switch( m.params[0].expr ) {
+				case EConst(CString(s)): name = s;
+				default:
+				}
+		return name;
+	}
+
 	static function getPropType( t : haxe.macro.Type ) : PropType {
 		var isProxy = false;
 		var isMutable = true;
@@ -280,7 +292,7 @@ class Macros {
 				PAlias(pt);
 			}
 		case TEnum(e,_):
-			PEnum(e.toString());
+			PEnum(getNativePath(e.get()));
 		case TDynamic(_):
 			PDynamic;
 		case TAnonymous(a):
@@ -327,7 +339,7 @@ class Macros {
 				throw "assert";
 			default:
 				if( isSerializable(c) )
-					PSerializable(c.toString());
+					PSerializable(getNativePath(c.get()));
 				else if( isStructSerializable(c) )
 					PStruct;
 				else
@@ -781,7 +793,7 @@ class Macros {
 		switch( pt ) {
 		case TEnum(e, tparams):
 			var e = e.get();
-			var name = e.pack.length == 0 ? e.name : e.pack.join("_") + "_" + e.name;
+			var name = getNativePath(e).split(".").join("_");
 			name = name.charAt(0).toUpperCase() + name.substr(1);
 			try {
 				return Context.getType("hxbit.enumSer." + name);
