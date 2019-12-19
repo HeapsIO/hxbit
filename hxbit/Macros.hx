@@ -653,8 +653,8 @@ class Macros {
 		var el = [], ul = [];
 		for( f in toSerialize ) {
 			var fname = f.f.name;
-			el.push(withPos(macro hxbit.Macros.serializeValue(__ctx, this.$fname),f.f.pos));
-			ul.push(withPos(macro hxbit.Macros.unserializeValue(__ctx, this.$fname),f.f.pos));
+			el.push(withPos(macro hxbit.Macros.serializeValue(__ctx, __this.$fname),f.f.pos));
+			ul.push(withPos(macro hxbit.Macros.unserializeValue(__ctx, __this.$fname),f.f.pos));
 		}
 
 		var noCompletion = [{ name : ":noCompletion", pos : pos }];
@@ -691,6 +691,17 @@ class Macros {
 
 		if( needSerialize ) {
 			fields.push({
+				name : "doSerialize",
+				pos : pos,
+				access : [AStatic],
+				meta : noCompletion,
+				kind : FFun({
+					args : [ { name : "__ctx", type : macro : hxbit.Serializer }, { name : "__this", type : TPath({ pack : [], name : cl.name }) } ],
+					ret : null,
+					expr : macro $b{el},
+				}),
+			});
+			fields.push({
 				name : "serialize",
 				pos : pos,
 				access : access,
@@ -699,7 +710,7 @@ class Macros {
 					ret : null,
 					expr : macro @:privateAccess {
 						${ if( isSubSer ) macro super.serialize(__ctx) else macro { } };
-						$b{el};
+						doSerialize(__ctx,this);
 						${ if( addCustomSerializable ) macro this.customSerialize(__ctx) else macro { } };
 					}
 				}),
@@ -742,7 +753,7 @@ class Macros {
 		if( needUnserialize ) {
 			var unserExpr = macro @:privateAccess {
 				${ if( isSubSer ) macro super.unserialize(__ctx) else macro { } };
-				$b{ul}
+				doUnserialize(__ctx,this);
 				${ if( addCustomUnserializable ) macro this.customUnserialize(__ctx) else macro { } };
 			};
 
@@ -767,6 +778,17 @@ class Macros {
 					return fields;
 				}
 
+			fields.push({
+				name : "doUnserialize",
+				pos : pos,
+				access : [AStatic],
+				meta : noCompletion,
+				kind : FFun({
+					args : [ { name : "__ctx", type : macro : hxbit.Serializer }, { name : "__this", type : TPath({ pack : [], name : cl.name }) } ],
+					ret : null,
+					expr : macro $b{ul},
+				}),
+			});
 			fields.push({
 				name : "unserialize",
 				pos : pos,
