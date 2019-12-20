@@ -650,11 +650,15 @@ class Macros {
 		}
 
 		var pos = Context.currentPos();
+		// todo : generate proper generic static var ?
+		// this is required for fixing conflicting member var / package name
+		var useStaticSer = cl.params.length == 0;
 		var el = [], ul = [];
 		for( f in toSerialize ) {
 			var fname = f.f.name;
-			el.push(withPos(macro hxbit.Macros.serializeValue(__ctx, __this.$fname),f.f.pos));
-			ul.push(withPos(macro hxbit.Macros.unserializeValue(__ctx, __this.$fname),f.f.pos));
+			var ef = useStaticSer ? macro __this.$fname : macro this.$fname;
+			el.push(withPos(macro hxbit.Macros.serializeValue(__ctx,$ef),f.f.pos));
+			ul.push(withPos(macro hxbit.Macros.unserializeValue(__ctx, $ef),f.f.pos));
 		}
 
 		var noCompletion = [{ name : ":noCompletion", pos : pos }];
@@ -690,7 +694,7 @@ class Macros {
 		var needUnserialize = needSerialize || fieldsInits.length != 0 || addCustomUnserializable;
 
 		if( needSerialize ) {
-			fields.push({
+			if( useStaticSer ) fields.push({
 				name : "doSerialize",
 				pos : pos,
 				access : [AStatic],
@@ -710,7 +714,7 @@ class Macros {
 					ret : null,
 					expr : macro @:privateAccess {
 						${ if( isSubSer ) macro super.serialize(__ctx) else macro { } };
-						doSerialize(__ctx,this);
+						${ if( useStaticSer ) macro doSerialize(__ctx,this) else macro $b{el} };
 						${ if( addCustomSerializable ) macro this.customSerialize(__ctx) else macro { } };
 					}
 				}),
@@ -753,7 +757,7 @@ class Macros {
 		if( needUnserialize ) {
 			var unserExpr = macro @:privateAccess {
 				${ if( isSubSer ) macro super.unserialize(__ctx) else macro { } };
-				doUnserialize(__ctx,this);
+				${ if( useStaticSer ) macro doUnserialize(__ctx,this) else macro $b{ul} };
 				${ if( addCustomUnserializable ) macro this.customUnserialize(__ctx) else macro { } };
 			};
 
@@ -778,7 +782,7 @@ class Macros {
 					return fields;
 				}
 
-			fields.push({
+			if( useStaticSer ) fields.push({
 				name : "doUnserialize",
 				pos : pos,
 				access : [AStatic],
