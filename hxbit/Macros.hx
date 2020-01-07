@@ -761,6 +761,7 @@ class Macros {
 				${ if( addCustomUnserializable ) macro this.customUnserialize(__ctx) else macro { } };
 			};
 
+			var unserFound = false;
 			for( f in fields )
 				if( f.name == "unserialize" ) {
 					var found = false;
@@ -779,7 +780,8 @@ class Macros {
 					default:
 					}
 					if( !found ) Context.error("Override of unserialize() with no super.unserialize(ctx) found", f.pos);
-					return fields;
+					unserFound = true;
+					break;
 				}
 
 			if( useStaticSer ) fields.push({
@@ -793,7 +795,8 @@ class Macros {
 					expr : macro $b{ul},
 				}),
 			});
-			fields.push({
+
+			if( !unserFound ) fields.push({
 				name : "unserialize",
 				pos : pos,
 				access : access,
