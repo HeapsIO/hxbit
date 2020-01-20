@@ -792,11 +792,30 @@ class Serializer {
 			if( v2 != null ) return v2;
 		case [PArray(from),PArray(to)]:
 			var arr : Array<Dynamic> = v;
-			return [for( v in arr ) convertValue(path+"[]", v,from,to)];
+			var path = path+"[]";
+			return [for( v in arr ) convertValue(path, v,from,to)];
 		case [PAlias(from),_]:
 			return convertValue(path, v, from, to);
 		case [_,PAlias(to)]:
 			return convertValue(path, v, from, to);
+		case [PMap(ft,fv),PMap(tt,tv)] if( Convert.sameType(ft,tt) ):
+			var path = path+"[]";
+			switch( ft ) {
+			case PString:
+				var v : Map<String,Dynamic> = v;
+				var v2 = new Map<String,Dynamic>();
+				for( k in v )
+					v2.set(k, convertValue(path,v.get(k),fv,tv));
+				return v2;
+			case PInt:
+				var v : Map<Int,Dynamic> = v;
+				var v2 = new Map<Int,Dynamic>();
+				for( k in v )
+					v2.set(k, convertValue(path,v.get(k),fv,tv));
+				return v2;
+			default:
+				// todo
+			}
 		default:
 		}
 
