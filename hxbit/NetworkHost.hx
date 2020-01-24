@@ -103,17 +103,14 @@ class NetworkClient {
 				host.logger("SYNC < " + o + "#" + o.__uid + " " + props.join("|"));
 			}
 			var old = o.__bits;
-			var oldH = o.__host;
-			o.__host = null;
 			o.__bits = bits;
 			host.syncingProperties = true;
 			o.networkSync(ctx);
 			host.syncingProperties = false;
-			o.__host = oldH;
-			o.__bits = old;
-
-			if( host.isAuth && (o.__next != null || host.mark(o))) {
-				o.__bits |= bits;
+			if( host.isAuth && (o.__next != null || host.mark(o)) ) {
+				o.__bits = old | bits;
+			} else {
+				o.__bits = old & (~bits);
 			}
 			if( ctx.error )
 				host.logError("Found unreferenced object while syncing " + o);
@@ -349,6 +346,12 @@ class NetworkHost {
 	public var totalSentBytes : Int = 0;
 	public var syncingProperties = false;
 
+	/*
+		In order to allow detection of setting other properties within prop sync,
+		we need to test the difference within the setter.
+	*/
+	var isSyncingProperty : Int = -1;
+
 	var perPacketBytes = 20; // IP + UDP headers
 	var lastSentTime : Float = 0.;
 	var lastSentBytes = 0;
@@ -428,6 +431,14 @@ class NetworkHost {
 	function checkWrite( o : NetworkSerializable, vid : Int ) {
 		if( !isAuth && !o.networkAllow(SetField,vid,self.ownerObject) ) {
 			logError("Setting a property on a not allowed object", o.__uid);
+			return false;
+		}
+		return true;
+	}
+
+	inline function checkSyncingProperty(b : Int) {
+		if( isSyncingProperty == b ) {
+			isSyncingProperty = -1;
 			return false;
 		}
 		return true;

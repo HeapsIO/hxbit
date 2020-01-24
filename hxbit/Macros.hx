@@ -1133,8 +1133,8 @@ class Macros {
 				@:noCompletion public var __host : hxbit.NetworkHost;
 				@:noCompletion public var __bits : Int = 0;
 				@:noCompletion public var __next : hxbit.NetworkSerializable;
-				@:noCompletion public inline function networkSetBit( b : Int ) {
-					if( __host != null && (__host.isAuth || @:privateAccess __host.checkWrite(this,b)) && (__next != null || @:privateAccess __host.mark(this)) )
+				@:noCompletion public function networkSetBit( b : Int ) {
+					if( __host != null && @:privateAccess __host.checkSyncingProperty(b) && (__host.isAuth || @:privateAccess __host.checkWrite(this,b)) && (__next != null || @:privateAccess __host.mark(this)) )
 						__bits |= 1 << b;
 				}
 				public var enableReplication(get, set) : Bool;
@@ -1271,7 +1271,11 @@ class Macros {
 				});
 			var fexpr = { expr : EField({ expr : EConst(CIdent("this")), pos : pos }, fname), pos : pos };
 			flushExpr.push(macro if( b & (1 << $v{ bitID } ) != 0 ) hxbit.Macros.serializeValue(ctx, $fexpr));
-			syncExpr.push(macro if( __bits & (1 << $v { bitID } ) != 0 ) hxbit.Macros.unserializeValue(ctx, $fexpr));
+			syncExpr.push(macro if( __bits & (1 << $v{bitID} ) != 0 ) {
+				@:privateAccess __host.isSyncingProperty = $v{bitID};
+				hxbit.Macros.unserializeValue(ctx, $fexpr);
+				@:privateAccess __host.isSyncingProperty = -1;
+			});
 
 			var prop = "networkProp" + fname.charAt(0).toUpperCase() + fname.substr(1);
 			fields.push({
