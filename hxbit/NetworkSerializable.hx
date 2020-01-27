@@ -120,6 +120,13 @@ class NetworkSerializer extends Serializer {
 
 	public var enableChecks = true;
 	public var error(get, never) : Bool;
+	public var errorPropId : Int = -1;
+	var host : NetworkHost;
+
+	public function new(host) {
+		super();
+		this.host = host;
+	}
 
 	function get_error() {
 		if( !hasError )
@@ -150,6 +157,7 @@ class NetworkSerializer extends Serializer {
 		var b = getBool();
 		if( b && !refs.exists(id) ) {
 			hasError = true;
+			errorPropId = host == null ? -1 : @:privateAccess host.isSyncingProperty;
 			return 0;
 		}
 		return id;

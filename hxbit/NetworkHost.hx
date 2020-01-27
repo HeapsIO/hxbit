@@ -56,6 +56,7 @@ class NetworkClient {
 	function processMessage( bytes : haxe.io.Bytes, pos : Int ) {
 		var ctx = host.ctx;
 		ctx.setInput(bytes, pos);
+		ctx.errorPropId = -1;
 
 		if( ctx.error )
 			host.logError("Unhandled previous error");
@@ -113,11 +114,11 @@ class NetworkClient {
 				o.__bits = old & (~bits);
 			}
 			if( ctx.error )
-				host.logError("Found unreferenced object while syncing " + o);
+				host.logError("Found unreferenced object while syncing " + o + "." + o.networkGetName(ctx.errorPropId));
 		case NetworkHost.REG:
 			var o : hxbit.NetworkSerializable = cast ctx.getAnyRef();
 			if( ctx.error )
-				host.logError("Found unreferenced object while registering " + o);
+				host.logError("Found unreferenced object while registering " + o + "." + o.networkGetName(ctx.errorPropId));
 			needAlive = true;
 		case NetworkHost.UNREG:
 			var oid = ctx.getInt();
@@ -398,7 +399,7 @@ class NetworkHost {
 
 	public function resetState() {
 		hxbit.Serializer.resetCounters();
-		ctx = new NetworkSerializer();
+		ctx = new NetworkSerializer(this);
 		@:privateAccess ctx.newObjects = [];
 		ctx.begin();
 	}
