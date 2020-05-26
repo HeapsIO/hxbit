@@ -64,6 +64,10 @@ abstract MapProxy<K,V>(MapData<K,V>) {
 		return this.map.iterator();
 	}
 
+	public inline function keyValueIterator():KeyValueIterator<K,V> {
+		return this.map.keyValueIterator();
+	}
+
 	public inline function toString():String {
 		return this.map.toString();
 	}
