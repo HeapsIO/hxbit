@@ -1254,7 +1254,7 @@ class Macros {
 				if( set.name == "set_" + f.f.name )
 					switch( set.kind ) {
 					case FFun(fun):
-						replaceSetter(f.f.name, function(e) return macro $i{markFun}($e),fun.expr);
+						replaceSetter(f.f.name, function(e) return withPos(macro $i{markFun}($e),e.pos),fun.expr);
 						found = true;
 						break;
 					default:
