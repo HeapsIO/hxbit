@@ -28,6 +28,9 @@ import hxbit.NetworkSerializable;
 	public function new(map) {
 		this.map = map;
 	}
+	public function iterator() {
+		return map.iterator();
+	}
 }
 
 abstract MapProxy<K,V>(MapData<K,V>) {

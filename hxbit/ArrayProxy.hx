@@ -25,8 +25,12 @@ import hxbit.NetworkSerializable;
 
 class ArrayProxyData<T> extends BaseProxy {
 	public var array : Array<T>;
+	public var length(get,never) : Int;
 	public function new(v) {
 		array = v;
+	}
+	inline function get_length() {
+		return array.length;
 	}
 	public function iterator() {
 		return array.iterator();
