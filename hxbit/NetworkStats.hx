@@ -68,7 +68,7 @@ class NetworkStats {
 				var b : haxe.io.Bytes = v;
 				size += intSize(b.length + 1) + b.length;
 			}
-		case PSerializable(_):
+		case PSerializable(_), PSerInterface(_):
 			size += v == null ? 1 : intSize((v:Serializable).__uid);
 		case PEnum(_):
 			size += v == null ? 1 : intSize(Type.enumIndex(v) + 1);
