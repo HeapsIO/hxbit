@@ -858,6 +858,7 @@ class Serializer {
 			}
 			return ser.doUnserialize(this);
 		case PSerializable(name): getKnownRef(cast Type.resolveClass(name));
+		case PSerInterface(_): getAnyRef();
 		case PNull(t): getByte() == 0 ? null : readValue(t);
 		case PObj(fields):
 			var bits = getInt();
@@ -929,6 +930,8 @@ class Serializer {
 			ser.doSerialize(this,v);
 		case PSerializable(_):
 			addKnownRef(v);
+		case PSerInterface(_):
+			addAnyRef(v);
 		case PNull(t):
 			if( v == null ) {
 				addByte(0);
@@ -994,11 +997,17 @@ class Serializer {
 		return s.endSave();
 	}
 
-	public static function load<T:Serializable>( bytes : haxe.io.Bytes, cl : Class<T> ) : T {
+	public static function load<T:Serializable>( bytes : haxe.io.Bytes, cl : Class<T>, ?iterObjects : Serializable -> Void ) : T {
 		var s = new Serializer();
 		s.beginLoad(bytes);
 		var value = s.getKnownRef(cl);
 		s.endLoad();
+		if( iterObjects != null ) {
+			var objects = [for( o in s.refs ) o];
+			objects.sort(function(o1,o2) return o1.__uid - o2.__uid);
+			for( o in objects )
+				iterObjects(o);
+		}
 		return value;
 	}
 

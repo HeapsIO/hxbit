@@ -75,6 +75,7 @@ enum PropTypeDesc<PropType> {
 	PInt64;
 	PFlags( t : PropType );
 	PStruct;
+	PSerInterface( name : String );
 }
 
 typedef PropType = {
@@ -142,6 +143,7 @@ class Macros {
 		case PStruct: PStruct;
 		case PUnknown: PUnknown;
 		case PDynamic: PDynamic;
+		case PSerInterface(name): PSerInterface(name);
 		};
 	}
 
@@ -338,9 +340,11 @@ class Macros {
 					}
 				throw "assert";
 			default:
-				if( isSerializable(c) )
-					PSerializable(getNativePath(c.get()));
-				else if( isStructSerializable(c) )
+				if( isSerializable(c) ) {
+					var c = c.get();
+					var path = getNativePath(c);
+					c.isInterface ? PSerInterface(path) : PSerializable(path);
+				} else if( isStructSerializable(c) )
 					PStruct;
 				else
 					return null;
@@ -456,6 +460,8 @@ class Macros {
 			return macro $ctx.addVector($v, function(e:$at) return hxbit.Macros.serializeValue($ctx, $ve));
 		case PSerializable(_):
 			return macro $ctx.addKnownRef($v);
+		case PSerInterface(_):
+			return macro $ctx.addAnyRef($v);
 		case PAlias(t):
 			return serializeExpr(ctx, { expr : ECast(v, null), pos : v.pos }, t);
 		case PNull(t):
@@ -565,6 +571,8 @@ class Macros {
 			}
 			var cexpr = Context.parse(loop(t.t).toString(), v.pos);
 			return macro $v = $ctx.getRef($cexpr,@:privateAccess $cexpr.__clid);
+		case PSerInterface(name):
+			return macro $v = cast $ctx.getAnyRef();
 		case PAlias(at):
 			var cvt = at.t;
 			var vname = "v" + depth;
