@@ -387,6 +387,8 @@ class Serializer {
 			return [for( i in 0...getInt() ) getDynamic()];
 		case 8:
 			return getBytes();
+		case 9:
+			return getAnyRef();
 		case x:
 			throw "Invalid dynamic prefix " + x;
 		}
@@ -429,7 +431,11 @@ class Serializer {
 				addByte(8);
 				addBytes(v);
 			default:
-				throw "Unsupported dynamic " + c;
+				if( Std.is(v,Serializable) ) {
+					addByte(9);
+					addAnyRef(v);
+				} else
+					throw "Unsupported dynamic " + c;
 			}
 		case t:
 			throw "Unsupported dynamic " + t;
