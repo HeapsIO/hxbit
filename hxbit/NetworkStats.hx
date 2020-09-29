@@ -163,8 +163,8 @@ class NetworkStats {
 	public function sync( o : NetworkSerializable ) {
 		var c = getClass(o);
 		var i = 0;
-		while( 1 << i <= o.__bits ) {
-			if( o.__bits & (1 << i) != 0 ) {
+		while( 1 << i <= o.__bits1 ) {
+			if( o.__bits1 & (1 << i) != 0 ) {
 				var p = c.props[i];
 				if( p == null ) {
 					p = { cl : c, name : o.networkGetName(i), count : 0, bytes : 0, size : 0 };
@@ -175,6 +175,7 @@ class NetworkStats {
 			}
 			i++;
 		}
+		if( o.__bits2 != 0 ) throw "TODO";
 	}
 
 	public function beginRPC( o : NetworkSerializable, id : Int ) {

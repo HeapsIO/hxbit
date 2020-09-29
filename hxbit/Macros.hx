@@ -1139,11 +1139,13 @@ class Macros {
 		if( !isSubSer ) {
 			fields = fields.concat((macro class {
 				@:noCompletion public var __host : hxbit.NetworkHost;
-				@:noCompletion public var __bits : Int = 0;
+				@:noCompletion public var __bits1 : Int = 0;
+				@:noCompletion public var __bits2 : Int = 0;
 				@:noCompletion public var __next : hxbit.NetworkSerializable;
 				@:noCompletion public function networkSetBit( b : Int ) {
-					if( __host != null && @:privateAccess __host.checkSyncingProperty(b) && (__host.isAuth || @:privateAccess __host.checkWrite(this,b)) && (__next != null || @:privateAccess __host.mark(this)) )
-						__bits |= 1 << b;
+					if( __host != null && @:privateAccess __host.checkSyncingProperty(b) && (__host.isAuth || @:privateAccess __host.checkWrite(this,b)) && (__next != null || @:privateAccess __host.mark(this)) ) {
+						if( b < 30 ) __bits1 |= 1 << b else __bits2 |= 1 << (b-30);
+					}
 				}
 				public var enableReplication(get, set) : Bool;
 				inline function get_enableReplication() return __host != null;
@@ -1151,8 +1153,9 @@ class Macros {
 					@:privateAccess hxbit.NetworkHost.enableReplication(this, b);
 					return b;
 				}
-				public inline function networkCancelProperty( props : hxbit.NetworkSerializable.NetworkProperty ) {
-					__bits &= ~props.toInt();
+				public function networkCancelProperty( props : hxbit.NetworkSerializable.NetworkProperty ) {
+					var b = props.toInt();
+					if( b < 30 ) __bits1 &= ~(1<<b) else __bits2 &= ~(1<<(b-30));
 				}
 				public inline function networkLocalChange( f : Void -> Void ) {
 					var old = __host;
@@ -1278,8 +1281,10 @@ class Macros {
 					}),
 				});
 			var fexpr = { expr : EField({ expr : EConst(CIdent("this")), pos : pos }, fname), pos : pos };
-			flushExpr.push(macro if( b & (1 << $v{ bitID } ) != 0 ) hxbit.Macros.serializeValue(ctx, $fexpr));
-			syncExpr.push(macro if( __bits & (1 << $v{bitID} ) != 0 ) {
+			var bindex = bitID < 30 ? 1 : 2;
+			var bvarBit = bitID < 30 ? bitID : bitID - 30;
+			flushExpr.push(macro if( $i{"b"+bindex} & (1 << $v{bvarBit} ) != 0 ) hxbit.Macros.serializeValue(ctx, $fexpr));
+			syncExpr.push(macro if( $i{"__bits"+bindex} & (1 << $v{bvarBit} ) != 0 ) {
 				@:privateAccess __host.isSyncingProperty = $v{bitID};
 				hxbit.Macros.unserializeValue(ctx, $fexpr);
 				@:privateAccess __host.isSyncingProperty = -1;
@@ -1297,7 +1302,7 @@ class Macros {
 				pos : pos,
 				kind : FFun( {
 					args : [],
-					expr : macro return new hxbit.NetworkSerializable.NetworkProperty(1 << $v{bitID}),
+					expr : macro return new hxbit.NetworkSerializable.NetworkProperty($v{bitID}),
 					ret : null,
 				}),
 				access : [AInline],
@@ -1530,10 +1535,22 @@ class Macros {
 				flushExpr.unshift(macro super.networkFlush(ctx));
 				syncExpr.unshift(macro super.networkSync(ctx));
 			} else {
-				flushExpr.unshift(macro ctx.addInt(__bits));
-				flushExpr.push(macro __bits = 0);
+				flushExpr.unshift(macro {
+					if( __bits2 == 0 )
+						ctx.addInt(__bits1);
+					else if( __bits1 == 0 )
+						ctx.addInt(__bits2 | 0x80000000);
+					else {
+						ctx.addInt(__bits1 | 0x40000000);
+						ctx.addInt(__bits2);
+					}
+				});
+				flushExpr.push(macro {
+					__bits1 = 0;
+					__bits2 = 0;
+				});
 			}
-			flushExpr.unshift(macro var b = __bits);
+			flushExpr.unshift(macro var b1 = __bits1, b2 = __bits2);
 			fields.push({
 				name : "networkFlush",
 				pos : pos,
@@ -1641,7 +1658,7 @@ class Macros {
 
 		// add metadata
 
-		if( startFID > 32 ) Context.error("Too many serializable fields", pos);
+		if( startFID > 61 ) Context.error("Too many serializable fields", pos);
 		if( rpcID > 255 ) Context.error("Too many rpc calls", pos);
 
 		if( rpc.length > 0 )

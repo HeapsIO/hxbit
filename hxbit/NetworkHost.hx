@@ -84,34 +84,82 @@ class NetworkClient {
 				host.logError("Could not sync object", oid);
 				return -1; // discard whole data, might skip some other things
 			}
-			var bits = ctx.getInt();
+			var rawBits = ctx.getInt();
+			var bits1, bits2;
+			switch( rawBits >>> 30 ) {
+			case 0:
+				bits1 = rawBits;
+				bits2 = 0;
+			case 1:
+				bits1 = rawBits & 0x3FFFFFFF;
+				bits2 = ctx.getInt();
+			default: // 2,3
+				bits1 = 0;
+				bits2 = rawBits & 0x7FFFFFFF;
+			}
 			if( host.isAuth ) {
-				for( i in 0...32 ) {
-					if( bits & (1 << i) != 0 && !o.networkAllow(SetField, i, ownerObject) ) {
-						host.logError("Client setting unallowed property " + o.networkGetName(i) + " on " + o, o.__uid);
-						return -1;
+				inline function checkBits( b, offs ) {
+					while( b != 0 ) {
+						var bit = switch( b & -b ) {
+						case 0x1: 0;
+						case 0x2: 1;
+						case 0x4: 2;
+						case 0x8: 3;
+						case 0x10: 4;
+						case 0x20: 5;
+						case 0x40: 6;
+						case 0x80: 7;
+						case 0x100: 8;
+						case 0x200: 9;
+						case 0x400: 10;
+						case 0x800: 11;
+						case 0x1000: 12;
+						case 0x2000: 13;
+						case 0x4000: 14;
+						case 0x8000: 15;
+						default: throw "assert";
+						}
+						offs += bit;
+						if( !o.networkAllow(SetField, offs, ownerObject) ) {
+							host.logError("Client setting unallowed property " + o.networkGetName(offs) + " on " + o, o.__uid);
+							break;
+						}
+						offs++;
+						b >>>= bit + 1;
 					}
+					return b == 0;
 				}
+				if( !checkBits(bits1&0xFFFF,0) || !checkBits(bits1>>>16,16) || !checkBits(bits2&0xFFFF,30) || !checkBits(bits2>>>16,46) )
+					return -1;
 			}
 			if( host.logger != null ) {
 				var props = [];
 				var i = 0;
-				while( 1 << i <= bits ) {
-					if( bits & (1 << i) != 0 )
+				while( 1 << i <= bits1 ) {
+					if( bits1 & (1 << i) != 0 )
 						props.push(o.networkGetName(i));
+					i++;
+				}
+				i = 0;
+				while( 1 << i <= bits2 ) {
+					if( bits2 & (1 << i) != 0 )
+						props.push(o.networkGetName(i+30));
 					i++;
 				}
 				host.logger("SYNC < " + o + "#" + o.__uid + " " + props.join("|"));
 			}
-			var old = o.__bits;
-			o.__bits = bits;
+			var old1 = o.__bits1, old2 = o.__bits2;
+			o.__bits1 = bits1;
+			o.__bits2 = bits2;
 			host.syncingProperties = true;
 			o.networkSync(ctx);
 			host.syncingProperties = false;
 			if( host.isAuth && (o.__next != null || host.mark(o)) ) {
-				o.__bits = old | bits;
+				o.__bits1 = old1 | bits1;
+				o.__bits2 = old2 | bits2;
 			} else {
-				o.__bits = old & (~bits);
+				o.__bits1 = old1 & (~bits1);
+				o.__bits2 = old2 & (~bits2);
 			}
 			if( ctx.error )
 				host.logError("Found unreferenced object while syncing " + o + "." + o.networkGetName(ctx.errorPropId));
@@ -691,7 +739,8 @@ class NetworkHost {
 			throw "Can't unregister "+o+" without ownership";
 		flushProps(); // send changes
 		o.__host = null;
-		o.__bits = 0;
+		o.__bits1 = 0;
+		o.__bits2 = 0;
 		unmark(o);
 		if( logger != null )
 			logger("Unregister " + o+"#"+o.__uid);
@@ -726,13 +775,19 @@ class NetworkHost {
 	function flushProps() {
 		var o = markHead;
 		while( o != null ) {
-			if( o.__bits != 0 ) {
+			if( (o.__bits1|o.__bits2) != 0 ) {
 				if( logger != null ) {
 					var props = [];
 					var i = 0;
-					while( 1 << i <= o.__bits ) {
-						if( o.__bits & (1 << i) != 0 )
+					while( 1 << i <= o.__bits1 ) {
+						if( o.__bits1 & (1 << i) != 0 )
 							props.push(o.networkGetName(i));
+						i++;
+					}
+					i = 0;
+					while( 1 << i <= o.__bits2 ) {
+						if( o.__bits1 & (1 << i) != 0 )
+							props.push(o.networkGetName(i+30));
 						i++;
 					}
 					logger("SYNC > " + o + "#" + o.__uid + " " + props.join("|"));

@@ -61,7 +61,8 @@ abstract Operation(Int) {
 @:autoBuild(hxbit.Macros.buildNetworkSerializable())
 interface NetworkSerializable extends Serializable extends ProxyHost {
 	public var __host : NetworkHost;
-	public var __bits : Int;
+	public var __bits1 : Int;
+	public var __bits2 : Int;
 	public var __next : NetworkSerializable;
 	public var enableReplication(get, set) : Bool;
 	public function alive() : Void; // user defined
