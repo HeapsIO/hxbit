@@ -843,9 +843,9 @@ class Macros {
 					var c = e.constructs.get(f);
 					switch( Context.follow(c.type) ) {
 					case TFun(args, _):
-						var eargs = [for( a in args ) { var arg = { expr : EConst(CIdent(a.name)), pos : c.pos }; macro hxbit.Macros.serializeValue(ctx, $arg); }];
+						var eargs = [for( a in args ) { var arg = { expr : EConst(CIdent("_"+a.name)), pos : c.pos }; macro hxbit.Macros.serializeValue(ctx, $arg); }];
 						cases.push({
-							values : [{ expr : ECall({ expr : EConst(CIdent(c.name)), pos : pos },[for( a in args ) { expr : EConst(CIdent(a.name)), pos : pos }]), pos : pos }],
+							values : [{ expr : ECall({ expr : EConst(CIdent(c.name)), pos : pos },[for( a in args ) { expr : EConst(CIdent("_"+a.name)), pos : pos }]), pos : pos }],
 							expr : macro {
 								ctx.addByte($v{c.index+1});
 								$b{eargs};
