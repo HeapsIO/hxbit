@@ -1187,53 +1187,45 @@ class Macros {
 		for( f in toSerialize ) {
 			var pos = f.f.pos;
 			var fname = f.f.name;
-			var bitID = startFID++;
-			var ftype : PropType;
+			var getter = "default";
+			var einit : Expr;
+			var t = null;
+
 			switch( f.f.kind ) {
-			case FVar(t, e):
-				if( t == null ) t = quickInferType(e);
-				if( t == null ) Context.error("Type required", pos);
-				var tt = Context.resolveType(t, pos);
-				ftype = getPropField(tt, f.f.meta);
-				if( ftype == null ) ftype = { t : t, d : PUnknown };
-				checkProxy(ftype);
-				if( ftype.isProxy ) {
-					switch( ftype.d ) {
-					case PFlags(_) if( e == null ): e = macro new hxbit.EnumFlagsProxy(0);
-					default:
-					}
-					if( e != null ) {
-						initExpr.push(macro this.$fname = $e);
-						e = null;
-					}
-				}
-				f.f.kind = FProp("default", "set", ftype.t, e);
-			case FProp(get, set, t, e):
-				if( t == null ) t = quickInferType(e);
-				if( t == null ) Context.error("Type required", pos);
-				var tt = Context.resolveType(t, pos);
-				ftype = getPropField(tt, f.f.meta);
-				if( ftype == null ) ftype = { t : t, d : PUnknown };
-				checkProxy(ftype);
-				if( set == "null" )
+			case FVar(_t, _e):
+				t = _t;
+				einit = _e;
+			case FProp(_get, _set, _t, _e):
+				getter = _get;
+				t = _t;
+				einit = _e;
+				if( _set == "null" )
 					Context.warning("Null setter is not respected when using NetworkSerializable", pos);
-				else if( set != "default" && set != "set" )
+				else if( _set != "default" && _set != "set" )
 					Context.error("Invalid setter", pos);
-				if( ftype.isProxy ) {
-					switch( ftype.d ) {
-					case PFlags(_) if( e == null ): e = macro new hxbit.EnumFlagsProxy(0);
-					default:
-					}
-					if( e != null ) {
-						initExpr.push(e);
-						e = null;
-					}
-				}
-				f.f.kind = FProp(get,"set", ftype.t, e);
 			default:
 				throw "assert";
 			}
 
+			if( t == null ) t = quickInferType(einit);
+			if( t == null ) Context.error("Type required", pos);
+			var tt = Context.resolveType(t, pos);
+			var ftype = getPropField(tt, f.f.meta);
+			if( ftype == null ) ftype = { t : t, d : PUnknown };
+			checkProxy(ftype);
+			if( ftype.isProxy ) {
+				switch( ftype.d ) {
+				case PFlags(_) if( einit == null ): einit = macro new hxbit.EnumFlagsProxy(0);
+				default:
+				}
+				if( einit != null ) {
+					initExpr.push(macro this.$fname = $einit);
+					einit = null;
+				}
+			}
+			f.f.kind = FProp(getter,"set", ftype.t, einit);
+
+			var bitID = startFID++;
 			var markExpr = macro networkSetBit($v{ bitID });
 			markExpr = makeMarkExpr(fields, fname, ftype, markExpr);
 
