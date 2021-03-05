@@ -54,7 +54,7 @@ class ArrayProxyIterator<T> {
 abstract ArrayProxy<T>(ArrayProxyData<T>) {
 
 	@:noCompletion public var __value(get, never) : Array<T>;
-	@:noCompletion public var length(get, never) : Int;
+	public var length(get, never) : Int;
 	inline function get___value() : Array<T> return this == null ? null : this.array;
 	inline function get_length() return this.array.length;
 
@@ -181,7 +181,7 @@ abstract ArrayProxy<T>(ArrayProxyData<T>) {
 abstract ArrayProxy2<T:ProxyChild>(ArrayProxyData<T>) {
 
 	@:noCompletion public var __value(get, never) : Array<T>;
-	@:noCompletion public var length(get, never) : Int;
+	public var length(get, never) : Int;
 	inline function get___value() : Array<T> return this == null ? null : this.array;
 	inline function get_length() return this.array.length;
 
