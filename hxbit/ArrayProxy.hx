@@ -114,8 +114,9 @@ abstract ArrayProxy<T>(ArrayProxyData<T>) {
 	}
 
 	public inline function remove( x : T ) {
-		this.array.remove(x);
+		var r = this.array.remove(x);
 		this.mark();
+		return r;
 	}
 
 	public inline function reverse() {
