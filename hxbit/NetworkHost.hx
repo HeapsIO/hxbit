@@ -134,18 +134,16 @@ class NetworkClient {
 			}
 			if( host.logger != null ) {
 				var props = [];
-				var i = 0;
-				while( 1 << i <= bits1 ) {
-					if( bits1 & (1 << i) != 0 )
-						props.push(o.networkGetName(i));
-					i++;
+				inline function logProps(bits: Int, offset: Int) {
+					var i = 0;
+					while( 1 << i <= bits ) {
+						if( bits & (1 << i) != 0 )
+							props.push(o.networkGetName(i + offset));
+						i++;
+					}
 				}
-				i = 0;
-				while( 1 << i <= bits2 ) {
-					if( bits2 & (1 << i) != 0 )
-						props.push(o.networkGetName(i+30));
-					i++;
-				}
+				logProps(bits1, 0);
+				logProps(bits2, 30);
 				host.logger("SYNC < " + o + "#" + o.__uid + " " + props.join("|"));
 			}
 			var old1 = o.__bits1, old2 = o.__bits2;
@@ -786,7 +784,7 @@ class NetworkHost {
 					}
 					i = 0;
 					while( 1 << i <= o.__bits2 ) {
-						if( o.__bits1 & (1 << i) != 0 )
+						if( o.__bits2 & (1 << i) != 0 )
 							props.push(o.networkGetName(i+30));
 						i++;
 					}

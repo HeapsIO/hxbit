@@ -162,20 +162,23 @@ class NetworkStats {
 
 	public function sync( o : NetworkSerializable ) {
 		var c = getClass(o);
-		var i = 0;
-		while( 1 << i <= o.__bits1 ) {
-			if( o.__bits1 & (1 << i) != 0 ) {
-				var p = c.props[i];
-				if( p == null ) {
-					p = { cl : c, name : o.networkGetName(i), count : 0, bytes : 0, size : 0 };
-					c.props[i] = p;
+		inline function calc(bits : Int, offset: Int) {
+			var i = 0;
+			while( 1 << i <= bits ) {
+				if( bits & (1 << i) != 0 ) {
+					var p = c.props[i];
+					if( p == null ) {
+						p = { cl : c, name : o.networkGetName(i + offset), count : 0, bytes : 0, size : 0 };
+						c.props[i] = p;
+					}
+					p.count++;
+					p.bytes += calcPropSize(c.schema.fieldsTypes[i], Reflect.field(o, p.name));
 				}
-				p.count++;
-				p.bytes += calcPropSize(c.schema.fieldsTypes[i], Reflect.field(o, p.name));
+				i++;
 			}
-			i++;
 		}
-		if( o.__bits2 != 0 ) throw "TODO";
+		calc(o.__bits1, 0);
+		calc(o.__bits2, 30);
 	}
 
 	public function beginRPC( o : NetworkSerializable, id : Int ) {
