@@ -819,6 +819,12 @@ class Serializer {
 				for( k in v )
 					v2.set(k, convertValue(path,v.get(k),fv,tv));
 				return v2;
+			case PSerializable(_), PObj(_):
+				var v : Map<{},Dynamic> = v;
+				var v2 = new Map<{},Dynamic>();
+				for( k in v )
+					v2.set(k, convertValue(path,v.get(k),fv,tv));
+				return v2;
 			default:
 				// todo
 			}
