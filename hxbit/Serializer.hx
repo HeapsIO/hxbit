@@ -54,7 +54,7 @@ class Serializer {
 		for( i in 0...name.length )
 			v = Std.int(v * 223 + StringTools.fastCodeAt(name,i));
 
-		v = 1 + ((v & 0x3FFFFFFF) % 65423);
+		v = 1 + ((v & 0x3FFFFFFF) % 253423);
 
 		return v;
 	}
