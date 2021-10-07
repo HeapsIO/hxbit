@@ -810,19 +810,19 @@ class Serializer {
 			case PString:
 				var v : Map<String,Dynamic> = v;
 				var v2 = new Map<String,Dynamic>();
-				for( k in v )
+				for( k in v.keys() )
 					v2.set(k, convertValue(path,v.get(k),fv,tv));
 				return v2;
 			case PInt:
 				var v : Map<Int,Dynamic> = v;
 				var v2 = new Map<Int,Dynamic>();
-				for( k in v )
+				for( k in v.keys() )
 					v2.set(k, convertValue(path,v.get(k),fv,tv));
 				return v2;
 			case PSerializable(_), PObj(_):
 				var v : Map<{},Dynamic> = v;
 				var v2 = new Map<{},Dynamic>();
-				for( k in v )
+				for( k in v.keys() )
 					v2.set(k, convertValue(path,v.get(k),fv,tv));
 				return v2;
 			default:
