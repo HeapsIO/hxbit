@@ -975,7 +975,7 @@ class Serializer {
 			case PString:
 				var v : Map<String,Dynamic> = v;
 				addMap(v, function(v) writeValue(v, k), function(v) writeValue(v, t));
-			case PEnum(_):
+			case PEnum(_) if( Std.is(v,haxe.ds.EnumValueMap) ):
 				var v : haxe.ds.EnumValueMap<Dynamic,Dynamic> = v;
 				if( v == null ) {
 					addByte(0);
