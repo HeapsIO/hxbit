@@ -1693,6 +1693,24 @@ class Macros {
 		return mark;
 	}
 
+	static function typeName(t:PropType) {
+		switch( t.d ) {
+		case PObj(fields):
+			var fields = fields.copy();
+			fields.sort(function(f1, f2) return Reflect.compare(f1.name, f2.name));
+			return "O"+[for( f in fields ) f.name+"_" + ~/[<>.]/g.replace(typeName(f.type),"_")].join("_");
+		case PArray(t):
+			return "Arr_" + typeName(t);
+		default:
+		}
+		var str = t.t.toString();
+		str = str.split("<StdTypes.").join("<");
+		if( StringTools.startsWith(str, "StdTypes.") )
+			str = str.substr(9);
+		return str;
+	}
+
+
 	static function buildProxyType( p : PropType ) : ComplexType {
 		if( !needProxy(p) )
 			return p.t;
@@ -1712,15 +1730,7 @@ class Macros {
 		case PObj(fields):
 			// define type
 			var name = "ObjProxy_";
-			fields.sort(function(f1, f2) return Reflect.compare(f1.name, f2.name));
-			inline function typeName(t:PropType) {
-				var str = t.t.toString();
-				str = str.split("<StdTypes.").join("<");
-				if( StringTools.startsWith(str, "StdTypes.") )
-					str = str.substr(9);
-				return str;
-			}
-			name += [for( f in fields ) f.name+"_" + ~/[<>.]/g.replace(typeName(f.type),"_")].join("_");
+			name += typeName(p);
 			try {
 				return Context.getType("hxbit." + name).toComplexType();
 			} catch( e : Dynamic ) {
