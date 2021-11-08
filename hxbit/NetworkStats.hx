@@ -77,7 +77,7 @@ class NetworkStats {
 				size++;
 			else {
 
-				if( Std.is(v, hxbit.NetworkSerializable.BaseProxy) ) v = v.map;
+				if( Std.isOfType(v, hxbit.NetworkSerializable.BaseProxy) ) v = v.map;
 
 				switch( kt ) {
 				case PInt:
@@ -102,7 +102,7 @@ class NetworkStats {
 			}
 		case PArray(at):
 
-			if( Std.is(v, hxbit.NetworkSerializable.BaseProxy) ) v = v.array;
+			if( Std.isOfType(v, hxbit.NetworkSerializable.BaseProxy) ) v = v.array;
 
 			var a : Array<Dynamic> = v;
 			if( a == null )
@@ -152,7 +152,7 @@ class NetworkStats {
 		case PInt64:
 			size += 8;
 		case PFlags(_):
-			if( Std.is(v, hxbit.NetworkSerializable.BaseProxy) ) v = v.value;
+			if( Std.isOfType(v, hxbit.NetworkSerializable.BaseProxy) ) v = v.value;
 			size += intSize(v);
 		case PStruct:
 			// TODO

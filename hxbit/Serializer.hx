@@ -431,7 +431,7 @@ class Serializer {
 				addByte(8);
 				addBytes(v);
 			default:
-				if( Std.is(v,Serializable) ) {
+				if( Std.isOfType(v,Serializable) ) {
 					addByte(9);
 					addAnyRef(v);
 				} else
@@ -456,7 +456,7 @@ class Serializer {
 			addByte(0);
 			return;
 		}
-		var c : Serializable = Std.is(s, Serializable) ? cast s : null;
+		var c : Serializable = Std.isOfType(s, Serializable) ? cast s : null;
 		if( c != null ) {
 			addByte(1);
 			addAnyRef(c);
@@ -975,7 +975,7 @@ class Serializer {
 			case PString:
 				var v : Map<String,Dynamic> = v;
 				addMap(v, function(v) writeValue(v, k), function(v) writeValue(v, t));
-			case PEnum(_) if( Std.is(v,haxe.ds.EnumValueMap) ):
+			case PEnum(_) if( Std.isOfType(v,haxe.ds.EnumValueMap) ):
 				var v : haxe.ds.EnumValueMap<Dynamic,Dynamic> = v;
 				if( v == null ) {
 					addByte(0);
