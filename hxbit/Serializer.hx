@@ -825,6 +825,12 @@ class Serializer {
 				for( k in v.keys() )
 					v2.set(k, convertValue(path,v.get(k),fv,tv));
 				return v2;
+			case PEnum(_):
+				var v : haxe.ds.EnumValueMap<Dynamic,Dynamic> = v;
+				var v2 = new haxe.ds.EnumValueMap<Dynamic,Dynamic>();
+				for( k in v.keys() )
+					v2.set(k, convertValue(path,v.get(k),fv,tv));
+				return v2;
 			default:
 				// todo
 			}
