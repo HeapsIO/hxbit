@@ -514,8 +514,16 @@ class Serializer {
 		}
 		if( remapIds ) remap(s);
 		addObjRef(s);
-		if( refs[s.__uid] != null )
+		var r = refs[s.__uid];
+		if( r != null ) {
+			#if hxbit_check_ref
+			if( r != s ) {
+				s.__uid = allocUID();
+				throw r+" and "+s+" have same id";
+			}
+			#end
 			return;
+		}
 		refs[s.__uid] = s;
 		var index = s.getCLID();
 		usedClasses[index] = true;
@@ -530,8 +538,16 @@ class Serializer {
 		}
 		if( remapIds ) remap(s);
 		addObjRef(s);
-		if( refs[s.__uid] != null )
+		var r = refs[s.__uid];
+		if( r != null ) {
+			#if hxbit_check_ref
+			if( r != s ) {
+				s.__uid = allocUID();
+				throw r+" and "+s+" have same id";
+			}
+			#end
 			return;
+		}
 		refs[s.__uid] = s;
 		var index = s.getCLID();
 		usedClasses[index] = true;
@@ -547,7 +563,7 @@ class Serializer {
 		if( refs[id] != null )
 			return cast refs[id];
 		var rid = id & SEQ_MASK;
-		if( UID < rid ) UID = rid;
+		if( UID < rid && !remapIds ) UID = rid;
 		var clidx = getCLID();
 		if( mapIndexes != null ) clidx = mapIndexes[clidx];
 		var i : Serializable = Type.createEmptyInstance(CLASSES[clidx]);
@@ -555,6 +571,7 @@ class Serializer {
 		i.__uid = id;
 		i.unserializeInit();
 		refs[id] = i;
+		if( remapIds ) remap(i);
 		if( convert != null && convert[clidx] != null )
 			convertRef(i, convert[clidx]);
 		else
@@ -568,7 +585,7 @@ class Serializer {
 		if( refs[id] != null )
 			return cast refs[id];
 		var rid = id & SEQ_MASK;
-		if( UID < rid ) UID = rid;
+		if( UID < rid && !remapIds ) UID = rid;
 		if( convert != null && convert[clidx] != null ) {
 			var conv = convert[clidx];
 			if( conv.hadCID ) {
@@ -590,6 +607,7 @@ class Serializer {
 		i.__uid = id;
 		i.unserializeInit();
 		refs[id] = i;
+		if( remapIds ) remap(i);
 		if( convert != null && convert[clidx] != null )
 			convertRef(i, convert[clidx]);
 		else
@@ -1015,8 +1033,9 @@ class Serializer {
 		return s.endSave();
 	}
 
-	public static function load<T:Serializable>( bytes : haxe.io.Bytes, cl : Class<T>, ?iterObjects : Serializable -> Void ) : T {
+	public static function load<T:Serializable>( bytes : haxe.io.Bytes, cl : Class<T>, ?iterObjects : Serializable -> Void, ?remapIds : Bool ) : T {
 		var s = new Serializer();
+		s.remapIds = remapIds;
 		s.beginLoad(bytes);
 		var value = s.getKnownRef(cl);
 		s.endLoad();
