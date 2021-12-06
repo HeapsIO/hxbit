@@ -697,6 +697,7 @@ class Serializer {
 		}
 		var schemaDataSize = getInt();
 		if( needConvert ) {
+			remapIds = false;
 			convert = [];
 			for( index in indexes ) {
 				var ourSchema = schemas[index];
