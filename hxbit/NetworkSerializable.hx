@@ -58,7 +58,9 @@ abstract Operation(Int) {
 	public var Unregister = 5;
 }
 
+#if !hxbit_manual_build
 @:autoBuild(hxbit.Macros.buildNetworkSerializable())
+#end
 interface NetworkSerializable extends Serializable extends ProxyHost {
 	public var __host : NetworkHost;
 	public var __bits1 : Int;
