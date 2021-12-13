@@ -1045,11 +1045,12 @@ class Macros {
 		}
 	}
 
-	public static function buildNetworkSerializable() {
+	public static function buildNetworkSerializable(?fields: Array<Field>) {
 		var cl = Context.getLocalClass().get();
 		if( cl.isInterface || Context.defined("display") )
 			return null;
-		var fields = Context.getBuildFields();
+		if(fields == null)
+			fields = Context.getBuildFields();
 		var toSerialize = [];
 		var rpc = [];
 		var superRPC = new Map();
@@ -1321,17 +1322,20 @@ class Macros {
 				var resultCall = macro null;
 
 				if( hasReturnVal ) {
-					doCall = macro onResult($fcall);
+					doCall = macro {
+						var _v = $fcall;
+						if( onResult != null ) onResult(_v);
+					}
 					resultCall = withPos(macro function(__ctx:hxbit.NetworkSerializable.NetworkSerializer) {
-						var v = cast null;
-						if( false ) v = $fcall;
-						hxbit.Macros.unserializeValue(__ctx, v);
+						var _v = cast null;
+						if( false ) _v = $fcall;
+						hxbit.Macros.unserializeValue(__ctx, _v);
 						if( __ctx.error ) return false;
-						onResult(v);
+						if( onResult != null ) onResult(_v);
 						return true;
 					},f.expr.pos);
 					rpcArgs = rpcArgs.copy();
-					rpcArgs.push( { name : "onResult", type: f.ret == null ? null : TFunction([f.ret], macro:Void) } );
+					rpcArgs.push( { name : "onResult", opt: true, type: f.ret == null ? null : TFunction([f.ret], macro:Void) } );
 				}
 
 				var forwardRPC = macro {
