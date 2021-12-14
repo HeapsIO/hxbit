@@ -90,6 +90,7 @@ typedef PropType = {
 class Macros {
 
 	static var IN_ENUM_SER = false;
+	static var PREFIX_VARS : Map<String,Bool> = null;
 
 	public static macro function serializeValue( ctx : Expr, v : Expr ) : Expr {
 		var t = Context.typeof(v);
@@ -108,7 +109,20 @@ class Macros {
 		if( pt == null ) {
 			return macro { };
 		}
-		IN_ENUM_SER = StringTools.startsWith(Context.getLocalClass().toString(), "hxbit.enumSer.");
+		var cl = Context.getLocalClass();
+		IN_ENUM_SER = StringTools.startsWith(cl.toString(), "hxbit.enumSer.");
+		PREFIX_VARS = null;
+		for( v in cl.get().meta.extract(":prefixVar") ) {
+			if( v.params == null ) continue;
+			for( p in v.params ) {
+				switch( p.expr ) {
+				case EConst(CIdent(i)):
+					if( PREFIX_VARS == null ) PREFIX_VARS = new Map();
+					PREFIX_VARS.set(i, true);
+				default:
+				}
+			}
+		}
 		return withPos(unserializeExpr(ctx, v, pt, depth),v.pos);
 	}
 
@@ -569,7 +583,15 @@ class Macros {
 					return t;
 				}
 			}
-			var cexpr = Context.parse(loop(t.t).toString(), v.pos);
+			var ct = loop(t.t);
+			if( PREFIX_VARS != null ) {
+				switch( ct ) {
+				case TPath(inf = { pack : pk }) if( pk.length > 0 && PREFIX_VARS.exists(pk[0]) ):
+					ct = TPath({ pack : ["std"].concat(pk), name : inf.name, params : inf.params, sub : inf.sub });
+				default:
+				}
+			}
+			var cexpr = Context.parse(ct.toString(), v.pos);
 			return macro $v = $ctx.getRef($cexpr,@:privateAccess $cexpr.__clid);
 		case PSerInterface(name):
 			return macro $v = cast $ctx.getAnyRef();
@@ -640,6 +662,12 @@ class Macros {
 			if( toSerialize.length != 0 || !isSubSer )
 				Context.error("Cannot use serializeSuperClass on this class", cl.pos);
 			return null;
+		}
+
+		var supClass = sup == null ? null : sup.t.get();
+		if( supClass != null && supClass.meta.has(":prefixVar") && !cl.meta.has(":prefixVar") ) {
+			for( v in supClass.meta.extract(":prefixVar") )
+				cl.meta.add(v.name, v.params, v.pos);
 		}
 
 		if( addCustomSerializable != addCustomUnserializable ) {
@@ -1200,9 +1228,11 @@ class Macros {
 				getter = _get;
 				t = _t;
 				einit = _e;
-				if( _set == "null" )
+				if( _set == "null" ) {
+					#if !hxbit_no_warning
 					Context.warning("Null setter is not respected when using NetworkSerializable", pos);
-				else if( _set != "default" && _set != "set" )
+					#end
+				} else if( _set != "default" && _set != "set" )
 					Context.error("Invalid setter", pos);
 			default:
 				throw "assert";
@@ -1217,6 +1247,11 @@ class Macros {
 			if( ftype.isProxy ) {
 				switch( ftype.d ) {
 				case PFlags(_) if( einit == null ): einit = macro new hxbit.EnumFlagsProxy(0);
+				case PMap(_) if( einit != null ):
+					switch( einit.expr ) {
+					case EArrayDecl(vl) if( vl.length == 0 ): einit = macro new Map();
+					default:
+					}
 				default:
 				}
 				if( einit != null ) {
@@ -1705,6 +1740,8 @@ class Macros {
 			return "O"+[for( f in fields ) f.name+"_" + ~/[<>.]/g.replace(typeName(f.type),"_")].join("_");
 		case PArray(t):
 			return "Arr_" + typeName(t);
+		case PMap(k,v):
+			return "Map_"+typeName(k)+"_"+typeName(v);
 		default:
 		}
 		var str = t.t.toString();
