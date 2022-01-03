@@ -30,6 +30,9 @@ interface ProxyChild {
 	public function unbindHost() : Void;
 }
 
+/** Classes implementing this will not be replicated over the network **/
+interface NetworkNoReplication { }
+
 @:enum
 abstract Operation(Int) {
 	/**
@@ -136,6 +139,18 @@ class NetworkSerializer extends Serializer {
 			return false;
 		hasError = false;
 		return true;
+	}
+
+	override function addAnyRef(s:Serializable) {
+		if(Std.is(s, NetworkNoReplication))
+			s = null;
+		super.addAnyRef(s);
+	}
+
+	override function addKnownRef(s:Serializable) {
+		if(Std.is(s, NetworkNoReplication))
+			s = null;
+		super.addKnownRef(s);
 	}
 
 	override function addObjRef(s:Serializable) {
