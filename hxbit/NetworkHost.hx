@@ -518,7 +518,7 @@ class NetworkHost {
 		flush();
 		var prev = targetClient;
 		targetClient = to;
-		if( Std.is(msg, haxe.io.Bytes) ) {
+		if( Std.isOfType(msg, haxe.io.Bytes) ) {
 			ctx.addByte(BMSG);
 			ctx.addBytes(msg);
 		} else {
