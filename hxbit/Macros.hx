@@ -1177,9 +1177,20 @@ class Macros {
 					}
 				}
 				public var enableReplication(get, set) : Bool;
+				public var enableAutoReplication(get, set) : Bool;
 				inline function get_enableReplication() return __host != null;
+				inline function get_enableAutoReplication() return __next == this;
 				function set_enableReplication(b) {
 					@:privateAccess hxbit.NetworkHost.enableReplication(this, b);
+					return b;
+				}
+				function set_enableAutoReplication(b) {
+					if( __next == this ) {
+						if( !b ) __next = null;
+					} else if( b ) {
+						if( __next != null ) throw "Can't set auto replication if modified";
+						__next = this;
+					}
 					return b;
 				}
 				public function networkCancelProperty( props : hxbit.NetworkSerializable.NetworkProperty ) {

@@ -403,6 +403,7 @@ class NetworkHost {
 	var lastSentTime : Float = 0.;
 	var lastSentBytes = 0;
 	var markHead : NetworkSerializable;
+	var registerHead : NetworkSerializable;
 	var ctx : NetworkSerializer;
 	var pendingClients : Array<NetworkClient>;
 	var logger : String -> Void;
@@ -415,6 +416,7 @@ class NetworkHost {
 	var rpcPosition : Int;
 	public var clients : Array<NetworkClient>;
 	public var self(default,null) : NetworkClient;
+	public var lateRegistration = false;
 
 	public function new() {
 		current = this;
@@ -707,6 +709,11 @@ class NetworkHost {
 		}
 		if( !isAuth && !o.networkAllow(Register,0,self.ownerObject) )
 			throw "Can't register "+o+" without ownership";
+		if( lateRegistration ) {
+			o.__next = registerHead;
+			registerHead = o;
+			return;
+		}
 		if( logger != null )
 			logger("Register " + o + "#" + o.__uid);
 		ctx.addByte(REG);
@@ -735,6 +742,25 @@ class NetworkHost {
 			return;
 		if( !isAuth && !o.networkAllow(Unregister,0,self.ownerObject) )
 			throw "Can't unregister "+o+" without ownership";
+		if( lateRegistration ) {
+			// was it pending register ?
+			var h = registerHead, p = null;
+			while( h != null ) {
+				if( h == o ) {
+					if( p == null )
+						registerHead = o.__next;
+					else
+						p.__next = o.__next;
+					o.__host = null;
+					o.__next = null;
+					o.__bits1 = 0;
+					o.__bits2 = 0;
+					return;
+				}
+				p = h;
+				h = h.__next;
+			}
+		}
 		flushProps(); // send changes
 		o.__host = null;
 		o.__bits1 = 0;
@@ -771,6 +797,24 @@ class NetworkHost {
 	}
 
 	function flushProps() {
+		while( registerHead != null ) {
+			var o = registerHead;
+			registerHead = o.__next;
+			o.__next = null;
+			o.__bits1 = 0;
+			o.__bits2 = 0;
+
+			var o2 = ctx.refs[o.__uid];
+			if( o2 != null ) {
+				if( o2 != (o:Serializable) ) logError("Register conflict between objects", o.__uid);
+				continue;
+			}
+			if( logger != null )
+				logger("Register " + o + "#" + o.__uid);
+			ctx.addByte(REG);
+			ctx.addAnyRef(o);
+			if( checkEOM ) ctx.addByte(EOM);
+		}
 		var o = markHead;
 		while( o != null ) {
 			if( (o.__bits1|o.__bits2) != 0 ) {

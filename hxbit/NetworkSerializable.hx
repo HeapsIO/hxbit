@@ -70,6 +70,7 @@ interface NetworkSerializable extends Serializable extends ProxyHost {
 	public var __bits2 : Int;
 	public var __next : NetworkSerializable;
 	public var enableReplication(get, set) : Bool;
+	public var enableAutoReplication(get, set) : Bool;
 	public function alive() : Void; // user defined
 
 	public function networkFlush( ctx : Serializer ) : Void;
@@ -159,10 +160,15 @@ class NetworkSerializer extends Serializer {
 			return;
 		}
 		addInt(s.__uid);
-		var ns = #if haxe4 Std.downcast #else Std.instance #end (s, NetworkSerializable);
+		var ns = Std.downcast(s, NetworkSerializable);
 		if( ns != null && ns.__host == null ) {
-			out = new haxe.io.BytesBuffer(); // prevent garbaged data from being kept
-			throw "Can't send unbound object " + s + " over network";
+			if( ns.enableAutoReplication ) {
+				ns.__next = null;
+				ns.__host = host;
+			} else {
+				out = new haxe.io.BytesBuffer(); // prevent garbaged data from being kept
+				throw "Can't send unbound object " + s + " over network";
+			}
 		}
 		addBool( refs.exists(s.__uid) );
 	}
