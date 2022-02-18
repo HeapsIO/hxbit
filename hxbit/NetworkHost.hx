@@ -233,14 +233,11 @@ class NetworkClient {
 				ctx.addByte(NetworkHost.CANCEL_RPC);
 				ctx.addInt(resultID);
 			} else if( !host.isAuth ) {
-				var old = o.__host;
-				o.__host = null;
 				if( !o.networkRPC(ctx, fid, this) ) {
 					host.logError("RPC @" + fid + " on " + o + " has unreferenced object parameter");
 					ctx.addByte(NetworkHost.CANCEL_RPC);
 					ctx.addInt(resultID);
 				}
-				o.__host = old;
 			} else {
 				host.rpcClientValue = this;
 				if( !o.networkRPC(ctx, fid, this) ) {
