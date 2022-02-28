@@ -1490,6 +1490,7 @@ class Macros {
 					exprs.push(e);
 				}
 				exprs.push(macro if( __ctx.error ) return false);
+				exprs.push(macro if( __host != null ) __host.makeAlive());
 				if( hasReturnVal ) {
 					exprs.push({ expr : EVars([ { name : "result", type : f.ret, expr : fcall } ]), pos : p } );
 					exprs.push(macro {
