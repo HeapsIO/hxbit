@@ -707,8 +707,13 @@ class NetworkHost {
 		if( !isAuth && !o.networkAllow(Register,0,self.ownerObject) )
 			throw "Can't register "+o+" without ownership";
 		if( lateRegistration ) {
-			o.__next = registerHead;
-			registerHead = o;
+			if( registerHead == null ) {
+				o.__next = o;
+				registerHead = o;
+			} else {
+				o.__next = registerHead;
+				registerHead = o;
+			}
 			return;
 		}
 		if( logger != null )
@@ -741,13 +746,14 @@ class NetworkHost {
 			throw "Can't unregister "+o+" without ownership";
 		if( lateRegistration ) {
 			// was it pending register ?
-			var h = registerHead, p = null;
-			while( h != null ) {
+			var h = registerHead, p : hxbit.NetworkSerializable = null;
+			while( p != h ) {
 				if( h == o ) {
+					var n = o.__next;
 					if( p == null )
-						registerHead = o.__next;
+						registerHead = n == o ? null : n;
 					else
-						p.__next = o.__next;
+						p.__next = n == o ? p : n;
 					o.__host = null;
 					o.__next = null;
 					o.__bits1 = 0;
