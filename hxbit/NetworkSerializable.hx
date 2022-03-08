@@ -143,13 +143,13 @@ class NetworkSerializer extends Serializer {
 	}
 
 	override function addAnyRef(s:Serializable) {
-		if(Std.is(s, NetworkNoReplication))
+		if(Std.isOfType(s, NetworkNoReplication))
 			s = null;
 		super.addAnyRef(s);
 	}
 
 	override function addKnownRef(s:Serializable) {
-		if(Std.is(s, NetworkNoReplication))
+		if(Std.isOfType(s, NetworkNoReplication))
 			s = null;
 		super.addKnownRef(s);
 	}
