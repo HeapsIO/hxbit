@@ -870,7 +870,18 @@ class Serializer {
 		return cl;
 	}
 
-	function readValue( t : Schema.FieldType ) : Dynamic {
+	function readValue(t:Schema.FieldType) : Dynamic {
+		var v : Dynamic = readValueImpl(t);
+		#if hl
+		if( hl.Type.getDynamic(v).kind == HVirtual && !t.match(PSerInterface(_)) ) {
+			var real : Dynamic = hl.Api.getVirtualValue(v);
+			if( real != null ) v = real;
+		}
+		#end
+		return v;
+	}
+
+	function readValueImpl( t : Schema.FieldType ) : Dynamic {
 		return switch( t ) {
 		case PInt64: getInt64();
 		case PInt: getInt();
