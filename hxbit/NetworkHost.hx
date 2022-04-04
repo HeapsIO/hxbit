@@ -258,6 +258,7 @@ class NetworkClient {
 			var resultID = ctx.getInt();
 			var callb = host.rpcWaits.get(resultID);
 			host.rpcWaits.remove(resultID);
+			host.makeAlive();
 			callb(ctx);
 
 		case NetworkHost.CANCEL_RPC:
