@@ -85,7 +85,7 @@ abstract class Closure<T> #if !macro implements hxbit.Serializable #end {
 				Context.getType("hxbit.closure."+ident);
 			} catch( err ) {
 
-				var texpr = Context.withOptions({ inlining : false }, () -> Context.typeExpr(funExpr));
+				var texpr = Context.withOptions({ allowInlining : false, allowTransform : false }, () -> Context.typeExpr(funExpr));
 				var t = switch( texpr.t ) {
 				case TFun(_,t): haxe.macro.TypeTools.toComplexType(t);
 				default: throw "assert";
@@ -116,7 +116,9 @@ abstract class Closure<T> #if !macro implements hxbit.Serializable #end {
 					constructVars.push(cname);
 				}
 
-				//Context.warning(outExpr.toString(), outExpr.pos);
+				#if closure_debug
+				Context.warning(outExpr.toString(), outExpr.pos);
+				#end
 
 				fields.push({
 					pos : pos,
