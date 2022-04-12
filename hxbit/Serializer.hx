@@ -174,11 +174,11 @@ class Serializer {
 		return input.get(inPos++);
 	}
 
-	public inline function addByte(v:Int) {
+	public function addByte(v:Int) {
 		out.addByte(v);
 	}
 
-	public inline function addInt(v:Int) {
+	public function addInt(v:Int) {
 		if( v >= 0 && v < 0x80 )
 			out.addByte(v);
 		else {
@@ -187,24 +187,24 @@ class Serializer {
 		}
 	}
 
-	public inline function addInt32(v:Int) {
+	public function addInt32(v:Int) {
 		out.addInt32(v);
 	}
 
-	public inline function addInt64(v:haxe.Int64) {
+	public function addInt64(v:haxe.Int64) {
 		out.addInt64(v);
 	}
 
-	public inline function addFloat(v:Float) {
+	public function addFloat(v:Float) {
 		out.addFloat(v);
 	}
 
-	public inline function addDouble(v:Float) {
+	public function addDouble(v:Float) {
 		out.addDouble(v);
 	}
 
-	public inline function addBool(v:Bool) {
-		addByte(v?1:0);
+	public function addBool(v:Bool) {
+		out.addByte(v?1:0);
 	}
 
 	public inline function addArray<T>(a:Array<T>,f:T->Void) {
@@ -279,7 +279,7 @@ class Serializer {
 		return getByte() != 0;
 	}
 
-	public inline function getInt() {
+	public function getInt() {
 		var v = getByte();
 		if( v == 0x80 ) {
 			v = input.getInt32(inPos);
@@ -316,9 +316,9 @@ class Serializer {
 		return v;
 	}
 
-	public inline function addString( s : String ) {
+	public function addString( s : String ) {
 		if( s == null )
-			addByte(0);
+			out.addByte(0);
 		else {
 			var b = haxe.io.Bytes.ofString(s);
 			addInt(b.length + 1);
@@ -326,25 +326,25 @@ class Serializer {
 		}
 	}
 
-	public inline function addBytes( b : haxe.io.Bytes ) {
+	public function addBytes( b : haxe.io.Bytes ) {
 		if( b == null )
-			addByte(0);
+			out.addByte(0);
 		else {
 			addInt(b.length + 1);
 			out.add(b);
 		}
 	}
 
-	public inline function addBytesSub( b : haxe.io.Bytes, pos : Int, len : Int ) {
+	public function addBytesSub( b : haxe.io.Bytes, pos : Int, len : Int ) {
 		if( b == null )
-			addByte(0);
+			out.addByte(0);
 		else {
 			addInt(len + 1);
 			out.addBytes(b, pos, len);
 		}
 	}
 
-	public inline function getString() {
+	public function getString() {
 		var len = getInt();
 		if( len == 0 )
 			return null;
@@ -354,7 +354,7 @@ class Serializer {
 		return s;
 	}
 
-	public inline function getBytes() {
+	public function getBytes() {
 		var len = getInt();
 		if( len == 0 )
 			return null;
@@ -442,12 +442,12 @@ class Serializer {
 		}
 	}
 
-	public inline function addCLID( clid : Int ) {
-		addByte(clid >> 8);
-		addByte(clid & 0xFF);
+	public function addCLID( clid : Int ) {
+		out.addByte(clid >> 8);
+		out.addByte(clid & 0xFF);
 	}
 
-	public inline function getCLID() {
+	public function getCLID() {
 		return (getByte() << 8) | getByte();
 	}
 
