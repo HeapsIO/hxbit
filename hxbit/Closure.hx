@@ -70,7 +70,7 @@ abstract class Closure<T> #if !macro implements hxbit.Serializable #end {
 
 	#end
 
-	public static macro function make( funExpr : Expr ) {
+	public static macro function make( funExpr : Expr, ?parentType : String ) {
 		var pos = funExpr.pos;
 		switch( funExpr.expr ) {
 		case EFunction(_,f) if( f.args.length == 0 && f.params.length == 0 ):
@@ -142,11 +142,12 @@ abstract class Closure<T> #if !macro implements hxbit.Serializable #end {
 					}),
 				});
 
+				var parentPath = (parentType == null ? "hxbit.Closure" : parentType).split(".");
 				Context.defineType({
 					pos : pos,
 					name : ident,
 					pack : ["hxbit","closure"],
-					kind : TDClass({ pack : ["hxbit"], name : "Closure", params : [TPType(t)] }),
+					kind : TDClass({ pack : parentPath, name : parentPath.pop(), params : [TPType(t)] }),
 					fields : fields,
 					meta : [{ name : ":access", pos : pos, params : [macro $p{currentClass.split(".")}] }],
 				});
