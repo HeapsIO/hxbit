@@ -325,7 +325,7 @@ class Macros {
 				if( !f.isFinal ) isMutable = true;
 				#end
 			}
-			PObj(fields);
+			a.fields.length == 0 ? PDynamic : PObj(fields);
 		case TInst(c, pl):
 			switch( c.toString() ) {
 			case "String":
