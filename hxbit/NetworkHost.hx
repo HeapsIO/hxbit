@@ -193,7 +193,9 @@ class NetworkClient {
 				if( o == null ) break;
 			}
 			ctx.enableChecks = true;
+			var first = @:privateAccess ctx.newObjects[0];
 			host.makeAlive();
+			host.onFullSync(cast first);
 		case NetworkHost.RPC:
 			var oid = ctx.getInt();
 			var o : hxbit.NetworkSerializable = cast ctx.refs[oid];
@@ -509,6 +511,9 @@ class NetworkHost {
 	}
 
 	public dynamic function onUnregister(o : hxbit.NetworkSerializable) {
+	}
+
+	public dynamic function onFullSync( firstObject : hxbit.Serializable ) {
 	}
 
 	function onCustom( from : NetworkClient, id : Int, ?data : haxe.io.Bytes ) {
