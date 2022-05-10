@@ -136,7 +136,7 @@ class NetworkClient {
 				var props = [];
 				inline function logProps(bits: Int, offset: Int) {
 					var i = 0;
-					while( 1 << i <= bits ) {
+					while( bits >>> i != 0 ) {
 						if( bits & (1 << i) != 0 )
 							props.push(o.networkGetName(i + offset));
 						i++;
@@ -830,13 +830,13 @@ class NetworkHost {
 				if( logger != null ) {
 					var props = [];
 					var i = 0;
-					while( 1 << i <= o.__bits1 ) {
+					while( o.__bits1 >>> i != 0 ) {
 						if( o.__bits1 & (1 << i) != 0 )
 							props.push(o.networkGetName(i));
 						i++;
 					}
 					i = 0;
-					while( 1 << i <= o.__bits2 ) {
+					while( o.__bits2 >>> i != 0 ) {
 						if( o.__bits2 & (1 << i) != 0 )
 							props.push(o.networkGetName(i+30));
 						i++;
