@@ -154,6 +154,10 @@ class NetworkSerializer extends Serializer {
 		super.addKnownRef(s);
 	}
 
+	public dynamic function onUnboundObject(ns:NetworkSerializable) {
+		throw "Can't send unbound object " + ns + " over network";
+	}
+
 	override function addObjRef(s:Serializable) {
 		if( !enableChecks ) {
 			super.addObjRef(s);
@@ -167,7 +171,7 @@ class NetworkSerializer extends Serializer {
 				ns.__host = host;
 			} else {
 				out = new haxe.io.BytesBuffer(); // prevent garbaged data from being kept
-				throw "Can't send unbound object " + s + " over network";
+				onUnboundObject(ns);
 			}
 		}
 		addBool( refs.exists(s.__uid) );
