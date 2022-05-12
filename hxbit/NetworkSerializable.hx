@@ -44,6 +44,10 @@ abstract Operation(Int) {
 	**/
 	public var RPCServer = 1;
 	/**
+		Tells if the client is allowed to call a rpc(owner) for this object
+	**/
+	public var RPCOwner = 6;
+	/**
 		Tells if the client is to be the target of the rpc(owner) messages
 	**/
 	public var Ownership = 2;

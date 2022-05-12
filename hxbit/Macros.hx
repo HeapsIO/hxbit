@@ -1445,7 +1445,7 @@ class Macros {
 							if( networkAllow(Ownership, $v{id}, __host.self.ownerObject) )
 								$doCall;
 						} else {
-							if( !networkAllow(RPC, $v{id}, __host.self.ownerObject) ) {
+							if( !networkAllow(RPCOwner, $v{id}, __host.self.ownerObject) ) {
 								__host.logError("Calling RPC on a not allowed object");
 								return;
 							}
