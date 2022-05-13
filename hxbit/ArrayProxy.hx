@@ -115,7 +115,7 @@ abstract ArrayProxy<T>(ArrayProxyData<T>) {
 
 	public inline function remove( x : T ) {
 		var r = this.array.remove(x);
-		this.mark();
+		if( r ) this.mark();
 		return r;
 	}
 
@@ -255,8 +255,10 @@ abstract ArrayProxy2<T:ProxyChild>(ArrayProxyData<T>) {
 
 	public inline function remove( x : T ) {
 		var r = this.array.remove(x);
-		if( r ) unbind(x);
-		this.mark();
+		if( r ) {
+			unbind(x);
+			this.mark();
+		}
 		return r;
 	}
 
