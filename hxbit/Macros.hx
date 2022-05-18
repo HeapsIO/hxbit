@@ -91,6 +91,13 @@ class Macros {
 
 	static var IN_ENUM_SER = false;
 	static var PREFIX_VARS : Map<String,Bool> = null;
+	@:persistent static var NW_BUILD_STACK : Array<String> = [];
+
+	#if macro
+	public static function markAsSerializable( className : String ) {
+		NW_BUILD_STACK.push(className);
+	}
+	#end
 
 	public static macro function serializeValue( ctx : Expr, v : Expr ) : Expr {
 		var t = Context.typeof(v);
@@ -179,7 +186,7 @@ class Macros {
 	}
 
 	static function isSerializable( c : Ref<ClassType> ) {
-		return lookupInterface(c, "hxbit.Serializable");
+		return NW_BUILD_STACK.indexOf(c.toString()) >= 0 || c.get().meta.has(":isSerializable") || lookupInterface(c, "hxbit.Serializable");
 	}
 
 	static function isStructSerializable( c : Ref<ClassType> ) {
@@ -1084,6 +1091,10 @@ class Macros {
 		var cl = Context.getLocalClass().get();
 		if( cl.isInterface || Context.defined("display") )
 			return null;
+
+		var clName = Context.getLocalClass().toString();
+		NW_BUILD_STACK.push(clName);
+
 		if(fields == null)
 			fields = Context.getBuildFields();
 		var toSerialize = [];
@@ -1723,6 +1734,7 @@ class Macros {
 		if( toSerialize.length > 0 )
 			cl.meta.add(":sFields", [for( r in toSerialize ) { expr : EConst(CIdent(r.f.name)), pos : pos }], pos);
 
+		NW_BUILD_STACK.pop();
 		return fields;
 	}
 
