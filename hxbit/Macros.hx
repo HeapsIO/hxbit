@@ -1848,6 +1848,17 @@ class Macros {
 						expr : { expr : EBlock([for( f in fields ) { var fname = f.name; macro this.$fname = $i{fname}; }]), pos : pos },
 					})
 				});
+				var optMeta : Metadata = [{ name : ":optional", pos : pos, params : [] }];
+				tfields.push({
+					name : "__load",
+					pos : pos,
+					access : [APublic],
+					kind : FFun({
+						ret : null,
+						args : [{ name : "v", type : TAnonymous([for( f in fields ) { name : f.name, pos : pos, kind : FVar(f.type.t), meta : f.opt ? optMeta : null }]) }],
+						expr : { expr : EBlock([for( f in fields ) { var fname = f.name; macro this.$fname = v.$fname; }]), pos : pos },
+					})
+				});
 				var t : TypeDefinition = {
 					pos : pos,
 					pack : ["hxbit"],
