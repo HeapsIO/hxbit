@@ -94,7 +94,7 @@ class Macros {
 
 	public static macro function serializeValue( ctx : Expr, v : Expr ) : Expr {
 		var t = Context.typeof(v);
-		var pt = getPropType(t);
+		var pt = getPropType(t, false);
 		if( pt == null ) {
 			Context.error("Unsupported serializable type " + t.toString(), v.pos);
 			return macro { };
@@ -105,7 +105,7 @@ class Macros {
 
 	public static macro function unserializeValue( ctx : Expr, v : Expr, depth : Int = 0 ) : Expr {
 		var t = Context.typeof(v);
-		var pt = getPropType(t);
+		var pt = getPropType(t, false);
 		if( pt == null ) {
 			return macro { };
 		}
@@ -128,7 +128,7 @@ class Macros {
 
 	public static macro function getFieldType( v : Expr ) {
 		var t = Context.typeof(v);
-		var pt = getPropType(t);
+		var pt = getPropType(t, false);
 		if( pt == null )
 			return macro null;
 		var v = toFieldType(pt);
@@ -186,8 +186,8 @@ class Macros {
 		return lookupInterface(c, "hxbit.StructSerializable");
 	}
 
-	static function getPropField( ft : Type, meta : Metadata ) {
-		var t = getPropType(ft);
+	static function getPropField( ft : Type, meta : Metadata, partial : Bool ) {
+		var t = getPropType(ft, partial);
 		if( t == null )
 			return null;
 		for( m in meta) {
@@ -239,7 +239,7 @@ class Macros {
 		return name;
 	}
 
-	static function getPropType( t : haxe.macro.Type ) : PropType {
+	static function getPropType( t : haxe.macro.Type, partial : Bool ) : PropType {
 		var isProxy = false;
 		var isMutable = true;
 		var desc = switch( t ) {
@@ -254,45 +254,45 @@ class Macros {
 			case "Bool":
 				PBool;
 			case "Map", "haxe.ds.Map":
-				var tk = getPropType(pl[0]);
-				var tv = getPropType(pl[1]);
+				var tk = getPropType(pl[0],partial);
+				var tv = getPropType(pl[1],partial);
 				if( tk == null || tv == null )
 					return null;
 				PMap(tk, tv);
 			case "haxe.ds.Vector":
-				var tk = getPropType(pl[0]);
+				var tk = getPropType(pl[0],partial);
 				if( tk == null )
 					return null;
 				PVector(tk);
 			case "hxbit.VectorProxy":
-				var t = getPropType(pl[0]);
+				var t = getPropType(pl[0],partial);
 				if( t == null )
 					return null;
 				isProxy = true;
 				PVector(t);
 			case "hxbit.ArrayProxy", "hxbit.ArrayProxy2":
-				var t = getPropType(pl[0]);
+				var t = getPropType(pl[0],partial);
 				if( t == null )
 					return null;
 				isProxy = true;
 				PArray(t);
 			case "hxbit.MapProxy", "hxbit.MapProxy2":
-				var k = getPropType(pl[0]);
-				var v = getPropType(pl[1]);
+				var k = getPropType(pl[0],partial);
+				var v = getPropType(pl[1],partial);
 				if( k == null || v == null ) return null;
 				isProxy = true;
 				PMap(k, v);
 			case "hxbit.EnumFlagsProxy":
-				var e = getPropType(pl[0]);
+				var e = getPropType(pl[0],partial);
 				if( e == null ) return null;
 				isProxy = true;
 				PFlags(e);
 			case "haxe.EnumFlags":
-				var e = getPropType(pl[0]);
+				var e = getPropType(pl[0],partial);
 				if( e == null ) return null;
 				PFlags(e);
 			case "Null":
-				var p = getPropType(pl[0]);
+				var p = getPropType(pl[0],partial);
 				if( p != null && !isNullable(p) )
 					p = { d : PNull(p), t : TPath( { pack : [], name : "Null", params : [TPType(p.t)] } ) };
 				return p;
@@ -303,7 +303,7 @@ class Macros {
 					return null;
 				default:
 				}
-				var pt = getPropType(t2);
+				var pt = getPropType(t2,partial);
 				if( pt == null ) return null;
 				PAlias(pt);
 			}
@@ -318,7 +318,7 @@ class Macros {
 			for( f in a.fields ) {
 				if( f.meta.has(":noSerialize") )
 					continue;
-				var ft = getPropField(f.type, f.meta.get());
+				var ft = getPropField(f.type, f.meta.get(), partial);
 				if( ft == null ) return null;
 				fields.push( { name : f.name, type : ft, opt : f.meta.has(":optional") } );
 				#if (haxe_ver >= 4)
@@ -331,15 +331,15 @@ class Macros {
 			case "String":
 				PString;
 			case "Array":
-				var at = getPropType(pl[0]);
+				var at = getPropType(pl[0],partial);
 				if( at == null ) return null;
 				PArray(at);
 			case "haxe.ds.IntMap":
-				var vt = getPropType(pl[0]);
+				var vt = getPropType(pl[0],partial);
 				if( vt == null ) return null;
 				PMap({ t : macro : Int, d : PInt }, vt);
 			case "haxe.ds.StringMap":
-				var vt = getPropType(pl[0]);
+				var vt = getPropType(pl[0],partial);
 				if( vt == null ) return null;
 				PMap({ t : macro : String, d : PString }, vt);
 			case "haxe.io.Bytes":
@@ -348,7 +348,8 @@ class Macros {
 				var fields = c.get().fields.get();
 				for( f in fields )
 					if( f.name == "__value" ) {
-						var t = getPropType(f.type);
+						var t = getPropType(f.type,partial);
+						if( t == null ) return t;
 						t.isProxy = true;
 						return t;
 					}
@@ -366,16 +367,22 @@ class Macros {
 		case TType(td, pl):
 			switch( td.toString() ) {
 			case "Null":
-				var p = getPropType(pl[0]);
+				var p = getPropType(pl[0],partial);
 				if( p != null && !isNullable(p) )
 					p = { d : PNull(p), t : TPath( { pack : [], name : "Null", params : [TPType(p.t)] } ) };
 				return p;
 			default:
-				var p = getPropType(Context.follow(t, true));
+				var p = getPropType(Context.follow(t, true),partial);
 				if( p != null )
 					p.t = t.toComplexType(); // more general, still identical
 				return p;
 			}
+		case TLazy(f):
+			// browsing TLazy would flush the context leading to more recursions,
+			// since we are in our build phase, let's instead return Unknown
+			if( partial )
+				return { d : PUnknown, t : null };
+			return getPropType(f(), partial);
 		default:
 			return null;
 		}
@@ -1252,8 +1259,15 @@ class Macros {
 			if( t == null ) t = quickInferType(einit);
 			if( t == null ) Context.error("Type required", pos);
 			var tt = Context.resolveType(t, pos);
-			var ftype = getPropField(tt, f.f.meta);
-			if( ftype == null ) ftype = { t : t, d : PUnknown };
+			var ftype = getPropField(tt, f.f.meta, true);
+			if( ftype == null ) {
+				// error here (even if it might error again in serialize code)
+				Context.error("Unsupported serializable type "+tt.toString(), pos);
+				ftype = { t : t, d : PUnknown };
+			} else if( ftype.d == PUnknown ) {
+				Context.error("Could not resolve field type", pos);
+				ftype.t = t;
+			}
 			checkProxy(ftype);
 			if( ftype.isProxy ) {
 				switch( ftype.d ) {
@@ -1859,7 +1873,7 @@ class Macros {
 		var t = Context.getLocalType();
 		switch( t ) {
 		case TInst(_, [pt]):
-			var p = getPropType(pt);
+			var p = getPropType(pt, false);
 			if( p != null ) {
 				var t = buildProxyType(p);
 				if( t != null ) return toType(t);
