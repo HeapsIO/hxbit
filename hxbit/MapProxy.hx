@@ -59,6 +59,10 @@ abstract MapProxy<K,V>(MapData<K,V>) {
 		this.unbindHost();
 	}
 
+	public inline function copy() : MapProxy<K,V> {
+		return cast new MapData(__value.copy());
+	}
+
 	public inline function keys():Iterator<K> {
 		return this.map.keys();
 	}
