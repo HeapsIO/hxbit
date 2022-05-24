@@ -38,6 +38,10 @@ abstract EnumFlagsProxy<T:EnumValue>(EnumFlagsData<T>) {
 			__value.unset(e);
 		}
 	}
+	
+	public inline function copy() {
+		return new EnumFlagsProxy<T>(__value.toInt());
+	}
 
 	public inline function toInt() : Int {
 		return __value.toInt();
