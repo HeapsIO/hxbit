@@ -78,7 +78,7 @@ class NetworkClient {
 
 		switch( mid ) {
 		case NetworkHost.SYNC:
-			var oid = ctx.getInt();
+			var oid = ctx.getUID();
 			var o : hxbit.NetworkSerializable = cast ctx.refs[oid];
 			if( o == null ) {
 				host.logError("Could not sync object", oid);
@@ -167,7 +167,7 @@ class NetworkClient {
 				host.logError("Found unreferenced object while registering " + o + "." + o.networkGetName(ctx.errorPropId));
 			needAlive = true;
 		case NetworkHost.UNREG:
-			var oid = ctx.getInt();
+			var oid = ctx.getUID();
 			var o : hxbit.NetworkSerializable = cast ctx.refs[oid];
 			if( o == null ) {
 				host.logError("Could not unregister object", oid);
@@ -178,7 +178,7 @@ class NetworkClient {
 			}
 		case NetworkHost.FULLSYNC:
 			wasSync = true;
-			ctx.refs = new Map();
+			ctx.refs = new Serializer.UIDMap();
 			@:privateAccess {
 				hxbit.Serializer.UID = 0;
 				hxbit.Serializer.SEQ = ctx.getByte();
@@ -197,7 +197,7 @@ class NetworkClient {
 			host.makeAlive();
 			host.onFullSync(cast first);
 		case NetworkHost.RPC:
-			var oid = ctx.getInt();
+			var oid = ctx.getUID();
 			var o : hxbit.NetworkSerializable = cast ctx.refs[oid];
 			var size = ctx.getInt32();
 			var fid = ctx.getByte();
@@ -222,7 +222,7 @@ class NetworkClient {
 
 			var old = resultID;
 			resultID = ctx.getInt();
-			var oid = ctx.getInt();
+			var oid = ctx.getUID();
 			var o : hxbit.NetworkSerializable = cast ctx.refs[oid];
 			var size = ctx.getInt32();
 			var fid = ctx.getByte();
@@ -456,7 +456,7 @@ class NetworkHost {
 		var s = new hxbit.Serializer();
 		s.beginSave();
 		var refs = [for( r in ctx.refs ) r];
-		refs.sort(sortByUID);
+		refs.sort(@:privateAccess Serializer.sortByUID);
 		for( r in refs )
 			if( !s.refs.exists(r.__uid) )
 				s.addAnyRef(r);
@@ -466,7 +466,7 @@ class NetworkHost {
 
 	public function loadSave( bytes : haxe.io.Bytes ) {
 		ctx.enableChecks = false;
-		ctx.refs = new Map();
+		ctx.refs = new Serializer.UIDMap();
 		@:privateAccess ctx.newObjects = [];
 		ctx.beginLoad(bytes);
 		while( true ) {
@@ -503,7 +503,7 @@ class NetworkHost {
 		return rpcClientValue == null ? self : rpcClientValue;
 	}
 
-	public dynamic function logError( msg : String, ?objectId : Int ) {
+	public dynamic function logError( msg : String, ?objectId : UID ) {
 		throw msg + (objectId == null ? "":  "(" + objectId + ")");
 	}
 
@@ -576,7 +576,7 @@ class NetworkHost {
 			rpcWaits.set(id, onResult);
 		} else
 			ctx.addByte(RPC);
-		ctx.addInt(o.__uid);
+		ctx.addUID(o.__uid);
 		#if hl
 		rpcPosition = @:privateAccess ctx.out.pos;
 		#end
@@ -629,7 +629,7 @@ class NetworkHost {
 		ctx.addBytes(Serializer.getSignature());
 
 		var objs = [for( o in refs ) if( o != null ) o];
-		objs.sort(sortByUID);
+		objs.sort(@:privateAccess Serializer.sortByUID);
 		for( o in objs )
 			ctx.addAnyRef(o);
 		ctx.addAnyRef(null);
@@ -659,19 +659,11 @@ class NetworkHost {
 		return @:privateAccess ctx.newObjects.length == 0 && aliveEvents.length == 0;
 	}
 
-	static function sortByUID(o1:Serializable, o2:Serializable) {
-		return o1.__uid - o2.__uid;
-	}
-
-	static function sortByUIDDesc(o1:Serializable, o2:Serializable) {
-		return o2.__uid - o1.__uid;
-	}
-
 	public function makeAlive() {
 		var objs = @:privateAccess ctx.newObjects;
 		if( objs.length == 0 )
 			return;
-		objs.sort(sortByUIDDesc);
+		objs.sort(@:privateAccess Serializer.sortByUIDDesc);
 		for( o in objs ) {
 			var n = #if haxe4 Std.downcast #else Std.instance #end (o, NetworkSerializable);
 			if( n == null ) continue;
@@ -778,7 +770,7 @@ class NetworkHost {
 		if( logger != null )
 			logger("Unregister " + o+"#"+o.__uid);
 		ctx.addByte(UNREG);
-		ctx.addInt(o.__uid);
+		ctx.addUID(o.__uid);
 		if( checkEOM ) ctx.addByte(EOM);
 		ctx.refs.remove(o.__uid);
 	}
@@ -846,7 +838,7 @@ class NetworkHost {
 				if( stats != null )
 					stats.sync(o);
 				ctx.addByte(SYNC);
-				ctx.addInt(o.__uid);
+				ctx.addUID(o.__uid);
 				o.networkFlush(ctx);
 				if( checkEOM ) ctx.addByte(EOM);
 			}

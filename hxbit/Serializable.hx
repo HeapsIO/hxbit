@@ -29,7 +29,7 @@ package hxbit;
 **/
 interface Serializable {
 	/** Unique identifier for the object, automatically set on new() **/
-	public var __uid : Int;
+	public var __uid : UID;
 	/** Returns the unique class id for this object **/
 	public function getCLID() : Int;
 	/** Serialize the object id and fields using this Serializer **/

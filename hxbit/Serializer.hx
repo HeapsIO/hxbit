@@ -23,20 +23,46 @@ package hxbit;
 
 #if !macro
 
+#if (hl && hxbit64)
+abstract UIDMap(hl.types.Int64Map) {
+	public inline function new() {
+		this = new hl.types.Int64Map();
+	}
+	@:arrayAccess public inline function get( id : UID ) : Serializable {
+		return this.get(id);
+	}
+	@:arrayAccess public inline function set( id : UID, v : Serializable ) {
+		this.set(id,v);
+		return v;
+	}
+	public inline function remove( id : UID ) {
+		return this.remove(id);
+	}
+	public inline function exists( id : UID ) {
+		return this.exists(id);
+	}
+	public inline function iterator() {
+		return new hl.NativeArray.NativeArrayIterator<Serializable>(cast this.valuesArray());
+	}
+}
+#else
+typedef UIDMap = Map<UID,Serializable>;
+#end
+
 class Serializer {
 
-	static var UID = 0;
-	static var SEQ = 0;
+	static var UID : UID = 0;
+	static var SEQ : UID = 0;
 	static inline var SEQ_BITS = 8;
-	static inline var SEQ_MASK = 0xFFFFFFFF >>> SEQ_BITS;
+	static inline var SEQ_MASK = (-1:UID) >>> SEQ_BITS;
 
 	public static function resetCounters() {
 		UID = 0;
 		SEQ = 0;
 	}
 
-	static inline function allocUID() {
-		return (SEQ << (32 - SEQ_BITS)) | (++UID);
+	static inline function allocUID() : UID {
+		return (SEQ << (#if hxbit64 64 #else 32 #end - SEQ_BITS)) | (++UID);
 	}
 
 	static var CLASSES : Array<Class<Dynamic>> = [];
@@ -102,14 +128,14 @@ class Serializer {
 		return CLIDS[index] == 0;
 	}
 
-	public var refs : Map<Int,Serializable>;
+	public var refs : UIDMap;
 
 	/**
 		Set this before serializing in order to reaffect object ids starting UID
 	**/
 	public var remapIds(get, set) : Bool;
 
-	var remapObjs : Map<Serializable,Int>;
+	var remapObjs : Map<Serializable,UID>;
 	var newObjects : Array<Serializable>;
 	var out : haxe.io.BytesBuffer;
 	var input : haxe.io.Bytes;
@@ -138,7 +164,7 @@ class Serializer {
 
 	public function begin() {
 		out = new haxe.io.BytesBuffer();
-		refs = new Map();
+		refs = new UIDMap();
 		knownStructs = [];
 	}
 
@@ -153,7 +179,7 @@ class Serializer {
 	public function setInput(data, pos) {
 		input = data;
 		inPos = pos;
-		if( refs == null ) refs = new Map();
+		if( refs == null ) refs = new UIDMap();
 		if( knownStructs == null ) knownStructs = [];
 	}
 
@@ -164,7 +190,7 @@ class Serializer {
 	}
 
 	public function unserialize<T:Serializable>( data : haxe.io.Bytes, c : Class<T>, startPos = 0 ) : T {
-		refs = new Map();
+		refs = new UIDMap();
 		knownStructs = [];
 		setInput(data, startPos);
 		return getKnownRef(c);
@@ -176,6 +202,24 @@ class Serializer {
 
 	public function addByte(v:Int) {
 		out.addByte(v);
+	}
+
+	public inline function addUID(v:UID) {
+		#if hxbit64
+		out.addInt64(v);
+		#else
+		addInt(v);
+		#end
+	}
+
+	public inline function getUID() : UID {
+		#if hxbit64
+		var v = input.getInt64(inPos);
+		inPos += 8;
+		return v;
+		#else
+		return getInt();
+		#end
 	}
 
 	public function addInt(v:Int) {
@@ -500,16 +544,16 @@ class Serializer {
 	}
 
 	function addObjRef( s : Serializable ) {
-		addInt(s.__uid);
+		addUID(s.__uid);
 	}
 
 	function getObjRef() {
-		return getInt();
+		return getUID();
 	}
 
 	public function addAnyRef( s : Serializable ) {
 		if( s == null ) {
-			addByte(0);
+			addUID(0);
 			return;
 		}
 		if( remapIds ) remap(s);
@@ -533,7 +577,7 @@ class Serializer {
 
 	public function addKnownRef( s : Serializable ) {
 		if( s == null ) {
-			addByte(0);
+			addUID(0);
 			return;
 		}
 		if( remapIds ) remap(s);
@@ -1045,6 +1089,26 @@ class Serializer {
 		return s.endSave();
 	}
 
+	static function sortByUID(o1:Serializable, o2:Serializable) : Int {
+		#if hxbit64
+		if( o1.__uid == o2.__uid )
+			return 0;
+		return o1.__uid > o2.__uid ? 1 : -1;
+		#else
+		return o1.__uid - o2.__uid;
+		#end
+	}
+
+	static function sortByUIDDesc(o1:Serializable, o2:Serializable) : Int {
+		#if hxbit64
+		if( o1.__uid == o2.__uid )
+			return 0;
+		return o1.__uid > o2.__uid ? -1 : 1;
+		#else
+		return o2.__uid - o1.__uid;
+		#end
+	}
+
 	public static function load<T:Serializable>( bytes : haxe.io.Bytes, cl : Class<T>, ?iterObjects : Serializable -> Void, ?remapIds : Bool ) : T {
 		var s = new Serializer();
 		s.remapIds = remapIds;
@@ -1053,7 +1117,7 @@ class Serializer {
 		s.endLoad();
 		if( iterObjects != null ) {
 			var objects = [for( o in s.refs ) o];
-			objects.sort(function(o1,o2) return o1.__uid - o2.__uid);
+			objects.sort(sortByUID);
 			for( o in objects )
 				iterObjects(o);
 		}

@@ -721,7 +721,7 @@ class Macros {
 				pos : pos,
 				access : [APublic],
 				meta : noCompletion,
-				kind : FVar(macro : Int, macro @:privateAccess hxbit.Serializer.allocUID()),
+				kind : FVar(macro : hxbit.UID, macro @:privateAccess hxbit.Serializer.allocUID()),
 			});
 
 		var clName = StringTools.endsWith(cl.module,"."+cl.name) ? cl.module.split(".") : [cl.name];

@@ -168,7 +168,7 @@ class NetworkSerializer extends Serializer {
 			super.addObjRef(s);
 			return;
 		}
-		addInt(s.__uid);
+		addUID(s.__uid);
 		var ns = Std.downcast(s, NetworkSerializable);
 		if( ns != null && ns.__host == null ) {
 			if( ns.enableAutoReplication ) {

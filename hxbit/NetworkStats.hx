@@ -41,6 +41,14 @@ class NetworkStats {
 		return (v >= 0 && v < 0x80) ? 1 : 5;
 	}
 
+	inline function uidSize( v : UID ) {
+		#if hxbit64
+		return 8;
+		#else
+		return intSize(v);
+		#end
+	}
+
 	function isNullable( t : Schema.FieldType ) {
 		return switch( t ) {
 		case PInt, PFloat, PBool: false;
@@ -69,7 +77,7 @@ class NetworkStats {
 				size += intSize(b.length + 1) + b.length;
 			}
 		case PSerializable(_), PSerInterface(_):
-			size += v == null ? 1 : intSize((v:Serializable).__uid);
+			size += v == null ? 1 : uidSize((v:Serializable).__uid);
 		case PEnum(_):
 			size += v == null ? 1 : intSize(Type.enumIndex(v) + 1);
 		case PMap(kt, vt):
