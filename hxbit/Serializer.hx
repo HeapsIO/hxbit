@@ -949,7 +949,12 @@ class Serializer {
 				throw "No enum unserializer found for " + name;
 			}
 			return ser.doUnserialize(this);
-		case PSerializable(name): getKnownRef(cast Type.resolveClass(name));
+		case PSerializable(name):
+			var cl = cast Type.resolveClass(name);
+			if( cl == null )
+				getRef(null,0); // fallback for hxbit64
+			else
+				getKnownRef(cl);
 		case PSerInterface(_): getAnyRef();
 		case PNull(t): getByte() == 0 ? null : readValue(t);
 		case PObj(fields):
