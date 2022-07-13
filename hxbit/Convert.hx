@@ -148,3 +148,52 @@ class Convert {
 	}
 
 }
+
+class EnumConvert {
+
+	public var enumClass : String;
+	public var constructs : Array<Convert>;
+	public var reindex : Array<Int>;
+
+	public function new( classPath : String, ourSchema : Schema, schema : Schema ) {
+		this.enumClass = classPath;
+		reindex = [];
+		constructs = [];
+
+		for( index => name in schema.fieldsNames ) {
+			var found = false;
+			var from = schema.fieldsTypes[index];
+			for( i => s in ourSchema.fieldsNames )
+				if( s == name ) {
+					reindex.push(i);
+					var to = ourSchema.fieldsTypes[i];
+					if( to == null && from == null && i == index )
+						constructs.push(null);
+					else
+						constructs.push(new Convert(classPath+"."+name, makeSchema(to), makeSchema(from)));
+					found = true;
+					break;
+				}
+			if( !found ) {
+				reindex.push(-1);
+				constructs.push(new Convert(classPath+"."+name,makeSchema(null),makeSchema(from)));
+			}
+		}
+	}
+
+	function makeSchema( t : Schema.FieldType ) {
+		var s = new hxbit.Schema();
+		switch( t ) {
+		case null:
+		case PObj(fields):
+			for( i => f in fields ) {
+				s.fieldsTypes.push(f.type);
+				// don't use field name for now : privilege position over name
+				s.fieldsNames.push("@"+i);
+			}
+		default: throw "assert";
+		}
+		return s;
+	}
+
+}

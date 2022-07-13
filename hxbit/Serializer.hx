@@ -141,7 +141,9 @@ class Serializer {
 	var input : haxe.io.Bytes;
 	var inPos : Int;
 	var usedClasses : Array<Bool> = [];
+	var usedEnums : Map<String,Bool> = [];
 	var convert : Array<Convert>;
+	var enumConvert : Map<String,Convert.EnumConvert> = [];
 	var mapIndexes : Array<Int>;
 	var knownStructs : Array<StructSerializable>;
 
@@ -666,12 +668,13 @@ class Serializer {
 	public function beginSave() {
 		begin();
 		usedClasses = [];
+		usedEnums = [];
 	}
 
 	public function endSave( savePosition = 0 ) {
 		var content = end();
 		begin();
-		var classes = [];
+		var classes = [], enums = [];
 		var schemas = [];
 		var sidx = CLASSES.indexOf(Schema);
 		for( i in 0...usedClasses.length ) {
@@ -683,6 +686,14 @@ class Serializer {
 			addKnownRef(schema);
 			refs.remove(schema.__uid);
 		}
+		for( name in usedEnums.keys() ) {
+			if( name == "hxbit.PropTypeDesc" ) continue;
+			var schema : hxbit.Schema = (getEnumClass(name) : Dynamic).getSchema();
+			schemas.push(schema);
+			addKnownRef(schema);
+			refs.remove(schema.__uid);
+			enums.push(name);
+		}
 		var schemaData = end();
 		begin();
 		out.addBytes(content, 0, savePosition);
@@ -693,6 +704,11 @@ class Serializer {
 			addString(Type.getClassName(CLASSES[index]));
 			addCLID(index);
 			addInt32(schemas[i].checkSum);
+		}
+		for( i in 0...enums.length ) {
+			addString(enums[i]);
+			addCLID(0);
+			addInt32(schemas[i+classes.length].checkSum);
 		}
 		addString(null);
 		addInt(schemaData.length);
@@ -707,6 +723,7 @@ class Serializer {
 
 		var classByName = new Map();
 		var schemas = [];
+		var enumSchemas = [];
 		var mapIndexes = [];
 		var indexes = [];
 		var needConvert = false;
@@ -727,7 +744,21 @@ class Serializer {
 			var index = getCLID();
 			var crc = getInt32();
 			var ourClassIndex = classByName.get(clname);
-			if( ourClassIndex == null ) throw "Missing class " + clname+" found in HXS data";
+			if( ourClassIndex == null ) {
+				if( index == 0 ) {
+					var enumCl = getEnumClass(clname);
+					if( enumCl != null ) {
+						var ourSchema : hxbit.Schema = (enumCl : Dynamic).getSchema();
+						if( ourSchema.checkSum != crc )
+							needConvert = true;
+						else
+							ourSchema = null;
+						enumSchemas.push({ name : clname, ourSchema : ourSchema });
+						continue;
+					}
+				}
+				throw "Missing class "+clname+" found in HXS data";
+			}
 			var ourSchema = (Type.createEmptyInstance(CLASSES[ourClassIndex]) : Serializable).getSerializeSchema();
 			if( ourSchema.checkSum != crc ) {
 				needConvert = true;
@@ -750,6 +781,12 @@ class Serializer {
 				if( ourSchema != null )
 					convert[mapIndexes[index]] = new Convert(Type.getClassName(CLASSES[mapIndexes[index]]),ourSchema, schema);
 			}
+			for( e in enumSchemas ) {
+				var schema = getKnownRef(Schema);
+				refs.remove(schema.__uid);
+				if( e.ourSchema != null )
+					enumConvert[e.name] = new Convert.EnumConvert(e.name, e.ourSchema, schema);
+			}
 		} else {
 			// skip schema data
 			inPos += schemaDataSize;
@@ -764,13 +801,56 @@ class Serializer {
 		setInput(null, 0);
 	}
 
-	function convertRef( i : Serializable, c : Convert ) {
+	static var EMPTY_MAP = new Map();
+
+	function convertEnum( econv : Convert.EnumConvert ) : Dynamic {
+		inPos--;
+		var cid = getByte() - 1;
+		var c = econv.constructs[cid];
 		var values = new haxe.ds.Vector<Dynamic>(c.read.length);
-		var writePos = 0;
 		for( r in c.read )
 			values[r.index] = readValue(r.from);
+		var newCid = econv.reindex[cid];
+		if( newCid < 0 )
+			return null; // no longer used constructor
+		var bytes = writeConvValues(c, values, newCid + 1);
+		var oldIn = input;
+		var oldPos = inPos;
+		var oldConv = enumConvert;
+		enumConvert = EMPTY_MAP;
+		setInput(bytes, 0);
+		var v : Dynamic = getEnumClass(econv.enumClass).doUnserialize(this);
+		setInput(oldIn, oldPos);
+		enumConvert = oldConv;
+		return v;
+	}
+
+	function convertRef( i : Serializable, c : Convert ) {
+		var values = new haxe.ds.Vector<Dynamic>(c.read.length);
+		for( r in c.read )
+			values[r.index] = readValue(r.from);
+		var bytes = writeConvValues(c, values);
+		var oldIn = input;
+		var oldPos = inPos;
+		var oldConv = enumConvert;
+		enumConvert = EMPTY_MAP;
+		setInput(bytes, 0);
+		var obj = Reflect.field(i,"oldHxBitFields");
+		if( obj != null ) {
+			for( r in c.read )
+				if( !r.written )
+					Reflect.setField(obj,r.path.split(".").pop(),values[r.index]);
+		}
+		i.unserialize(this);
+		setInput(oldIn, oldPos);
+		enumConvert = oldConv;
+	}
+
+	function writeConvValues( c : Convert, values : haxe.ds.Vector<Dynamic>, ?extraByte ) {
 		var oldOut = this.out;
 		out = new haxe.io.BytesBuffer();
+		if( extraByte != null )
+			out.addByte(extraByte);
 		for( w in c.write ) {
 			var v : Dynamic;
 			if( w.from == null )
@@ -790,17 +870,7 @@ class Serializer {
 		}
 		var bytes = out.getBytes();
 		out = oldOut;
-		var oldIn = input;
-		var oldPos = inPos;
-		setInput(bytes, 0);
-		var obj = Reflect.field(i,"oldHxBitFields");
-		if( obj != null ) {
-			for( r in c.read )
-				if( !r.written )
-					Reflect.setField(obj,r.path.split(".").pop(),values[r.index]);
-		}
-		i.unserialize(this);
-		setInput(oldIn, oldPos);
+		return bytes;
 	}
 
 	function isNullable( t : Schema.FieldType ) {
@@ -904,7 +974,7 @@ class Serializer {
 	}
 
 	static var ENUM_CLASSES = new Map();
-	function getEnumClass( name : String ) : Dynamic {
+	static function getEnumClass( name : String ) : Dynamic {
 		var cl = ENUM_CLASSES.get(name);
 		if( cl != null ) return cl;
 		var path = name.split(".").join("_");
@@ -943,7 +1013,7 @@ class Serializer {
 				// an old enum can be tagged with @skipSerialize in order to allow loading old content.
 				// but this will only work if the enum does not have any constructor parameters !
 				if( e != null && Reflect.hasField(haxe.rtti.Meta.getType(e), "skipSerialize") ) {
-					getInt();
+					getByte();
 					return null;
 				}
 				throw "No enum unserializer found for " + name;

@@ -99,6 +99,12 @@ class Macros {
 	}
 	#end
 
+	public static function makeEnumPath( name : String ) {
+		name = name.split(".").join("_");
+		name = name.charAt(0).toUpperCase() + name.substr(1);
+		return "hxbit.enumSer." + name;
+	}
+
 	public static macro function serializeValue( ctx : Expr, v : Expr ) : Expr {
 		var t = Context.typeof(v);
 		var pt = getPropType(t, false);
@@ -872,10 +878,10 @@ class Macros {
 		switch( pt ) {
 		case TEnum(e, tparams):
 			var e = e.get();
-			var name = getNativePath(e).split(".").join("_");
-			name = name.charAt(0).toUpperCase() + name.substr(1);
+			var pathName = getNativePath(e);
+			var className = makeEnumPath(pathName);
 			try {
-				return Context.getType("hxbit.enumSer." + name);
+				return Context.getType(className);
 			} catch( _ : Dynamic ) {
 				var pos = Context.currentPos();
 				var cases = [], ucases = [], schemaExprs = [];
@@ -900,14 +906,14 @@ class Macros {
 							var at = haxe.macro.TypeTools.applyTypeParameters(a.t,e.params,tparams).toComplexType();
 							evals.push(macro var $aname : $at);
 							evals.push(macro hxbit.Macros.unserializeValue(ctx,$i{aname}));
-							etypes.push(macro { var v : $at; hxbit.Macros.getFieldType(v); });
+							etypes.push(macro { name : $v{a.name}, type : { var v : $at; hxbit.Macros.getFieldType(v); }, opt : $v{a.opt} });
 						}
 						evals.push({ expr : ECall({ expr : EConst(CIdent(c.name)), pos : pos },[for( a in args ) { expr : EConst(CIdent("_"+a.name)), pos : pos }]), pos : pos });
 						ucases.push({
 							values : [macro $v{c.index+1}],
 							expr : { expr : EBlock(evals), pos : pos },
 						});
-						schemaExprs.push(macro s.fieldsTypes.push(PObj([for( t in [$b{etypes}] ) { name : "", type : t, opt : false }])));
+						schemaExprs.push(macro s.fieldsTypes.push(PObj([$a{etypes}])));
 
 					default:
 						if( c.name == "_" ) Context.error("Invalid enum constructor", c.pos);
@@ -924,7 +930,7 @@ class Macros {
 					schemaExprs.push(macro s.fieldsNames.push($v{f}));
 				}
 				var t : TypeDefinition = {
-					name : name,
+					name : className.split(".").pop(),
 					pack : ["hxbit","enumSer"],
 					kind : TDClass(),
 					fields : [
@@ -947,6 +953,8 @@ class Macros {
 								var b = ctx.getByte();
 								if( b == 0 )
 									return null;
+								var conv = @:privateAccess ctx.enumConvert[$v{pathName}];
+								if( conv != null && conv.constructs[b-1] != null ) return ctx.convertEnum(conv);
 								return ${{ expr : ESwitch(macro b,ucases,macro throw "Invalid enum index "+b), pos : pos }}
 							},
 							ret : pt.toComplexType(),
@@ -969,7 +977,7 @@ class Macros {
 						pos : pos,
 						kind : FFun( {
 							args : [{ name : "ctx", type : macro : hxbit.Serializer },{ name : "v", type : pt.toComplexType() }],
-							expr : macro doSerialize(ctx,v),
+							expr : macro { @:privateAccess ctx.usedEnums[$v{pathName}] = true; doSerialize(ctx,v); },
 							ret : null,
 						}),
 					},{
@@ -995,7 +1003,7 @@ class Macros {
 				t.fields.push(tf);
 
 				Context.defineType(t);
-				return Context.getType("hxbit.enumSer." + name);
+				return Context.getType(className);
 			}
 		default:
 		}
