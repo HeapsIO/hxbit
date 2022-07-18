@@ -185,7 +185,7 @@ class NetworkSerializer extends Serializer {
 	override function getObjRef() {
 		if( !enableChecks )
 			return super.getObjRef();
-		var id = getInt();
+		var id = getUID();
 		if( id == 0 ) return 0;
 		var b = getBool();
 		if( b && !refs.exists(id) ) {
