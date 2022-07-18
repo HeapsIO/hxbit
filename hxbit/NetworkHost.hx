@@ -380,7 +380,14 @@ class NetworkHost {
 	public var checkEOM(get, never) : Bool;
 	inline function get_checkEOM() return true;
 
+	#if hxbit_host_mt
+	static var __current = new sys.thread.Tls<NetworkHost>();
+	public static var current(get,set) : NetworkHost;
+	static function set_current(v) { __current.value = v; return v; }
+	static function get_current() return __current.value;
+	#else
 	public static var current : NetworkHost = null;
+	#end
 
 	public var isAuth(default, null) : Bool;
 
