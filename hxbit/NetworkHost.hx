@@ -501,7 +501,7 @@ class NetworkHost {
 	}
 
 	function mark(o:NetworkSerializable) {
-		o.__next = markHead;
+		o.__next = markHead == null ? o : markHead;
 		markHead = o;
 		return true;
 	}
