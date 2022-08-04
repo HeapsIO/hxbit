@@ -205,7 +205,7 @@ class Macros {
 			return null;
 		for( m in meta) {
 			switch( m.name ) {
-			case ":s", ":optional":
+			case ":s", ":optional", ":serializePriority":
 				//
 			case ":increment":
 				var inc : Null<Float> = null;
@@ -659,6 +659,7 @@ class Macros {
 		var sup = cl.superClass;
 		var isSubSer = sup != null && isSerializable(sup.t);
 		var hasNonSerializableParent = sup != null && !isSerializable(sup.t);
+		var serializePriority = null;
 
 		for( f in fields ) {
 			// has already been processed
@@ -671,11 +672,18 @@ class Macros {
 				addCustomUnserializable = true;
 			}
 			if( f.meta == null ) continue;
-			for( meta in f.meta )
-				if( meta.name == ":s" ) {
-					toSerialize.push({ f : f, m : meta });
-					break;
+
+			var isPrio = false, isSer = null;
+			for( meta in f.meta ) {
+				switch( meta.name ) {
+				case ":s": isSer = meta;
+				case ":serializePriority": isPrio = true;
 				}
+			}
+			if( isSer != null ) {
+				if( isPrio ) serializePriority = f;
+				toSerialize.push({ f : f, m : isSer });
+			}
 		}
 
 		if( cl.meta.has(":serializeSuperClass") ) {
@@ -709,12 +717,14 @@ class Macros {
 		// todo : generate proper generic static var ?
 		// this is required for fixing conflicting member var / package name
 		var useStaticSer = cl.params.length == 0;
-		var el = [], ul = [];
+		var el = [], ul = [], serializePriorityFuns = null;
 		for( f in toSerialize ) {
 			var fname = f.f.name;
-			var ef = useStaticSer ? macro __this.$fname : macro this.$fname;
+			var ef = useStaticSer && f.f != serializePriority ? macro __this.$fname : macro this.$fname;
 			el.push(withPos(macro hxbit.Macros.serializeValue(__ctx,$ef),f.f.pos));
 			ul.push(withPos(macro hxbit.Macros.unserializeValue(__ctx, $ef),f.f.pos));
+			if( f.f == serializePriority )
+				serializePriorityFuns = { ser : el.pop(), unser : ul.pop() };
 		}
 
 		var noCompletion = [{ name : ":noCompletion", pos : pos }];
@@ -769,16 +779,20 @@ class Macros {
 					args : [ { name : "__ctx", type : macro : hxbit.Serializer } ],
 					ret : null,
 					expr : macro @:privateAccess {
+						${ if( serializePriorityFuns != null ) serializePriorityFuns.ser else macro { } };
 						${ if( isSubSer ) macro super.serialize(__ctx) else macro { } };
 						${ if( useStaticSer ) macro doSerialize(__ctx,this) else macro $b{el} };
 						${ if( addCustomSerializable ) macro this.customSerialize(__ctx) else macro { } };
 					}
 				}),
 			});
-			var schema = [for( s in toSerialize ) {
+			var schema = [];
+			for( s in toSerialize ) {
 				var name = s.f.name;
-				macro { schema.fieldsNames.push($v{name}); schema.fieldsTypes.push(hxbit.Macros.getFieldType(this.$name)); }
-			}];
+				var acall = s.f == serializePriority ? "unshift" : "push";
+				var e = macro { schema.fieldsNames.$acall($v{name}); schema.fieldsTypes.$acall(hxbit.Macros.getFieldType(this.$name)); };
+				schema.push(e);
+			}
 			fields.push({
 				name : "getSerializeSchema",
 				pos : pos,
@@ -812,6 +826,7 @@ class Macros {
 
 		if( needUnserialize ) {
 			var unserExpr = macro @:privateAccess {
+				${ if( serializePriorityFuns != null ) serializePriorityFuns.unser else macro { } };
 				${ if( isSubSer ) macro super.unserialize(__ctx) else macro { } };
 				${ if( useStaticSer ) macro doUnserialize(__ctx,this) else macro $b{ul} };
 				${ if( addCustomUnserializable ) macro this.customUnserialize(__ctx) else macro { } };
