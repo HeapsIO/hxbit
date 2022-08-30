@@ -1772,6 +1772,7 @@ class Macros {
 			function loop(e:Expr) {
 				switch( e.expr ) {
 				case EConst(CIdent("current")):
+					needRef = true;
 					return { expr : EConst(CIdent(rname)), pos : e.pos };
 				default:
 					return haxe.macro.ExprTools.map(e, loop);
@@ -1780,15 +1781,17 @@ class Macros {
 			if( t.condSend.expr.match(EConst(CIdent("false"))) )
 				return macro {}; // no marking
 			var condSend = loop(t.condSend);
-			needRef = true;
-			mark = macro if( $condSend ) { this.$rname = v; $mark; };
+			if( needRef )
+				mark = macro if( $condSend ) { this.$rname = v; $mark; };
+			else
+				mark = macro if( $condSend ) $mark;
 		}
 		if( needRef && fields != null )
 			fields.push({
 				name : rname,
 				pos : mark.pos,
 				meta : [{ name : ":noCompletion", pos : mark.pos }],
-				kind : FVar(t.t,macro 0),
+				kind : FVar(t.t, switch( t.d ) { case PInt, PFloat: macro 0; default: macro null; }),
 			});
 		return mark;
 	}
