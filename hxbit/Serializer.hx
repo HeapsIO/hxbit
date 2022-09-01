@@ -435,6 +435,12 @@ class Serializer {
 			return getBytes();
 		case 9:
 			return getAnyRef();
+		case 10:
+			var ename = getString();
+			var ser : Dynamic = getEnumClass(ename);
+			if( ser == null )
+				throw "Unsupported enum "+ename;
+			return ser.doUnserialize(this);
 		case x:
 			throw "Invalid dynamic prefix " + x;
 		}
@@ -483,6 +489,14 @@ class Serializer {
 				} else
 					throw "Unsupported dynamic " + c;
 			}
+		case TEnum(e):
+			var ename = e.getName();
+			var ser : Dynamic = getEnumClass(ename);
+			if( ser == null )
+				throw "Unsupported enum "+ename;
+			addByte(10);
+			addString(ename);
+			ser.doSerialize(this, v);
 		case t:
 			throw "Unsupported dynamic " + t;
 		}
