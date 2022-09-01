@@ -4,10 +4,30 @@ import haxe.macro.Context;
 import haxe.macro.Type;
 using haxe.macro.ExprTools;
 
-abstract class Closure<T> #if !macro implements hxbit.Serializable #end {
+class Closure<T> #if !macro implements hxbit.Serializable #end {
 
-	function new() {}
-	public abstract function call() : T;
+	@:s var __cid : String;
+	@:s var __args : Array<Dynamic>;
+
+	function new(cid,args) {
+		this.__cid = cid;
+		this.__args = args;
+	}
+
+	public function call() : T {
+		var cl = registeredClosures[__cid];
+		cl.__args = __args;
+		var ret : Dynamic = cl.call();
+		cl.__args = null;
+		return ret;
+	}
+
+	static var registeredClosures = new Map<String,Closure<Dynamic>>();
+	static function register( cid : String, cl ) {
+		if( registeredClosures[cid] != null ) throw "assert";
+		registeredClosures[cid] = cl;
+		return true;
+	}
 
 	#if macro
 
@@ -85,6 +105,7 @@ abstract class Closure<T> #if !macro implements hxbit.Serializable #end {
 				Context.getType("hxbit.closure."+ident);
 			} catch( err ) {
 
+				var cid = ident;
 				constructVars = [];
 
 				#if closure_debug
@@ -123,12 +144,6 @@ abstract class Closure<T> #if !macro implements hxbit.Serializable #end {
 					}
 					var expr = { expr : EConst(CIdent(vname)), pos : v.p };
 					vars.push({ name : vname, type : t, expr : expr });
-					fields.push({
-						pos : v.p,
-						name : vname,
-						kind : FVar(t),
-						meta: [{ pos : v.p, name : ":s" }],
-					});
 					constructVars.push(cname);
 				}
 
@@ -136,26 +151,43 @@ abstract class Closure<T> #if !macro implements hxbit.Serializable #end {
 				Context.warning(outExpr.toString(), outExpr.pos);
 				#end
 
+				var vexprs = [for( v in vars ) v.expr];
 				fields.push({
 					pos : pos,
 					name : "new",
 					access : [APublic],
 					kind : FFun({
 						args : [for( v in vars ) { name : v.name, type : v.type }],
-						expr : {
-							expr : EBlock([macro super()].concat([for( v in vars ) { var name = v.name; macro this.$name = ${v.expr}; }])),
-							pos : pos
-						},
+						expr : macro super($v{cid},[$a{vexprs}]),
 					}),
 				});
+
+				var callExprs = [outExpr];
+				for( i => v in vars ) {
+					var name = v.name, type = v.type;
+					callExprs.unshift(macro var $name : $type = __args[$v{i}]);
+					callExprs.push(macro @:pos(v.expr.pos) if( false ) hxbit.Macros.serializeValue(null,$i{name}));
+				}
+
 				fields.push({
 					pos : pos,
 					name : "call",
 					kind : FFun({
 						args : [],
 						ret : t,
-						expr : outExpr,
+						expr : {
+							expr : EBlock(callExprs),
+							pos : pos,
+						},
 					}),
+					access : [AOverride],
+				});
+
+				fields.push({
+					pos : pos,
+					name : "__init",
+					kind : FVar(null, macro @:privateAccess hxbit.Closure.register($v{cid},Type.createEmptyInstance($i{ident}))),
+					access : [AStatic],
 				});
 
 				var parentPath = (parentType == null ? "hxbit.Closure" : parentType).split(".");
@@ -165,7 +197,11 @@ abstract class Closure<T> #if !macro implements hxbit.Serializable #end {
 					pack : ["hxbit","closure"],
 					kind : TDClass({ pack : parentPath, name : parentPath.pop(), params : [TPType(t)] }),
 					fields : fields,
-					meta : [{ name : ":access", pos : pos, params : [macro $p{currentClass.split(".")}] }],
+					meta : [
+						{ name : ":skipSerialize", pos : pos, params : [] },
+						{ name : ":keep", pos : pos, params : [] },
+						{ name : ":access", pos : pos, params : [macro $p{currentClass.split(".")}] }
+					],
 				});
 			}
 

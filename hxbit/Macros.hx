@@ -649,7 +649,7 @@ class Macros {
 
 	public static function buildSerializable() {
 		var cl = Context.getLocalClass().get();
-		if( cl.isInterface || Context.defined("display") )
+		if( cl.isInterface || Context.defined("display") || cl.meta.has(":skipSerialize") )
 			return null;
 		var fields = Context.getBuildFields();
 		var toSerialize = [];
