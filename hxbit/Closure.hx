@@ -162,7 +162,7 @@ class Closure<T> #if !macro implements hxbit.Serializable #end {
 					}),
 				});
 
-				var callExprs = [outExpr];
+				var callExprs = [macro @:privateAccess $outExpr]; // @:privateAccess are eliminated but have already been checked
 				for( i => v in vars ) {
 					var name = v.name, type = v.type;
 					callExprs.unshift(macro var $name : $type = __args[$v{i}]);
