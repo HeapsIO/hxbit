@@ -567,7 +567,7 @@ class Serializer {
 		return getUID();
 	}
 
-	public function addAnyRef( s : Serializable ) {
+	inline function addRef( s : Serializable, forceCLID : Bool ) {
 		if( s == null ) {
 			addUID(0);
 			return;
@@ -587,45 +587,27 @@ class Serializer {
 		refs[s.__uid] = s;
 		var index = s.getCLID();
 		usedClasses[index] = true;
-		addCLID(index); // index
+		if( forceCLID )
+			addCLID(index); // index
+		else {
+			var clid = CLIDS[index];
+			if( clid != 0 )
+				addCLID(clid); // hash
+		}
 		s.serialize(this);
+	}
+
+	public function addAnyRef( s : Serializable ) {
+		addRef(s,true);
 	}
 
 	public function addKnownRef( s : Serializable ) {
-		if( s == null ) {
-			addUID(0);
-			return;
-		}
-		if( remapIds ) remap(s);
-		addObjRef(s);
-		var r = refs[s.__uid];
-		if( r != null ) {
-			#if hxbit_check_ref
-			if( r != s ) {
-				s.__uid = allocUID();
-				throw r+" and "+s+" have same id";
-			}
-			#end
-			return;
-		}
-		refs[s.__uid] = s;
-		var index = s.getCLID();
-		usedClasses[index] = true;
-		var clid = CLIDS[index];
-		if( clid != 0 )
-			addCLID(clid); // hash
-		s.serialize(this);
+		addRef(s,false);
 	}
 
-	public function getAnyRef() : Serializable {
-		var id = getObjRef();
-		if( id == 0 ) return null;
-		if( refs[id] != null )
-			return cast refs[id];
+	inline function makeRef(id:UID, clidx:Int) : Serializable {
 		var rid = id & SEQ_MASK;
 		if( UID < rid && !remapIds ) UID = rid;
-		var clidx = getCLID();
-		if( mapIndexes != null ) clidx = mapIndexes[clidx];
 		var i : Serializable = Type.createEmptyInstance(CLASSES[clidx]);
 		if( newObjects != null ) newObjects.push(i);
 		i.__uid = id;
@@ -639,13 +621,21 @@ class Serializer {
 		return i;
 	}
 
+	public function getAnyRef() : Serializable {
+		var id = getObjRef();
+		if( id == 0 ) return null;
+		if( refs[id] != null )
+			return cast refs[id];
+		var clidx = getCLID();
+		if( mapIndexes != null ) clidx = mapIndexes[clidx];
+		return makeRef(id, clidx);
+	}
+
 	public function getRef<T:Serializable>( c : Class<T>, clidx : Int ) : T {
 		var id = getObjRef();
 		if( id == 0 ) return null;
 		if( refs[id] != null )
 			return cast refs[id];
-		var rid = id & SEQ_MASK;
-		if( UID < rid && !remapIds ) UID = rid;
 		if( convert != null && convert[clidx] != null ) {
 			var conv = convert[clidx];
 			if( conv.hadCID ) {
@@ -659,20 +649,10 @@ class Serializer {
 			if( CLIDS[clidx] != 0 ) {
 				var realIdx = getCLID();
 				c = cast CL_BYID[realIdx];
-				if( convert != null ) clidx = (c:Dynamic).__clid; // real class convert
+				clidx = (c:Dynamic).__clid;
 			}
 		}
-		var i : T = Type.createEmptyInstance(c);
-		if( newObjects != null ) newObjects.push(i);
-		i.__uid = id;
-		i.unserializeInit();
-		refs[id] = i;
-		if( remapIds ) remap(i);
-		if( convert != null && convert[clidx] != null )
-			convertRef(i, convert[clidx]);
-		else
-			i.unserialize(this);
-		return i;
+		return cast makeRef(id, clidx);
 	}
 
 	public inline function getKnownRef<T:Serializable>( c : Class<T> ) : T {
