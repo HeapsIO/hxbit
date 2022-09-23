@@ -85,12 +85,14 @@ typedef PropType = {
 	@:optional var increment : Float;
 	@:optional var condSend : Expr;
 	@:optional var notMutable : Bool;
+	@:optional var visibility : Int;
 }
 
 class Macros {
 
 	static var IN_ENUM_SER = false;
 	static var PREFIX_VARS : Map<String,Bool> = null;
+	public static var VISIBILITY_VALUES = [];
 	@:persistent static var NW_BUILD_STACK : Array<String> = [];
 
 	#if macro
@@ -199,6 +201,26 @@ class Macros {
 		return lookupInterface(c, "hxbit.StructSerializable");
 	}
 
+	static function getVisibility( m : MetadataEntry ) : Null<Int> {
+		#if !hxbit_visibility
+		Context.error("Visibility needs -D hxbit-visibility", m.pos);
+		return null;
+		#end
+		switch( m.params[0].expr ) {
+		case EConst(CIdent(s)):
+			var idx = VISIBILITY_VALUES.indexOf(s);
+			if( idx < 0 ) {
+				if( VISIBILITY_VALUES.length == 0 )
+					Context.error("hxbit.Macros.VISIBILITY_VALUES has not been initialized", m.pos);
+				else
+					Context.error(s+" is not a valid visibility", m.params[0].pos);
+			} else
+				return idx;
+		default:
+		}
+		return null;
+	}
+
 	static function getPropField( ft : Type, meta : Metadata, partial : Bool ) {
 		var t = getPropType(ft, partial);
 		if( t == null )
@@ -232,6 +254,8 @@ class Macros {
 				}
 			case ":notMutable":
 				t.notMutable = true;
+			case ":visible" if( m.params.length == 1 ):
+				t.visibility = getVisibility(m);
 			default:
 				if(m.name.charAt(0) == ":")
 					Context.error("Unsupported network metadata", m.pos);
@@ -673,16 +697,17 @@ class Macros {
 			}
 			if( f.meta == null ) continue;
 
-			var isPrio = false, isSer = null;
+			var isPrio = false, isSer = null, vis = null;
 			for( meta in f.meta ) {
 				switch( meta.name ) {
 				case ":s": isSer = meta;
 				case ":serializePriority": isPrio = true;
+				case ":visible": vis = getVisibility(meta);
 				}
 			}
 			if( isSer != null ) {
 				if( isPrio ) serializePriority = f;
-				toSerialize.push({ f : f, m : isSer });
+				toSerialize.push({ f : f, m : isSer, vis : vis });
 			}
 		}
 
@@ -723,8 +748,14 @@ class Macros {
 			var ef = useStaticSer && f.f != serializePriority ? macro __this.$fname : macro this.$fname;
 			el.push(withPos(macro hxbit.Macros.serializeValue(__ctx,$ef),f.f.pos));
 			ul.push(withPos(macro hxbit.Macros.unserializeValue(__ctx, $ef),f.f.pos));
-			if( f.f == serializePriority )
+			if( f.vis != null ) {
+				el.push(macro if( @:privateAccess __ctx.visibilityGroups & (1<<$v{f.vis}) != 0 ) ${el.pop()});
+				ul.push(macro if( @:privateAccess __ctx.visibilityGroups & (1<<$v{f.vis}) != 0 ) ${ul.pop()} else $ef = cast null);
+			}
+			if( f.f == serializePriority ) {
+				if( serializePriorityFuns != null ) throw "assert";
 				serializePriorityFuns = { ser : el.pop(), unser : ul.pop() };
+			}
 		}
 
 		var noCompletion = [{ name : ":noCompletion", pos : pos }];
@@ -1212,6 +1243,10 @@ class Macros {
 				@:noCompletion public var __bits1 : Int = 0;
 				@:noCompletion public var __bits2 : Int = 0;
 				@:noCompletion public var __next : hxbit.NetworkSerializable;
+				#if hxbit_visibility
+				@:noCompletion public var __cachedVisibility : Map<hxbit.NetworkSerializable,Int>;
+				@:noCompletion public var __dirtyVisibilityGroups : Int;
+				#end
 				@:noCompletion public function networkSetBit( b : Int ) {
 					if( __host != null && @:privateAccess __host.checkSyncingProperty(b) && (__host.isAuth || @:privateAccess __host.checkWrite(this,b)) && (__next != null || @:privateAccess __host.mark(this)) ) {
 						if( b < 30 ) __bits1 |= 1 << b else __bits2 |= 1 << (b-30);
@@ -1244,6 +1279,12 @@ class Macros {
 					f();
 					__host = old;
 				}
+				#if hxbit_visibility
+				public inline function setVisibilityDirty( group : hxbit.VisibilityGroup ) {
+					__dirtyVisibilityGroups |= 1 << group.getIndex();
+					if( __next == null && __host != null ) @:privateAccess __host.mark(this);
+				}
+				#end
 			}).fields);
 
 			if( !Lambda.exists(fields, function(f) return f.name == "networkAllow") )
@@ -1257,6 +1298,13 @@ class Macros {
 				fields = fields.concat((macro class {
 					public function alive() { enableReplication = true; }
 				}).fields);
+
+			#if hxbit_visibility
+			if( !Lambda.exists(fields, function(f) return f.name == "evalVisibility") )
+				fields = fields.concat((macro class {
+					public function evalVisibility( group : hxbit.VisibilityGroup, from : hxbit.NetworkSerializable ) { return false; }
+				}).fields);
+			#end
 
 		}
 
@@ -1935,6 +1983,26 @@ class Macros {
 		default:
 			throw "assert";
 		}
+	}
+
+	public static function buildVisibilityGroups() {
+		try {
+			Context.getType("hxbit.VisibilityGroupDef");
+		} catch( e : Dynamic ) {
+			var pos = Context.currentPos();
+			Context.defineType({
+				name : "VisibilityGroupDef",
+				pack : ["hxbit"],
+				pos : pos,
+				kind : TDEnum,
+				fields : [for( c in VISIBILITY_VALUES ) {
+					pos : pos,
+					name : c,
+					kind : FVar(null,null),
+				}],
+			});
+		}
+		return macro : hxbit.VisibilityGroupDef;
 	}
 
 	#end
