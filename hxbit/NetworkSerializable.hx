@@ -82,6 +82,12 @@ interface NetworkSerializable extends Serializable extends ProxyHost {
 	public function networkRPC( ctx : NetworkSerializer, rpcID : Int, clientResult : NetworkHost.NetworkClient ) : Bool;
 	public function networkAllow( op : Operation, propId : Int, client : NetworkSerializable ) : Bool;
 	public function networkGetName( propId : Int, isRPC : Bool = false ) : String;
+
+	#if hxbit_visibility
+	public var __cachedVisibility : Map<hxbit.NetworkSerializable,Int>;
+	public function evalVisibility( group : VisibilityGroup, from : NetworkSerializable ) : Bool;
+	public function setVisibilityDirty( group : VisibilityGroup ) : Void;
+	#end
 }
 
 class BaseProxy implements ProxyHost implements ProxyChild {
@@ -133,6 +139,7 @@ class NetworkSerializer extends Serializer {
 	public var enableChecks = true;
 	public var error(get, never) : Bool;
 	public var errorPropId : Int = -1;
+	public var currentTarget : NetworkSerializable;
 	var host : NetworkHost;
 
 	public function new(host) {
@@ -146,6 +153,25 @@ class NetworkSerializer extends Serializer {
 		hasError = false;
 		return true;
 	}
+
+	#if hxbit_visibility
+	override function evalVisibility(s:Serializable):Int {
+		if( currentTarget == null )
+			return -1;
+		var ns = Std.downcast(s, NetworkSerializable);
+		if( ns == null )
+			return -1;
+		var v = ns.__cachedVisibility.get(currentTarget);
+		if( v != null )
+			return v;
+		var bits = 0;
+		for( i in 0...32 )
+			if( ns.evalVisibility(cast i, currentTarget) )
+				bits |= 1 << i;
+		ns.__cachedVisibility.set(currentTarget, bits);
+		return bits;
+	}
+	#end
 
 	override function addAnyRef(s:Serializable) {
 		if(Std.isOfType(s, NetworkNoReplication))

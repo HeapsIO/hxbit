@@ -146,6 +146,10 @@ class Serializer {
 	var enumConvert : Map<String,Convert.EnumConvert> = [];
 	var mapIndexes : Array<Int>;
 	var knownStructs : Array<StructSerializable>;
+	#if hxbit_visibility
+	var visibilityGroups : Int = -1;
+	var hasVisibility : Bool;
+	#end
 
 	public function new() {
 		if( CLIDS == null ) initClassIDS();
@@ -567,6 +571,19 @@ class Serializer {
 		return getUID();
 	}
 
+	#if hxbit_visibility
+	inline function addVisBits(v) {
+		addInt(v);
+	}
+	inline function getVisBits() {
+		return getInt();
+	}
+	function evalVisibility( s : Serializable ) {
+		return -1;
+	}
+	#end
+
+
 	inline function addRef( s : Serializable, forceCLID : Bool ) {
 		if( s == null ) {
 			addUID(0);
@@ -594,7 +611,17 @@ class Serializer {
 			if( clid != 0 )
 				addCLID(clid); // hash
 		}
+		#if hxbit_visibility
+		var prevVis = visibilityGroups;
+		if( hasVisibility ) {
+			visibilityGroups = evalVisibility(s);
+			addVisBits(visibilityGroups);
+		}
+		#end
 		s.serialize(this);
+		#if hxbit_visibility
+		visibilityGroups = prevVis;
+		#end
 	}
 
 	public function addAnyRef( s : Serializable ) {
@@ -614,10 +641,18 @@ class Serializer {
 		i.unserializeInit();
 		refs[id] = i;
 		if( remapIds ) remap(i);
+		#if hxbit_visibility
+		var prevVis = visibilityGroups;
+		if( hasVisibility )
+			visibilityGroups = getVisBits();
+		#end
 		if( convert != null && convert[clidx] != null )
 			convertRef(i, convert[clidx]);
 		else
 			i.unserialize(this);
+		#if hxbit_visibility
+		visibilityGroups = prevVis;
+		#end
 		return i;
 	}
 
