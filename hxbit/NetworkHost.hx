@@ -486,7 +486,8 @@ class NetworkHost {
 
 	function checkWrite( o : NetworkSerializable, vid : Int ) {
 		if( !isAuth && !o.networkAllow(SetField,vid,self.ownerObject) ) {
-			logError("Setting a property on a not allowed object", o.__uid);
+			var fieldName = o.networkGetName(vid, false);
+			logError('Setting the property ${fieldName} on a not allowed object', o.__uid);
 			return false;
 		}
 		return true;

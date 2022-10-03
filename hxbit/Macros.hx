@@ -1449,7 +1449,8 @@ class Macros {
 					macro {
 						if( __host != null ) {
 							if( !__host.isAuth && !networkAllow(RPC, $v{id}, __host.self.ownerObject) ) {
-								__host.logError("Calling RPC on an not allowed object");
+								var fieldName = networkGetName($v{id}, true);
+								__host.logError('Calling the RPC $fieldName on a not allowed object');
 								return;
 							}
 							$forwardRPC;
@@ -1470,7 +1471,8 @@ class Macros {
 						if( __host == null ) return; // not shared object --> no server
 						if( !__host.isAuth ) {
 							if( !networkAllow(RPCServer, $v{id}, __host.self.ownerObject) ) {
-								__host.logError("Calling RPC on an not allowed object");
+								var fieldName = networkGetName($v{id}, true);
+								__host.logError('Calling the RPC $fieldName on a not allowed object');
 								return;
 							}
 							$forwardRPC;
@@ -1494,7 +1496,8 @@ class Macros {
 								$doCall;
 						} else {
 							if( !networkAllow(RPCOwner, $v{id}, __host.self.ownerObject) ) {
-								__host.logError("Calling RPC on a not allowed object");
+								var fieldName = networkGetName($v{id}, true);
+								__host.logError('Calling the RPC $fieldName on a not allowed object');
 								return;
 							}
 							// might ping-pong, but need to preserve order
@@ -1505,7 +1508,8 @@ class Macros {
 					macro {
 						if( __host != null ) {
 							if( !__host.isAuth && !networkAllow(Ownership, $v{id}, __host.self.ownerObject) ) {
-								__host.logError("Calling RPC on an not allowed object");
+								var fieldName = networkGetName($v{id}, true);
+								__host.logError('Calling the RPC $fieldName on a not allowed object');
 								return;
 							}
 							$forwardRPC;
