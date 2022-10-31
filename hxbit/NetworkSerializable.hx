@@ -85,8 +85,10 @@ interface NetworkSerializable extends Serializable extends ProxyHost {
 
 	#if hxbit_visibility
 	public var __cachedVisibility : Map<hxbit.NetworkSerializable,Int>;
+	public var __dirtyVisibilityGroups : Int;
 	public function evalVisibility( group : VisibilityGroup, from : NetworkSerializable ) : Bool;
 	public function setVisibilityDirty( group : VisibilityGroup ) : Void;
+	public function getVisibilityMask( groups : Int ) : haxe.Int64;
 	#end
 }
 
@@ -155,18 +157,28 @@ class NetworkSerializer extends Serializer {
 	}
 
 	#if hxbit_visibility
+	static var GROUPS = VisibilityGroup.createAll();
 	override function evalVisibility(s:Serializable):Int {
 		if( currentTarget == null )
 			return -1;
 		var ns = Std.downcast(s, NetworkSerializable);
 		if( ns == null )
 			return -1;
+		if( ns.__cachedVisibility == null )
+			ns.__cachedVisibility = new Map();
 		var v = ns.__cachedVisibility.get(currentTarget);
-		if( v != null )
-			return v;
-		var bits = 0;
-		for( i in 0...32 )
-			if( ns.evalVisibility(cast i, currentTarget) )
+		var bits : Int, mask : Int;
+		if( v != null ) {
+			mask = ns.__dirtyVisibilityGroups;
+			if( mask == 0 ) return v;
+			bits = v & ~mask;
+		} else {
+			bits = 0;
+			mask = -1;
+		}
+		var groups = GROUPS;
+		for( i in 0...groups.length )
+			if( mask & (1<<i) != 0 && ns.evalVisibility(groups[i], currentTarget) )
 				bits |= 1 << i;
 		ns.__cachedVisibility.set(currentTarget, bits);
 		return bits;

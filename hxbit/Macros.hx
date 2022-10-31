@@ -1212,7 +1212,13 @@ class Macros {
 
 			for( meta in f.meta ) {
 				if( meta.name == ":s" ) {
-					toSerialize.push({ f : f, m : meta });
+					var vis : Null<Int> = null;
+					for( m in f.meta )
+						if( m.name == ":visible" ) {
+							vis = getVisibility(m);
+							break;
+						}
+					toSerialize.push({ f : f, m : meta, visibility : vis });
 					break;
 				}
 				if( meta.name == ":rpc" ) {
@@ -1713,6 +1719,49 @@ class Macros {
 					expr : macro @:privateAccess $b{syncExpr},
 				}),
 			});
+
+
+			#if hxbit_visibility
+			var groups = new Map();
+			var allFields = haxe.Int64.ofInt(0);
+			for( idx => f in toSerialize ) {
+				var bit = haxe.Int64.ofInt(1) << (firstFID + idx);
+				if( f.visibility == null ) {
+					allFields |= bit;
+					continue;
+				}
+				var mask = groups.get(f.visibility);
+				if( mask == null ) {
+					mask = { v : haxe.Int64.ofInt(0) };
+					groups.set(f.visibility, mask);
+				}
+				mask.v = mask.v | bit;
+			}
+			inline function i64V(v:haxe.Int64) {
+				if( v.high == 0 )
+					return macro haxe.Int64.ofInt($v{v.low});
+				return macro haxe.Int64.make($v{v.high},$v{v.low});
+			}
+			var maskExpr = [];
+			if( isSubSer )
+				maskExpr.push(macro var mask = super.getVisibilityMask(groups) | ${i64V(allFields)});
+			else
+				maskExpr.push(macro var mask = ${i64V(allFields)});
+			for( gid => gmask in groups )
+				maskExpr.push(macro if( groups & (1 << $v{gid}) != 0 ) mask |= ${i64V(gmask.v)});
+			maskExpr.push(macro return mask);
+			fields.push({
+				name : "getVisibilityMask",
+				pos : pos,
+				access : access,
+				meta : noComplete,
+				kind : FFun({
+					args : [ { name : "groups", type : macro : Int } ],
+					ret : null,
+					expr : { expr : EBlock(maskExpr), pos : pos },
+				}),
+			});
+			#end
 		}
 
 		if( initExpr.length != 0 || !isSubSer ) {
@@ -1993,7 +2042,7 @@ class Macros {
 				kind : TDEnum,
 				fields : [for( c in VISIBILITY_VALUES ) {
 					pos : pos,
-					name : c,
+					name : c.charAt(0).toUpperCase() + c.substr(1),
 					kind : FVar(null,null),
 				}],
 			});
