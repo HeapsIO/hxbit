@@ -1218,7 +1218,7 @@ class Macros {
 							vis = getVisibility(m);
 							break;
 						}
-					toSerialize.push({ f : f, m : meta, visibility : vis });
+					toSerialize.push({ f : f, m : meta, visibility : vis, type : null });
 					break;
 				}
 				if( meta.name == ":rpc" ) {
@@ -1372,6 +1372,7 @@ class Macros {
 					einit = null;
 				}
 			}
+			f.type = ftype;
 			f.f.kind = FProp(getter,"set", ftype.t, einit);
 
 			var bitID = startFID++;
@@ -1736,10 +1737,11 @@ class Macros {
 				}
 				var mask = groups.get(f.visibility);
 				if( mask == null ) {
-					mask = { v : haxe.Int64.ofInt(0) };
+					mask = { v : haxe.Int64.ofInt(0), fl : [] };
 					groups.set(f.visibility, mask);
 				}
 				mask.v = mask.v | bit;
+				mask.fl.push(f);
 			}
 			inline function i64V(v:haxe.Int64) {
 				if( v.high == 0 )
@@ -1763,6 +1765,43 @@ class Macros {
 					args : [ { name : "groups", type : macro : Int } ],
 					ret : null,
 					expr : { expr : EBlock(maskExpr), pos : pos },
+				}),
+			});
+
+			var scanExpr = [];
+			scanExpr.push(macro if( refs[__uid] != null ) return);
+			if( isSubSer )
+				scanExpr.push(macro super.scanVisibility(from, refs));
+			else
+				scanExpr.push(macro refs[__uid] = this);
+			if( groups.keys().hasNext() ) {
+				scanExpr.push(macro var groups : Int = __cachedVisibility.get(from));
+			}
+			for( f in toSerialize ) {
+				if( f.visibility != null ) continue;
+				var fname = f.f.name;
+				var expr = makeScanExpr(macro this.$fname, f.type, f.f.pos);
+				if( expr != null ) scanExpr.push(expr);
+			}
+			for( gid => info in groups ) {
+				scanExpr.push(macro if( groups & $v{1<<gid} != 0 ) $b{[for( f in info.fl ) {
+					var fname = f.f.name;
+					var expr = makeScanExpr(macro this.$fname, f.type, f.f.pos);
+					if( expr != null ) expr;
+				}]});
+			}
+			fields.push({
+				name : "scanVisibility",
+				pos : pos,
+				access : access,
+				meta : noComplete,
+				kind : FFun({
+					args : [
+						{ name : "from", type : macro : hxbit.NetworkSerializable },
+						{ name : "refs", type : macro : hxbit.Serializer.UIDMap },
+					],
+					ret : null,
+					expr : { expr : EBlock(scanExpr), pos : pos },
 				}),
 			});
 			#end
@@ -1860,6 +1899,45 @@ class Macros {
 
 		NW_BUILD_STACK.pop();
 		return fields;
+	}
+
+	static function makeScanExpr( expr : Expr, t : PropType, pos : Position ) {
+		switch( t.d ) {
+		case PInt, PFloat, PBool, PString, PBytes, PInt64, PFlags(_), PUnknown, PStruct:
+		case PSerializable(name), PSerInterface(name):
+			return macro if( $expr != null ) $expr.scanVisibility(from,refs);
+		case PEnum(name):
+			Context.error("Scan not supported for "+name, pos);
+		case PMap(k,v):
+			var ek = makeScanExpr(macro __key, k, pos);
+			var ev = makeScanExpr(macro __val, v, pos);
+			if( ek == null && ev == null )
+				return null;
+			if( ek != null && ev != null )
+				return macro if( $expr != null ) { for( __key => __val in $expr ) { $ek; $ev; } };
+			if( ek != null )
+				return macro if( $expr != null ) { for( __key in $expr.keys() ) $ek; };
+			return macro if( $expr != null ) { for( __val in $expr ) $ev; };
+		case PArray(v), PVector(v):
+			var ev = makeScanExpr(macro __val, v, pos);
+			return ev == null ? null : macro if( $expr != null ) { for( __val in $expr ) $ev; };
+		case PObj(fields):
+			var out = [];
+			for( f in fields ) {
+				var name = f.name;
+				var ev = makeScanExpr(macro $expr.$name, f.type, pos);
+				if( ev != null )
+					out.push(macro if( $expr.$name != null ) $ev);
+			}
+			return out.length == 0 ? null : macro if( $expr != null ) $b{out};
+		case PAlias(t):
+			return makeScanExpr(expr, t, pos);
+		case PNull(t):
+			return makeScanExpr(expr, t, pos);
+		case PDynamic:
+			Context.error("Scan not supported for this type", pos);
+		}
+		return null;
 	}
 
 	static function makeMarkExpr( fields : Array<Field>, fname : String, t : PropType, mark : Expr ) {

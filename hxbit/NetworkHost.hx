@@ -915,7 +915,7 @@ class NetworkHost {
 					if( c.ctx.refs[o.__uid] == null )
 						continue;
 					var ctx = c.ctx;
-					var prevGroups : Int = o.__cachedVisibility.get(ctx.currentTarget);
+					var prevGroups : Int = o.__cachedVisibility == null ? 0 : o.__cachedVisibility.get(ctx.currentTarget);
 					var newGroups = @:privateAccess ctx.evalVisibility(o);
 					var mask = o.getVisibilityMask(newGroups);
 					o.__bits1 = bits1 & mask.low;
@@ -997,6 +997,28 @@ class NetworkHost {
 			if( now - c.lastMessage > CLIENT_TIMEOUT )
 				c.stop();
 	}
+
+	#if hxbit_visibility
+	public function checkReferences( ?client : NetworkClient ) {
+		if( client == null ) {
+			for( c in clients )
+				checkReferences(c);
+			return;
+		}
+		var refs = new hxbit.Serializer.UIDMap();
+		rootObject.scanVisibility(client.ownerObject, refs);
+		targetClient = client;
+		for( key => o in client.ctx.refs )
+			if( !refs.exists(key) ) {
+				ctx.addByte(UNREG);
+				ctx.addUID(o.__uid);
+				if( checkEOM ) ctx.addByte(EOM);
+			}
+		client.ctx.refs = refs;
+		doSend();
+		targetClient = null;
+	}
+	#end
 
 	static function enableReplication( o : NetworkSerializable, b : Bool ) {
 		if( b ) {
