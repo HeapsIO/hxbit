@@ -29,12 +29,23 @@ class NetworkClient {
 	var needAlive : Bool;
 	var wasSync : Bool;
 	public var seqID : Int;
-	public var ownerObject : NetworkSerializable;
+	public var ownerObject(default,set) : NetworkSerializable;
 	public var lastMessage : Float;
+	#if hxbit_visibility
+	public var ctx : NetworkSerializable.NetworkSerializer;
+	#end
 
 	public function new(h) {
 		this.host = h;
 		lastMessage = haxe.Timer.stamp();
+		#if hxbit_visibility
+		if( host.isAuth ) {
+			ctx = new NetworkSerializable.NetworkSerializer(h);
+			ctx.begin();
+		} else
+			ctx = host.globalCtx;
+		@:privateAccess ctx.hasVisibility = true;
+		#end
 	}
 
 	public function sync() {
@@ -53,8 +64,17 @@ class NetworkClient {
 		throw msg;
 	}
 
+	function set_ownerObject(o) {
+		#if hxbit_visibility
+		ctx.currentTarget = o;
+		#end
+		return ownerObject = o;
+	}
+
 	function processMessage( bytes : haxe.io.Bytes, pos : Int ) {
+		#if !hxbit_visibility
 		var ctx = host.ctx;
+		#end
 		ctx.setInput(bytes, pos);
 		ctx.errorPropId = -1;
 
@@ -283,6 +303,22 @@ class NetworkClient {
 			var id = ctx.getInt();
 			host.onCustom(this, id, ctx.getBytes());
 
+		#if hxbit_visibility
+		case NetworkHost.VIS_RESET:
+			var oid = ctx.getUID();
+			var o : hxbit.NetworkSerializable = cast ctx.refs[oid];
+			var groups = ctx.getInt();
+			if( o != null ) {
+				var mask = o.getVisibilityMask(groups) & ~o.getVisibilityMask(0);
+				for( i in 0...64 ) {
+					if( (mask >> i).low & 1 != 0 ) {
+						var f = o.networkGetName(i);
+						Reflect.setField(o, f, null);
+					}
+				}
+			}
+		#end
+
 		case x:
 			error("Unknown message code " + x+" @"+pos+":"+bytes.toHex());
 		}
@@ -295,8 +331,8 @@ class NetworkClient {
 		if( host.logger != null )
 			host.logger("RPC RESULT #" + resultID);
 
-		var ctx = host.ctx;
 		host.targetClient = this;
+		var ctx = host.ctx;
 		ctx.addByte(NetworkHost.RPC_RESULT);
 		ctx.addInt(resultID);
 		// after that RPC will add result value then return
@@ -373,6 +409,7 @@ class NetworkHost {
 	static inline var CUSTOM	 = 10;
 	static inline var BCUSTOM	 = 11;
 	static inline var CANCEL_RPC = 12;
+	static inline var VIS_RESET	 = 13;
 	static inline var EOM		 = 0xFF;
 
 	public static var CLIENT_TIMEOUT = 60. * 60.; // 1 hour timeout
@@ -412,18 +449,27 @@ class NetworkHost {
 	var markHead : NetworkSerializable;
 	var registerHead : NetworkSerializable;
 	var ctx : NetworkSerializer;
+	#if hxbit_visibility
+	var globalCtx : NetworkSerializer;
+	#else
+	var globalCtx(get,never) : NetworkSerializer;
+	inline function get_globalCtx() return ctx;
+	#end
 	var pendingClients : Array<NetworkClient>;
 	var logger : String -> Void;
 	var stats : NetworkStats;
 	var rpcUID = Std.random(0x1000000);
 	var rpcWaits = new Map<Int,NetworkSerializer->Void>();
-	var targetClient : NetworkClient;
+	var targetClient(default,set) : NetworkClient;
 	var rpcClientValue : NetworkClient;
 	var aliveEvents : Array<Void->Void>;
 	var rpcPosition : Int;
 	public var clients : Array<NetworkClient>;
 	public var self(default,null) : NetworkClient;
 	public var lateRegistration = false;
+	#if hxbit_visibility
+	public var rootObject : NetworkSerializable;
+	#end
 
 	public function new() {
 		current = this;
@@ -433,6 +479,13 @@ class NetworkHost {
 		aliveEvents = [];
 		pendingClients = [];
 		resetState();
+	}
+
+	inline function set_targetClient(n:NetworkClient) {
+		#if hxbit_visibility
+		ctx = n == null ? (isAuth ? null : globalCtx) : n.ctx;
+		#end
+		return targetClient = n;
 	}
 
 	public function dispose() {
@@ -457,6 +510,10 @@ class NetworkHost {
 		ctx = new NetworkSerializer(this);
 		@:privateAccess ctx.newObjects = [];
 		ctx.begin();
+		#if hxbit_visibility
+		globalCtx = ctx;
+		ctx = null;
+		#end
 	}
 
 	public function saveState() {
@@ -624,6 +681,8 @@ class NetworkHost {
 			seq++;
 		}
 		if( seq > 0xFF ) throw "Out of sequence number";
+		targetClient = c;
+
 		ctx.addByte(seq);
 		c.seqID = seq;
 
@@ -640,11 +699,13 @@ class NetworkHost {
 		objs.sort(@:privateAccess Serializer.sortByUID);
 		for( o in objs )
 			ctx.addAnyRef(o);
+		#if hxbit_visibility
+		if( rootObject != null ) ctx.addAnyRef(rootObject);
+		#end
 		ctx.addAnyRef(null);
 		if( checkEOM ) ctx.addByte(EOM);
 		ctx.enableChecks = true;
 
-		targetClient = c;
 		doSend();
 		targetClient = null;
 	}
@@ -668,7 +729,7 @@ class NetworkHost {
 	}
 
 	public function makeAlive() {
-		var objs = @:privateAccess ctx.newObjects;
+		var objs = @:privateAccess globalCtx.newObjects;
 		if( objs.length == 0 )
 			return;
 		objs.sort(@:privateAccess Serializer.sortByUIDDesc);
@@ -705,7 +766,7 @@ class NetworkHost {
 
 	function register( o : NetworkSerializable ) {
 		o.__host = this;
-		var o2 = ctx.refs[o.__uid];
+		var o2 = globalCtx.refs[o.__uid];
 		if( o2 != null ) {
 			if( o2 != (o:Serializable) ) logError("Register conflict between objects", o.__uid);
 			return;
@@ -813,20 +874,23 @@ class NetworkHost {
 			o.__bits1 = 0;
 			o.__bits2 = 0;
 
-			var o2 = ctx.refs[o.__uid];
+			var o2 = globalCtx.refs[o.__uid];
 			if( o2 != null ) {
 				if( o2 != (o:Serializable) ) logError("Register conflict between objects", o.__uid);
 				continue;
 			}
 			if( logger != null )
 				logger("Register " + o + "#" + o.__uid);
-			ctx.addByte(REG);
-			ctx.addAnyRef(o);
-			if( checkEOM ) ctx.addByte(EOM);
+			globalCtx.addByte(REG);
+			globalCtx.addAnyRef(o);
+			if( checkEOM ) globalCtx.addByte(EOM);
+			#if hxbit_visibility
+			@:privateAccess globalCtx.out.pos = 0; // reset output
+			#end
 		}
 		var o = markHead;
 		while( o != null ) {
-			if( (o.__bits1|o.__bits2) != 0 ) {
+			if( (o.__bits1|o.__bits2 #if hxbit_visibility | o.__dirtyVisibilityGroups #end) != 0 ) {
 				if( logger != null ) {
 					var props = [];
 					var i = 0;
@@ -845,10 +909,44 @@ class NetworkHost {
 				}
 				if( stats != null )
 					stats.sync(o);
-				ctx.addByte(SYNC);
-				ctx.addUID(o.__uid);
-				o.networkFlush(ctx);
-				if( checkEOM ) ctx.addByte(EOM);
+				#if hxbit_visibility
+				var bits1 = o.__bits1, bits2 = o.__bits2;
+				for( c in clients ) {
+					if( c.ctx.refs[o.__uid] == null )
+						continue;
+					var ctx = c.ctx;
+					var prevGroups : Int = o.__cachedVisibility.get(ctx.currentTarget);
+					var newGroups = @:privateAccess ctx.evalVisibility(o);
+					var mask = o.getVisibilityMask(newGroups);
+					o.__bits1 = bits1 & mask.low;
+					o.__bits2 = bits2 & mask.high;
+					if( prevGroups != newGroups ) {
+						var activated = newGroups & ~prevGroups;
+						if( activated != 0 ) {
+							var mask = o.getVisibilityMask(activated);
+							o.__bits1 |= mask.low;
+							o.__bits2 |= mask.high;
+						}
+						var disabled = prevGroups & ~newGroups;
+						if( disabled != 0 ) {
+							ctx.addByte(VIS_RESET);
+							ctx.addUID(o.__uid);
+							ctx.addInt(disabled);
+							if( checkEOM ) ctx.addByte(EOM);
+						}
+					}
+					if( o.__bits1 | o.__bits2 == 0 )
+						continue;
+					@:privateAccess ctx.visibilityGroups = newGroups;
+				#end
+					ctx.addByte(SYNC);
+					ctx.addUID(o.__uid);
+					o.networkFlush(ctx);
+					if( checkEOM ) ctx.addByte(EOM);
+				#if hxbit_visibility
+				}
+				o.__dirtyVisibilityGroups = 0;
+				#end
 			}
 			var n = o.__next;
 			o.__next = null;
@@ -869,7 +967,17 @@ class NetworkHost {
 
 	public function flush() {
 		flushProps();
-		if( @:privateAccess ctx.out.length > 0 ) doSend();
+		if( @:privateAccess globalCtx.out.length > 0 ) doSend();
+		#if hxbit_visibility
+		if( isAuth ) {
+			for( c in clients )
+				if( @:privateAccess c.ctx.out.length > 0 ) {
+					targetClient = c;
+					doSend();
+					targetClient = null;
+				}
+		}
+		#end
 		// update sendRate
 		var now = haxe.Timer.stamp();
 		var dt = now - lastSentTime;
