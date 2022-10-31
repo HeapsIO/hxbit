@@ -51,8 +51,19 @@ typedef UIDMap = Map<UID,Serializable>;
 
 class Serializer {
 
+	#if hxbit_host_mt
+	static var UID(get,set) : UID;
+	static var SEQ(get,set) : UID;
+	static var __UID = new sys.thread.Tls<UID>();
+	static var __SEQ = new sys.thread.Tls<UID>();
+	static inline function get_UID() return __UID.value;
+	static inline function get_SEQ() return __SEQ.value;
+	static inline function set_UID(v:UID) { __UID.value = v; return v; }
+	static inline function set_SEQ(v:UID) { __SEQ.value = v; return v; }
+	#else
 	static var UID : UID = 0;
 	static var SEQ : UID = 0;
+	#end
 	static inline var SEQ_BITS = 8;
 	static inline var SEQ_MASK = (-1:UID) >>> SEQ_BITS;
 
