@@ -1960,10 +1960,11 @@ class Macros {
 			if( t.condSend.expr.match(EConst(CIdent("false"))) )
 				return macro {}; // no marking
 			var condSend = loop(t.condSend);
-			if( needRef )
+			if( needRef ) {
 				mark = macro if( $condSend ) { this.$rname = v; $mark; };
-			else
+			} else {
 				mark = macro if( $condSend ) $mark;
+			}
 		}
 		if( needRef && fields != null )
 			fields.push({
