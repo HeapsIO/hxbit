@@ -1018,6 +1018,31 @@ class NetworkHost {
 		doSend();
 		targetClient = null;
 	}
+
+	static function scanDynRec( value : Dynamic, from : NetworkSerializable, refs : hxbit.Serializer.UIDMap ) {
+		if( value == null ) return;
+		switch( Type.typeof(value) ) {
+		case TObject:
+			for( f in Reflect.fields(value) ) {
+				scanDynRec(Reflect.field(value,f), from, refs);
+			}
+		case TClass(c):
+			switch( c ) {
+			case Array:
+				var a : Array<Dynamic> = value;
+				for( v in a )
+					scanDynRec(v, from, refs);
+			default:
+				var ns = Std.downcast(value, NetworkSerializable);
+				if( ns != null ) ns.scanVisibility(from, refs);
+			}
+		case TEnum(_):
+			for( v in Type.enumParameters(value) )
+				scanDynRec(value, from, refs);
+		default:
+		}
+	}
+
 	#end
 
 	static function enableReplication( o : NetworkSerializable, b : Bool ) {

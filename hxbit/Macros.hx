@@ -1907,7 +1907,29 @@ class Macros {
 		case PSerializable(name), PSerInterface(name):
 			return macro if( $expr != null ) $expr.scanVisibility(from,refs);
 		case PEnum(name):
-			Context.error("Scan not supported for "+name, pos);
+			var e = switch( Context.resolveType(t.t, pos) ) {
+			case TEnum(e,_): e.get();
+			default: throw "assert";
+			};
+			var cases = [];
+			for( c in e.constructs ) {
+				switch( c.type ) {
+				case TFun(args,_):
+					var scans = [], eargs = [];
+					for( a in args ) {
+						var arg = macro $i{a.name};
+						var se = makeScanExpr(macro $arg, getPropType(a.t,false), pos);
+						if( se != null )
+							scans.push(macro if( $arg != null ) $se);
+						eargs.push(arg);
+					}
+					if( scans.length > 0 )
+						cases.push({ values : [macro $i{c.name}($a{eargs})], expr : macro {$b{scans}} });
+				default:
+				}
+			}
+			var swexpr = { expr : ESwitch(expr,cases,macro null), pos : expr.pos };
+			return cases.length == 0 ? null : macro if( $expr != null ) $swexpr;
 		case PMap(k,v):
 			var ek = makeScanExpr(macro __key, k, pos);
 			var ev = makeScanExpr(macro __val, v, pos);
@@ -1935,7 +1957,7 @@ class Macros {
 		case PNull(t):
 			return makeScanExpr(expr, t, pos);
 		case PDynamic:
-			Context.error("Scan not supported for this type", pos);
+			return macro @:privateAccess hxbit.NetworkHost.scanDynRec($expr, from, refs);
 		}
 		return null;
 	}

@@ -44,6 +44,9 @@ abstract UIDMap(hl.types.Int64Map) {
 	public inline function iterator() {
 		return new hl.NativeArray.NativeArrayIterator<Serializable>(cast this.valuesArray());
 	}
+	public inline function keyValueIterator() {
+		return new hl.NativeArray.NativeArrayKeyValueIterator<Serializable>(cast this.valuesArray());
+	}
 }
 #else
 typedef UIDMap = Map<UID,Serializable>;
