@@ -838,10 +838,18 @@ class NetworkHost {
 		unmark(o);
 		if( logger != null )
 			logger("Unregister " + o+"#"+o.__uid);
-		ctx.addByte(UNREG);
-		ctx.addUID(o.__uid);
-		if( checkEOM ) ctx.addByte(EOM);
-		ctx.refs.remove(o.__uid);
+		#if hxbit_visibility
+		for( c in clients ) {
+			var ctx = c.ctx;
+			if( !ctx.refs.exists(o.__uid) ) continue;
+		#end
+			ctx.addByte(UNREG);
+			ctx.addUID(o.__uid);
+			if( checkEOM ) ctx.addByte(EOM);
+			ctx.refs.remove(o.__uid);
+		#if hxbit_visibility
+		}
+		#end
 	}
 
 	function doSend() {
