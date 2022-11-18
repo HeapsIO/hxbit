@@ -198,6 +198,10 @@ class NetworkSerializer extends Serializer {
 		super.addKnownRef(s);
 	}
 
+	override function onNewObject(i:Serializable) {
+		if( host.isAuth ) @:privateAccess host.onAuthNewObject(i);
+	}
+
 	public dynamic function onUnboundObject(ns:NetworkSerializable) {
 		throw "Can't send unbound object " + ns + " over network";
 	}

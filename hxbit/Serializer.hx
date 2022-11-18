@@ -667,7 +667,11 @@ class Serializer {
 		#if hxbit_visibility
 		visibilityGroups = prevVis;
 		#end
+		onNewObject(i);
 		return i;
+	}
+
+	function onNewObject( i : Serializable ) {
 	}
 
 	public function getAnyRef() : Serializable {

@@ -186,34 +186,6 @@ class NetworkClient {
 			if( ctx.error )
 				host.logError("Found unreferenced object while registering " + o + "." + o.networkGetName(ctx.errorPropId));
 			needAlive = true;
-			if( host.isAuth ) {
-				if( !o.networkAllow(Register,0,ownerObject) ) {
-					ctx.refs.remove(o.__uid);
-					host.logError("Client registering unallowed object "+o, o.__uid);
-				} else {
-					o.__host = host;
-					#if hxbit_visibility
-					host.globalCtx.refs[o.__uid] = o;
-					#end
-					for( c in host.clients ) {
-						if( c != this ) {
-							#if hxbit_visibility
-							var ctx = c.ctx;
-							#else
-							ctx.refs.remove(o.__uid);
-							host.targetClient = c;
-							#end
-							ctx.addByte(NetworkHost.REG);
-							ctx.addAnyRef(o);
-							if( host.checkEOM ) ctx.addByte(NetworkHost.EOM);
-							#if !hxbit_visibility
-							host.doSend();
-							host.targetClient = null;
-							#end
-						}
-					}
-				}
-			}
 		case NetworkHost.UNREG:
 			var oid = ctx.getUID();
 			var o : hxbit.NetworkSerializable = cast ctx.refs[oid];
@@ -393,6 +365,7 @@ class NetworkClient {
 		if( length > 0 )
 			lastMessage = haxe.Timer.stamp();
 		var end = pos + length;
+		host.receivingClient = this;
 		while( pos < end ) {
 			var oldPos = pos;
 			pos = processMessage(data, pos);
@@ -407,6 +380,7 @@ class NetworkClient {
 				pos++;
 			}
 		}
+		host.receivingClient = null;
 		if( needAlive ) {
 			needAlive = false;
 			host.makeAlive();
@@ -490,6 +464,7 @@ class NetworkHost {
 	var rpcWaits = new Map<Int,NetworkSerializer->Void>();
 	var targetClient(default,set) : NetworkClient;
 	var rpcClientValue : NetworkClient;
+	var receivingClient : NetworkClient;
 	var aliveEvents : Array<Void->Void>;
 	var rpcPosition : Int;
 	public var clients : Array<NetworkClient>;
@@ -790,6 +765,44 @@ class NetworkHost {
 		for( c in clients )
 			callb(c);
 		targetClient = old;
+	}
+
+	function onAuthNewObject( o : Serializable ) {
+		var ns = Std.downcast(o,NetworkSerializable);
+		if( ns == null )
+			return; // no need to be tracked
+
+		var client : NetworkClient = receivingClient;
+
+		// we received a new object as part of our serialization data
+		// can be either inside a REG event or an auto serialized one
+		if( !ns.networkAllow(Register,0,client.ownerObject) ) {
+			globalCtx.refs.remove(o.__uid);
+			logError("Client registering unallowed object "+o, o.__uid);
+			return;
+		}
+
+		ns.__host = this;
+		#if hxbit_visibility
+		globalCtx.refs[o.__uid] = o;
+		#end
+		for( c in clients ) {
+			if( c != client ) {
+				#if hxbit_visibility
+				var ctx = c.ctx;
+				#else
+				ctx.refs.remove(o.__uid);
+				targetClient = c;
+				#end
+				ctx.addByte(REG);
+				ctx.addAnyRef(o);
+				if( checkEOM ) ctx.addByte(EOM);
+				#if !hxbit_visibility
+				doSend();
+				targetClient = null;
+				#end
+			}
+		}
 	}
 
 	function register( o : NetworkSerializable ) {
