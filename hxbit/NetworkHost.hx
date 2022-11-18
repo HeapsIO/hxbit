@@ -199,10 +199,17 @@ class NetworkClient {
 						if( c != this ) {
 							#if hxbit_visibility
 							var ctx = c.ctx;
+							#else
+							ctx.refs.remove(o.__uid);
+							host.targetClient = c;
 							#end
 							ctx.addByte(NetworkHost.REG);
 							ctx.addAnyRef(o);
 							if( host.checkEOM ) ctx.addByte(NetworkHost.EOM);
+							#if !hxbit_visibility
+							host.doSend();
+							host.targetClient = null;
+							#end
 						}
 					}
 				}
@@ -222,7 +229,7 @@ class NetworkClient {
 			ctx.refs = new Serializer.UIDMap();
 			@:privateAccess {
 				hxbit.Serializer.UID = 0;
-				hxbit.Serializer.SEQ = ctx.getByte();
+				hxbit.Serializer.SEQ = seqID = ctx.getByte();
 				ctx.newObjects = [];
 			};
 			var sign = ctx.getBytes();
@@ -914,7 +921,7 @@ class NetworkHost {
 			globalCtx.addAnyRef(o);
 			if( checkEOM ) globalCtx.addByte(EOM);
 			#if hxbit_visibility
-			@:privateAccess globalCtx.out.pos = 0; // reset output
+			@:privateAccess if( isAuth ) globalCtx.out.pos = 0; // reset output
 			#end
 		}
 		var o = markHead;
