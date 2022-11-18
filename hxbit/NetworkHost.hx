@@ -186,6 +186,27 @@ class NetworkClient {
 			if( ctx.error )
 				host.logError("Found unreferenced object while registering " + o + "." + o.networkGetName(ctx.errorPropId));
 			needAlive = true;
+			if( host.isAuth ) {
+				if( !o.networkAllow(Register,0,ownerObject) ) {
+					ctx.refs.remove(o.__uid);
+					host.logError("Client registering unallowed object "+o, o.__uid);
+				} else {
+					o.__host = host;
+					#if hxbit_visibility
+					host.globalCtx.refs[o.__uid] = o;
+					#end
+					for( c in host.clients ) {
+						if( c != this ) {
+							#if hxbit_visibility
+							var ctx = c.ctx;
+							#end
+							ctx.addByte(NetworkHost.REG);
+							ctx.addAnyRef(o);
+							if( host.checkEOM ) ctx.addByte(NetworkHost.EOM);
+						}
+					}
+				}
+			}
 		case NetworkHost.UNREG:
 			var oid = ctx.getUID();
 			var o : hxbit.NetworkSerializable = cast ctx.refs[oid];
