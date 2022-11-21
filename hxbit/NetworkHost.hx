@@ -768,11 +768,13 @@ class NetworkHost {
 	}
 
 	function onAuthNewObject( o : Serializable ) {
+		var client : NetworkClient = receivingClient;
+		if( client == null )
+			return; // loading save
+
 		var ns = Std.downcast(o,NetworkSerializable);
 		if( ns == null )
 			return; // no need to be tracked
-
-		var client : NetworkClient = receivingClient;
 
 		// we received a new object as part of our serialization data
 		// can be either inside a REG event or an auto serialized one
