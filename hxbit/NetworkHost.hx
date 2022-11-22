@@ -235,7 +235,7 @@ class NetworkClient {
 				o.networkRPC(ctx, fid, this); // ignore result (client made an RPC on since-then removed object - it has been canceled)
 				host.rpcClientValue = null;
 			}
-			if(host.logger != null) {
+			if(host.logger != null && o != null) {
 				host.logger("RPC < " + o+"#"+o.__uid + " " + o.networkGetName(fid,true));
 			}
 		case NetworkHost.RPC_WITH_RESULT:
