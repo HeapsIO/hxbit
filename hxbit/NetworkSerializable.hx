@@ -199,7 +199,7 @@ class NetworkSerializer extends Serializer {
 	}
 
 	override function onNewObject(i:Serializable) {
-		if( host.isAuth ) @:privateAccess host.onAuthNewObject(i);
+		@:privateAccess host.onNewObject(i);
 	}
 
 	public dynamic function onUnboundObject(ns:NetworkSerializable) {

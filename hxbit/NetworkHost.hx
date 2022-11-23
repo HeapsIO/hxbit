@@ -198,6 +198,7 @@ class NetworkClient {
 			}
 		case NetworkHost.FULLSYNC:
 			wasSync = true;
+			host.receivingClient = null;
 			ctx.refs = new Serializer.UIDMap();
 			@:privateAccess {
 				hxbit.Serializer.UID = 0;
@@ -216,6 +217,7 @@ class NetworkClient {
 			var first = @:privateAccess ctx.newObjects[0];
 			host.makeAlive();
 			host.onFullSync(cast first);
+			host.receivingClient = this;
 		case NetworkHost.RPC:
 			var oid = ctx.getUID();
 			var o : hxbit.NetworkSerializable = cast ctx.refs[oid];
@@ -767,7 +769,8 @@ class NetworkHost {
 		targetClient = old;
 	}
 
-	function onAuthNewObject( o : Serializable ) {
+	function onNewObject( o : Serializable ) {
+
 		var client : NetworkClient = receivingClient;
 		if( client == null )
 			return; // loading save
@@ -775,6 +778,16 @@ class NetworkHost {
 		var ns = Std.downcast(o,NetworkSerializable);
 		if( ns == null )
 			return; // no need to be tracked
+
+		if( !isAuth ) {
+			ns.__host = this;
+			#if hxbit_visibility
+			client.ctx.refs[o.__uid] = o;
+			#else
+			globalCtx.refs[o.__uid] = o;
+			#end
+			return;
+		}
 
 		// we received a new object as part of our serialization data
 		// can be either inside a REG event or an auto serialized one
