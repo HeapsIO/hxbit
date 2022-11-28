@@ -340,6 +340,22 @@ class NetworkClient {
 		// after that RPC will add result value then return
 	}
 
+	function beginAsyncRPCResult( ?rpc : Int ) : Null<Int> {
+		if( rpc == null )
+			return resultID;
+		var prevID = resultID;
+		resultID = rpc;
+		beginRPCResult();
+		resultID = prevID;
+		return null;
+	}
+
+	function endAsyncRPCResult() {
+		if( host.checkEOM ) ctx.addByte(NetworkHost.EOM);
+		host.doSend();
+		host.targetClient = null;
+	}
+
 	var pendingBuffer : haxe.io.Bytes;
 	var pendingPos : Int;
 	var messageLength : Int = -1;
@@ -911,6 +927,7 @@ class NetworkHost {
 	function doSend() {
 		var bytes;
 		@:privateAccess {
+			if( ctx.out.pos == 0 ) return;
 			bytes = ctx.out.getBytes();
 			ctx.out = new haxe.io.BytesBuffer();
 		}

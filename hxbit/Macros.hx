@@ -1101,23 +1101,40 @@ class Macros {
 
 
 	static var hasRetVal : Bool;
+	static var hasRetCall : Bool;
 	static function hasReturnVal( e : Expr ) {
 		hasRetVal = false;
+		hasRetCall = false;
 		checkRetVal(e);
-		return hasRetVal;
+		if( hasRetCall ) hasRetVal = false;
+		return { value : hasRetVal, call : hasRetCall };
 	}
 
 	static function checkRetVal( e : Expr ) {
-		if( hasRetVal )
-			return;
 		switch( e.expr ) {
 		case EReturn(e):
 			if( e != null )
 				hasRetVal = true;
+		case ECall({ expr : EConst(CIdent("__return")) },_):
+			hasRetCall = true;
 		case EFunction(_):
+			var prev = hasRetVal;
+			haxe.macro.ExprTools.iter(e, checkRetVal);
+			hasRetVal = prev;
 			return;
 		default:
 			haxe.macro.ExprTools.iter(e, checkRetVal);
+		}
+	}
+
+	static function replaceReturns( e : Expr ) {
+		switch( e.expr ) {
+		case EReturn(v) if( v != null ):
+			e.expr = (macro { __return($v); return; }).expr;
+		case EFunction(_):
+			return;
+		default:
+			haxe.macro.ExprTools.iter(e, replaceReturns);
 		}
 	}
 
@@ -1458,9 +1475,10 @@ class Macros {
 			switch( r.f.kind ) {
 			case FFun(f):
 				var id = rpcID++;
-				var hasReturnVal = hasReturnVal(f.expr);
+				var returnVal = hasReturnVal(f.expr);
 				var name = r.f.name;
 				var p = r.f.pos;
+				var retType = f.ret;
 				r.f.name += "__impl";
 
 				var cargs = [for( a in f.args ) { expr : EConst(CIdent(a.name)), pos : p } ];
@@ -1468,35 +1486,52 @@ class Macros {
 
 				var doCall = fcall;
 				var rpcArgs = f.args;
+				var funArgs = f.args;
 				var resultCall = macro null;
 
-				if( hasReturnVal ) {
-					doCall = macro {
-						var _v = $fcall;
-						if( onResult != null ) onResult(_v);
+				if( returnVal.value || returnVal.call ) {
+					var typeValue;
+					if( returnVal.call ) {
+						replaceReturns(f.expr);
+						rpcArgs = f.args.copy();
+						funArgs = f.args.copy();
+						f.ret = macro : Void;
+						cargs.push(macro onResult);
+						f.args.push({ name : "__return" });
+						doCall = macro {
+							if( onResult == null ) onResult = function(_){};
+							$fcall;
+						}
+						typeValue = macro { function onResult(v) _v = v; $fcall; };
+					} else {
+						typeValue = macro _v = $fcall;
+						doCall = macro {
+							var _v = $fcall;
+							if( onResult != null ) onResult(_v);
+						}
 					}
 					resultCall = withPos(macro function(__ctx:hxbit.NetworkSerializable.NetworkSerializer) {
 						var _v = cast null;
-						if( false ) _v = $fcall;
+						if( false ) $typeValue;
 						hxbit.Macros.unserializeValue(__ctx, _v);
 						if( __ctx.error ) return false;
 						if( onResult != null ) onResult(_v);
 						return true;
 					},f.expr.pos);
 					rpcArgs = rpcArgs.copy();
-					rpcArgs.push( { name : "onResult", opt: true, type: f.ret == null ? null : TFunction([f.ret], macro:Void) } );
+					rpcArgs.push( { name : "onResult", opt: true, type: retType == null ? null : TFunction([retType], macro:Void) } );
 				}
 
 				var forwardRPC = macro {
 					var __ctx = @:privateAccess __host.beginRPC(this,$v{id},$resultCall);
 					$b{[
-						for( a in f.args )
+						for( a in funArgs )
 							withPos(macro hxbit.Macros.serializeValue(__ctx, $i{a.name}), f.expr.pos)
 					] };
 					@:privateAccess __host.endRPC();
 				};
 
-				if( hasReturnVal && r.mode != Server && r.mode != Owner )
+				if( (returnVal.value || returnVal.call) && r.mode != Server && r.mode != Owner )
 					Context.error("Cannot use return value with default rpc mode, use @:rpc(server) or @:rpc(owner)", r.f.pos);
 
 				var rpcExpr = switch( r.mode ) {
@@ -1589,16 +1624,31 @@ class Macros {
 				r.f.access.remove(APublic);
 				r.f.meta.push( { name : ":noCompletion", pos : p } );
 
-				var exprs = [ { expr : EVars([for( a in f.args ) { name : a.name, type : a.opt ? TPath({ pack : [], name : "Null", params : [TPType(a.type)] }) : a.type, expr : macro cast null } ]), pos : p } ];
-				exprs.push(macro if( false ) $fcall); // force typing
-				for( a in f.args ) {
+				var exprs = [ { expr : EVars([for( a in funArgs ) { name : a.name, type : a.opt ? TPath({ pack : [], name : "Null", params : [TPType(a.type)] }) : a.type, expr : macro cast null } ]), pos : p } ];
+				if( returnVal.call ) {
+					exprs.push(macro var __v = cast null);
+					exprs.push(macro if( false ) { function onResult(v) __v = v; $fcall; }); // force typing
+				} else
+					exprs.push(macro if( false ) $fcall); // force typing
+				for( a in funArgs ) {
 					var e = macro hxbit.Macros.unserializeValue(__ctx, $i{ a.name });
 					e.pos = p;
 					exprs.push(e);
 				}
 				exprs.push(macro if( __ctx.error ) return false);
 				exprs.push(macro if( __host != null ) __host.makeAlive());
-				if( hasReturnVal ) {
+				if( returnVal.call ) {
+					exprs.push(macro {
+						var __res = @:privateAccess __clientResult.beginAsyncRPCResult(null);
+						function onResult(v) {
+							if( false ) v = __v;
+							@:privateAccess __clientResult.beginAsyncRPCResult(__res);
+							hxbit.Macros.serializeValue(__ctx, v);
+							@:privateAccess __clientResult.endAsyncRPCResult();
+						}
+						$fcall;
+					});
+				} else if( returnVal.value ) {
 					exprs.push({ expr : EVars([ { name : "result", type : f.ret, expr : fcall } ]), pos : p } );
 					exprs.push(macro {
 						@:privateAccess __clientResult.beginRPCResult();
