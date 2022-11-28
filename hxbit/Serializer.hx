@@ -636,6 +636,7 @@ class Serializer {
 		#if hxbit_visibility
 		visibilityGroups = prevVis;
 		#end
+		onAddNewObject(s);
 	}
 
 	public function addAnyRef( s : Serializable ) {
@@ -672,6 +673,9 @@ class Serializer {
 	}
 
 	function onNewObject( i : Serializable ) {
+	}
+
+	function onAddNewObject( i : Serializable ) {
 	}
 
 	public function getAnyRef() : Serializable {

@@ -456,6 +456,7 @@ class NetworkHost {
 	public var sendRate : Float = 0.;
 	public var totalSentBytes : Int = 0;
 	public var syncingProperties = false;
+	var isDispatching = false;
 
 	/*
 		In order to allow detection of setting other properties within prop sync,
@@ -778,10 +779,68 @@ class NetworkHost {
 		this.stats = stats;
 	}
 
+	#if !hxbit_visibility
+	function flushNewRefs( refs : Array<Array<Serializable>> ) {
+		if( refs == null )
+			return;
+		var curBytes = @:privateAccess ctx.out;
+		@:privateAccess ctx.out = new haxe.io.BytesBuffer();
+		var allRefs = [];
+		for( arr in refs )
+			if( arr != null ) {
+				for( o in arr )
+					if( allRefs.indexOf(o) < 0 )
+						allRefs.push(o);
+			}
+		for( i => c in clients ) {
+			var refs = refs[i];
+			targetClient = c;
+			for( o in allRefs ) {
+				if( refs != null && refs.indexOf(o) >= 0 )
+					continue;
+				ctx.addByte(REG);
+				ctx.addAnyRef(o);
+				if( checkEOM ) ctx.addByte(EOM);
+				ctx.refs.remove(o.__uid);
+			}
+			doSend();
+			targetClient = null;
+		}
+		// register
+		for( o in allRefs )
+			ctx.refs[o.__uid] = o;
+		@:privateAccess ctx.out = curBytes;
+	}
+
+	function onAddNewObject( o : Serializable ) {
+		/*
+			Is it an RPC who only gets send to some clients ?
+			We need to send the objects we found there to all other clients later
+		*/
+		if( isAuth && isDispatching ) {
+			@:privateAccess ctx.newObjects.push(o);
+		}
+	}
+	#end
+
 	inline function dispatchClients( callb : NetworkClient -> Void ) {
 		var old = targetClient;
-		for( c in clients )
+		var newRefs : Array<Array<Serializable>> = null;
+		isDispatching = true;
+		for( i => c in clients ) {
 			callb(c);
+			#if !hxbit_visibility
+			var newObjs = @:privateAccess ctx.newObjects;
+			if( newObjs.length > 0 ) {
+				if( newRefs == null ) newRefs = [];
+				newRefs[i] = newObjs;
+				for( o in newObjs ) ctx.refs.remove(o.__uid);
+				@:privateAccess ctx.newObjects = [];
+			}
+			#end
+		}
+		isDispatching = false;
+		flushNewRefs(newRefs);
 		targetClient = old;
 	}
 

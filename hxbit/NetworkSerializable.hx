@@ -202,6 +202,10 @@ class NetworkSerializer extends Serializer {
 		@:privateAccess host.onNewObject(i);
 	}
 
+	override function onAddNewObject(i:Serializable) {
+		@:privateAccess host.onAddNewObject(i);
+	}
+
 	public dynamic function onUnboundObject(ns:NetworkSerializable) {
 		throw "Can't send unbound object " + ns + " over network";
 	}
