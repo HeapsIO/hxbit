@@ -826,6 +826,7 @@ class NetworkHost {
 	}
 
 	inline function dispatchClients( callb : NetworkClient -> Void ) {
+		flush();
 		var old = targetClient;
 		var newRefs : Array<Array<Serializable>> = null;
 		isDispatching = true;
