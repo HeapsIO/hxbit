@@ -271,10 +271,12 @@ class NetworkClient {
 				host.rpcClientValue = null;
 			}
 
-			if( host.checkEOM ) ctx.addByte(NetworkHost.EOM);
+			if( resultID != -1 ) {
+				if( host.checkEOM ) ctx.addByte(NetworkHost.EOM);
 
-			host.doSend();
-			host.targetClient = null;
+				host.doSend();
+				host.targetClient = null;
+			}
 			resultID = old;
 
 		case NetworkHost.RPC_RESULT:
@@ -341,9 +343,11 @@ class NetworkClient {
 	}
 
 	function beginAsyncRPCResult( ?rpc : Int ) : Null<Int> {
-		if( rpc == null )
-			return resultID;
 		var prevID = resultID;
+		if( rpc == null ) {
+			resultID = -1;
+			return prevID;
+		}
 		resultID = rpc;
 		beginRPCResult();
 		resultID = prevID;
