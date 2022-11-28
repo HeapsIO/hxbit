@@ -351,7 +351,7 @@ class NetworkClient {
 	}
 
 	function endAsyncRPCResult() {
-		if( host.checkEOM ) ctx.addByte(NetworkHost.EOM);
+		if( host.checkEOM ) #if hxbit_visibility ctx #else host.ctx #end.addByte(NetworkHost.EOM);
 		host.doSend();
 		host.targetClient = null;
 	}
