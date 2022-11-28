@@ -811,8 +811,10 @@ class NetworkHost {
 			ctx.refs[o.__uid] = o;
 		@:privateAccess ctx.out = curBytes;
 	}
+	#end
 
 	function onAddNewObject( o : Serializable ) {
+		#if !hxbit_visibility
 		/*
 			Is it an RPC who only gets send to some clients ?
 			We need to send the objects we found there to all other clients later
@@ -820,8 +822,8 @@ class NetworkHost {
 		if( isAuth && isDispatching ) {
 			@:privateAccess ctx.newObjects.push(o);
 		}
+		#end
 	}
-	#end
 
 	inline function dispatchClients( callb : NetworkClient -> Void ) {
 		var old = targetClient;
@@ -840,7 +842,9 @@ class NetworkHost {
 			#end
 		}
 		isDispatching = false;
+		#if !hxbit_visibility
 		flushNewRefs(newRefs);
+		#end
 		targetClient = old;
 	}
 
