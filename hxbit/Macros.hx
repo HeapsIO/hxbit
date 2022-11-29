@@ -1840,20 +1840,46 @@ class Macros {
 					if( expr != null ) expr;
 				}]});
 			}
-			fields.push({
-				name : "scanVisibility",
-				pos : pos,
-				access : access,
-				meta : noComplete,
-				kind : FFun({
-					args : [
-						{ name : "from", type : macro : hxbit.NetworkSerializable },
-						{ name : "refs", type : macro : hxbit.Serializer.UIDMap },
-					],
-					ret : null,
-					expr : { expr : EBlock(scanExpr), pos : pos },
-				}),
-			});
+
+
+			var found = false;
+			for( f in fields ) {
+				if( f.name == "scanVisibility" ) {
+					function iterRec(e:Expr) {
+						switch( e.expr ) {
+						case ECall({ expr : EField({ expr : EConst(CIdent("super")) },"scanVisibility") },_):
+							found = true;
+							e.expr = EBlock(scanExpr);
+						default:
+							haxe.macro.ExprTools.iter(e, iterRec);
+						}
+					}
+					switch( f.kind ) {
+					case FFun(f): iterRec(f.expr);
+					default: throw "assert";
+					}
+					if( !found )
+						Context.error("Missing super() call", f.pos);
+					break;
+				}
+			}
+
+			if( !found ) {
+				fields.push({
+					name : "scanVisibility",
+					pos : pos,
+					access : access,
+					meta : noComplete,
+					kind : FFun({
+						args : [
+							{ name : "from", type : macro : hxbit.NetworkSerializable },
+							{ name : "refs", type : macro : hxbit.Serializer.UIDMap },
+						],
+						ret : null,
+						expr : { expr : EBlock(scanExpr), pos : pos },
+					}),
+				});
+			}
 			#end
 		}
 
