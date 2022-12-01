@@ -122,6 +122,7 @@ class Macros {
 		var t = Context.typeof(v);
 		var pt = getPropType(t, false);
 		if( pt == null ) {
+			Context.error("Unsupported serializable type " + t.toString(), v.pos);
 			return macro { };
 		}
 		var cl = Context.getLocalClass();
