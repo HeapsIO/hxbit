@@ -222,8 +222,17 @@ class NetworkSerializer extends Serializer {
 				ns.__next = null;
 				ns.__host = host;
 			} else {
-				out = new haxe.io.BytesBuffer(); // prevent garbaged data from being kept
+				var prev = out;
+				out = new haxe.io.BytesBuffer(); // prevent garbaged data from being kept if exception raised
 				onUnboundObject(ns);
+				// allow to keep going after logging message
+				if( ns.enableAutoReplication ) {
+					out = prev;
+					ns.__next = null;
+					ns.__host = host;
+				} else {
+					throw "assert";
+				}
 			}
 		}
 		addBool( refs.exists(s.__uid) );
