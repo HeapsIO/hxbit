@@ -172,6 +172,7 @@ class NetworkClient {
 			host.syncingProperties = true;
 			o.networkSync(ctx);
 			host.syncingProperties = false;
+			host.onSync(o,bits1,bits2);
 			if( host.isAuth && (o.__next != null || host.mark(o)) ) {
 				o.__bits1 = old1 | bits1;
 				o.__bits2 = old2 | bits2;
@@ -605,6 +606,9 @@ class NetworkHost {
 	}
 
 	public dynamic function onFullSync( firstObject : hxbit.Serializable ) {
+	}
+
+	public dynamic function onSync( obj : hxbit.NetworkSerializable, bits1 : Int, bits2 : Int ) {
 	}
 
 	function onCustom( from : NetworkClient, id : Int, ?data : haxe.io.Bytes ) {
