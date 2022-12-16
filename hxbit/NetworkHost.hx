@@ -490,7 +490,6 @@ class NetworkHost {
 	var rpcClientValue : NetworkClient;
 	var receivingClient : NetworkClient;
 	var aliveEvents : Array<Void->Void>;
-	var rpcPosition : Int;
 	public var clients : Array<NetworkClient>;
 	public var self(default,null) : NetworkClient;
 	public var lateRegistration = false;
@@ -660,10 +659,37 @@ class NetworkHost {
 		return targetClient != null; // owner not connected
 	}
 
-	function beginRPC(o:NetworkSerializable, id:Int, onResult:NetworkSerializer->Void) {
+	inline function doRPC(o:NetworkSerializable, id:Int, onResult:NetworkSerializer->Void, serialize:NetworkSerializer->Void) {
+		beforeRPC(o,id);
+		#if hxbit_visibility
+		for( c in clients ) {
+			var ctx = c.ctx;
+			if( targetClient != null && targetClient != c ) continue;
+		#end
+			var rpcPosition = beginRPC(ctx, o, id, onResult);
+			#if hxbit_visibility
+			if( rpcPosition < 0 ) continue;
+			#end
+			serialize(ctx);
+			endRPC(ctx, rpcPosition);
+		#if hxbit_visibility
+		}
+		#end
+	}
+
+	function beforeRPC(o:NetworkSerializable, id:Int) {
 		flushProps();
-		if( ctx.refs[o.__uid] == null )
+		if( logger != null )
+			logger("RPC > " + o+"#"+o.__uid + " " + o.networkGetName(id,true));
+	}
+
+	function beginRPC(ctx:NetworkSerializer,o:NetworkSerializable, id:Int, onResult:NetworkSerializer->Void) {
+		if( ctx.refs[o.__uid] == null ) {
+			#if hxbit_visibility
+			if( isAuth ) return -1;
+			#end
 			throw "Can't call RPC on an object not previously transferred";
+		}
 		if( onResult != null ) {
 			var id = rpcUID++;
 			ctx.addByte(RPC_WITH_RESULT);
@@ -672,23 +698,22 @@ class NetworkHost {
 		} else
 			ctx.addByte(RPC);
 		ctx.addUID(o.__uid);
+		var position = 0;
 		#if hl
-		rpcPosition = @:privateAccess ctx.out.pos;
+		position = @:privateAccess ctx.out.pos;
 		#end
 		ctx.addInt32(-1);
 		ctx.addByte(id);
-		if( logger != null )
-			logger("RPC > " + o+"#"+o.__uid + " " + o.networkGetName(id,true));
 		if( stats != null )
 			stats.beginRPC(o, id);
-		return ctx;
+		return position;
 	}
 
-	function endRPC() {
+	function endRPC( ctx : NetworkSerializer, position : Int ) {
 		#if hl
-		@:privateAccess ctx.out.b.setI32(rpcPosition, ctx.out.pos - (rpcPosition + 5));
+		@:privateAccess ctx.out.b.setI32(position, ctx.out.pos - (position + 5));
 		if( stats != null )
-			stats.endRPC(@:privateAccess ctx.out.pos - rpcPosition);
+			stats.endRPC(@:privateAccess ctx.out.pos - position);
 		#end
 		if( checkEOM ) ctx.addByte(EOM);
 	}

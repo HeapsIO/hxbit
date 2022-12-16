@@ -1524,12 +1524,12 @@ class Macros {
 				}
 
 				var forwardRPC = macro {
-					var __ctx = @:privateAccess __host.beginRPC(this,$v{id},$resultCall);
-					$b{[
-						for( a in funArgs )
-							withPos(macro hxbit.Macros.serializeValue(__ctx, $i{a.name}), f.expr.pos)
-					] };
-					@:privateAccess __host.endRPC();
+					@:privateAccess __host.doRPC(this,$v{id},$resultCall, function(__ctx) {
+						$b{[
+							for( a in funArgs )
+								withPos(macro hxbit.Macros.serializeValue(__ctx, $i{a.name}), f.expr.pos)
+						] };
+					});
 				};
 
 				if( (returnVal.value || returnVal.call) && r.mode != Server && r.mode != Owner )
