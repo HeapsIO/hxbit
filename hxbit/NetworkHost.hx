@@ -889,11 +889,9 @@ class NetworkHost {
 			return; // loading save
 
 		var ns = Std.downcast(o,NetworkSerializable);
-		if( ns == null )
-			return; // no need to be tracked
 
 		if( !isAuth ) {
-			ns.__host = this;
+			if( ns != null ) ns.__host = this;
 			#if hxbit_visibility
 			client.ctx.refs[o.__uid] = o;
 			#else
@@ -904,13 +902,13 @@ class NetworkHost {
 
 		// we received a new object as part of our serialization data
 		// can be either inside a REG event or an auto serialized one
-		if( !ns.networkAllow(Register,0,client.ownerObject) ) {
+		if( ns != null && !ns.networkAllow(Register,0,client.ownerObject) ) {
 			globalCtx.refs.remove(o.__uid);
 			logError("Client registering unallowed object "+o, o.__uid);
 			return;
 		}
 
-		ns.__host = this;
+		if( ns != null ) ns.__host = this;
 		#if hxbit_visibility
 		globalCtx.refs[o.__uid] = o;
 		#end
