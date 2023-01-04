@@ -92,6 +92,7 @@ class Macros {
 
 	static var IN_ENUM_SER = false;
 	static var PREFIX_VARS : Map<String,Bool> = null;
+	public static var IGNORED_META : Map<String,Bool> = new Map();
 	public static var VISIBILITY_VALUES = [];
 	@:persistent static var NW_BUILD_STACK : Array<String> = [];
 
@@ -258,7 +259,7 @@ class Macros {
 			case ":visible" if( m.params.length == 1 ):
 				t.visibility = getVisibility(m);
 			default:
-				if(m.name.charAt(0) == ":")
+				if( m.name.charAt(0) == ":" && !IGNORED_META.exists(m.substr(1)) )
 					Context.error("Unsupported network metadata", m.pos);
 			}
 		}
