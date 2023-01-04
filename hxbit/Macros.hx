@@ -259,7 +259,7 @@ class Macros {
 			case ":visible" if( m.params.length == 1 ):
 				t.visibility = getVisibility(m);
 			default:
-				if( m.name.charAt(0) == ":" && !IGNORED_META.exists(m.substr(1)) )
+				if( m.name.charAt(0) == ":" && !IGNORED_META.exists(m.name.substr(1)) )
 					Context.error("Unsupported network metadata", m.pos);
 			}
 		}
