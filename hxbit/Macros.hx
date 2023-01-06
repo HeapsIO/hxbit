@@ -1280,12 +1280,14 @@ class Macros {
 				public var enableReplication(get, set) : Bool;
 				public var enableAutoReplication(get, set) : Bool;
 				inline function get_enableReplication() return __host != null;
-				inline function get_enableAutoReplication() return __next == this;
+				inline function get_enableAutoReplication() return __next == this && __host == null;
 				function set_enableReplication(b) {
 					@:privateAccess hxbit.NetworkHost.enableReplication(this, b);
 					return b;
 				}
 				function set_enableAutoReplication(b) {
+					if( __host != null )
+						return false; // ignore (we're already replicated anyway)
 					if( __next == this ) {
 						if( !b ) __next = null;
 					} else if( b ) {
