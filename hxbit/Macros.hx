@@ -152,6 +152,26 @@ class Macros {
 		return macro $v{v};
 	}
 
+	public static function iterType<T>( t : PropTypeDesc<T>, f : T -> Void ) {
+		switch( t ) {
+		case PMap(k, v):
+			f(k);
+			f(v);
+		case PArray(t):
+			f(t);
+		case PObj(fields):
+			for( tf in fields )
+				f(tf.type);
+		case PAlias(t):
+			f(t);
+		case PVector(t):
+			f(t);
+		case PNull(t):
+			f(t);
+		default:
+		}
+	}
+
 	#if macro
 
 	static function toFieldType( t : PropType ) : Schema.FieldType {
