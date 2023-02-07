@@ -1135,8 +1135,10 @@ class Macros {
 	static function checkRetVal( e : Expr ) {
 		switch( e.expr ) {
 		case EReturn(e):
-			if( e != null )
+			if( e != null ) {
 				hasRetVal = true;
+				checkRetVal(e);
+			}
 		case ECall({ expr : EConst(CIdent("__return")) },_):
 			hasRetCall = true;
 		case EFunction(_):
