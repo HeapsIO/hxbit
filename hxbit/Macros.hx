@@ -2168,6 +2168,14 @@ class Macros {
 					});
 
 					var markExpr = makeMarkExpr(tfields, fname, f.type, macro mark());
+					var cond = macro this.$fname != v;
+					var check = switch( f.type.d ) {
+						case PInt, PFloat, PBool, PString, PInt64: true;
+						case PNull({ d : PInt | PFloat | PBool | PString | PInt64 }): true;
+						default: false;
+					}
+					if( check )
+						markExpr = macro if(this.$fname != v) $markExpr;
 
 					tfields.push( {
 						name : "set_" + f.name,
@@ -2176,7 +2184,7 @@ class Macros {
 						kind : FFun({
 							ret : ft,
 							args : [ { name : "v", type : ft } ],
-							expr : macro { this.$fname = v; $markExpr; return v; }
+							expr : macro { $markExpr; this.$fname = v; return v; }
 						}),
 					});
 				}
