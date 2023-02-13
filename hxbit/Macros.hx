@@ -558,7 +558,7 @@ class Macros {
 		}
 	}
 
-	static function unserializeExpr( ctx : Expr, v : Expr, t : PropType, depth : Int ) {
+	dynamic static function unserializeExpr( ctx : Expr, v : Expr, t : PropType, depth : Int ) {
 		switch( t.d ) {
 		case PInt64:
 			return macro $v = $ctx.getInt64();
