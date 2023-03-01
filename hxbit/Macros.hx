@@ -456,11 +456,10 @@ class Macros {
 
 	static function isNullable( t : PropType ) {
 		switch( t.d ) {
-		case PInt, PFloat, PBool, PFlags(_):
+		case PInt, PFloat, PBool, PFlags(_), PInt64:
 			return false;
 		case PAlias(t):
 			return isNullable(t);
-		// case PInt64: -- might depend on the platform ?
 		default:
 			return true;
 		}
