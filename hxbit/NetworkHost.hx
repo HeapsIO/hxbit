@@ -403,7 +403,8 @@ class NetworkClient {
 				pos++;
 			}
 		}
-		host.receivingClient = null;
+		if( host != null )
+			host.receivingClient = null;
 		if( needAlive ) {
 			needAlive = false;
 			host.makeAlive();
