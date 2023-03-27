@@ -487,7 +487,7 @@ class Macros {
 			return macro $ctx.addBytes($v);
 		case PMap(kt, vt):
 			var kt = kt.t;
-			var vt = vt.t;
+			var vt = toProxy(vt);
 			var vk = { expr : EConst(CIdent("k")), pos : v.pos };
 			var vv = { expr : EConst(CIdent("v")), pos : v.pos };
 			return macro $ctx.addMap($v, function(k:$kt) return hxbit.Macros.serializeValue($ctx, $vk), function(v:$vt) return hxbit.Macros.serializeValue($ctx, $vv));
@@ -571,7 +571,7 @@ class Macros {
 			return macro $v = $ctx.getBytes();
 		case PMap(k,t):
 			var kt = k.t;
-			var vt = t.t;
+			var vt = toProxy(t);
 			var kname = "k" + depth;
 			var vname = "v" + depth;
 			var vk = { expr : EConst(CIdent(kname)), pos : v.pos };
@@ -2133,7 +2133,7 @@ class Macros {
 			return TPath( { pack : ["hxbit"], name : "VectorProxy", sub : subName, params : [TPType(k.t)] } );
 		case PMap(k, v):
 			checkProxy(v);
-			var subName = k.isProxy ? "MapProxy2" : "MapProxy";
+			var subName = v.isProxy ? "MapProxy2" : "MapProxy";
 			return TPath( { pack : ["hxbit"], name : "MapProxy", sub : subName, params : [TPType(k.t),TPType(v.t)] } );
 		case PObj(fields):
 			// define type
