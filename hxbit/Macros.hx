@@ -2100,6 +2100,13 @@ class Macros {
 	}
 
 	static function typeName(t:PropType) {
+		var str = _typeName(t);
+		if( str.length > 50 )
+			str = haxe.Md5.encode(str);
+		return str;		
+	}
+
+	static function _typeName(t:PropType) {
 		switch( t.d ) {
 		case PObj(fields):
 			var fields = fields.copy();
