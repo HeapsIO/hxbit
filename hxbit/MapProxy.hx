@@ -33,7 +33,7 @@ import hxbit.NetworkSerializable;
 	}
 }
 
-abstract MapProxy<K,V>(MapData<K,V>) {
+abstract MapProxy<K,V>(MapData<K,V>) to ProxyChild {
 
 	@:noCompletion public var __value(get, never) : Map<K,V>;
 	inline function get___value() return this == null ? null : this.map;
@@ -93,7 +93,7 @@ abstract MapProxy<K,V>(MapData<K,V>) {
 }
 
 
-abstract MapProxy2<K,V:ProxyChild>(MapData<K,V>) {
+abstract MapProxy2<K,V:ProxyChild>(MapData<K,V>) to ProxyChild {
 
 	@:noCompletion public var __value(get, never) : Map<K,V>;
 	inline function get___value() return this == null ? null : this.map;

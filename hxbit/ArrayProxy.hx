@@ -51,7 +51,7 @@ class ArrayProxyIterator<T> {
 	public inline function next() return a[index++];
 }
 
-abstract ArrayProxy<T>(ArrayProxyData<T>) {
+abstract ArrayProxy<T>(ArrayProxyData<T>) to ProxyChild {
 
 	@:noCompletion public var __value(get, never) : Array<T>;
 	public var length(get, never) : Int;
@@ -179,7 +179,7 @@ abstract ArrayProxy<T>(ArrayProxyData<T>) {
 	}
 }
 
-abstract ArrayProxy2<T:ProxyChild>(ArrayProxyData<T>) {
+abstract ArrayProxy2<T:ProxyChild>(ArrayProxyData<T>) to ProxyChild {
 
 	@:noCompletion public var __value(get, never) : Array<T>;
 	public var length(get, never) : Int;
