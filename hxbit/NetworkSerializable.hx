@@ -103,7 +103,8 @@ class BaseProxy implements ProxyHost implements ProxyChild {
 		if( obj != null ) obj.networkSetBit(bit);
 	}
 	public inline function bindHost(o, bit) {
-		if(obj != null) throw "Binding proxy twice";
+		if( obj != null && (o != this.obj || bit != this.bit) )
+			throw "Binding proxy twice";
 		this.obj = o;
 		this.bit = bit;
 	}
