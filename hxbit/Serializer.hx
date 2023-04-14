@@ -452,7 +452,14 @@ class Serializer {
 		case 8:
 			return getBytes();
 		case 9:
-			return getAnyRef();
+			var v : Dynamic = getAnyRef();
+			#if hl
+			if( hl.Type.getDynamic(v).kind == HVirtual ) {
+				var real : Dynamic = hl.Api.getVirtualValue(v);
+				if( real != null ) v = real;
+			}
+			#end
+			return v;
 		case 10:
 			var ename = getString();
 			var ser : Dynamic = getEnumClass(ename);
