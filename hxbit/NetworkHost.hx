@@ -974,6 +974,17 @@ class NetworkHost {
 		o.__next = null;
 	}
 
+	public function isPendingRegistration( o : NetworkSerializable ) {
+		var h = registerHead, p : hxbit.NetworkSerializable = null;
+		while( p != h ) {
+			if( h == o )
+				return true;
+			p = h;
+			h = h.__next;
+		}
+		return false;
+	}
+
 	function unregister( o : NetworkSerializable ) {
 		if( o.__host == null )
 			return;
