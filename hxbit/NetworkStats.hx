@@ -174,9 +174,10 @@ class NetworkStats {
 			var i = 0;
 			while( 1 << i <= bits ) {
 				if( bits & (1 << i) != 0 ) {
+					var i = i + offset;
 					var p = c.props[i];
 					if( p == null ) {
-						p = { cl : c, name : o.networkGetName(i + offset), count : 0, bytes : 0, size : 0 };
+						p = { cl : c, name : o.networkGetName(i), count : 0, bytes : 0, size : 0 };
 						c.props[i] = p;
 					}
 					p.count++;
