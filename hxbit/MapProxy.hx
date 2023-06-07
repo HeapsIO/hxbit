@@ -161,7 +161,9 @@ abstract MapProxy2<K,V:ProxyChild>(MapData<K,V>) to ProxyChild {
 
 	@:from static inline function fromMap<K,V:ProxyChild>(map:Map<K,V>):MapProxy2<K,V> {
 		if( map == null ) return null;
-		return cast new MapData(map);
+		var m = new MapData(map);
+		for( x in m ) x.bindHost(m, 0);
+		return cast m;
 	}
 
 }
