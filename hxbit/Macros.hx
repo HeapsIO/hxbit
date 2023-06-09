@@ -1138,7 +1138,8 @@ class Macros {
 				hasRetVal = true;
 				checkRetVal(e);
 			}
-		case ECall({ expr : EConst(CIdent("__return")) },_):
+		case ECall({ expr : EConst(CIdent("__return")) },[v]):
+			e.expr = (macro { __return($v); return; }).expr;
 			hasRetCall = true;
 		case EFunction(_):
 			var prev = hasRetVal;
