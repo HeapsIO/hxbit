@@ -24,6 +24,28 @@ package hxbit;
 #if !macro
 
 #if (hl && hxbit64)
+
+private class NativeKeyValueIterator {
+	var map : hl.types.Int64Map;
+	var keys : hl.NativeArray<haxe.Int64>;
+	var pos : Int;
+	var count : Int;
+
+	public inline function new(map) {
+		this.map = map;
+		keys = map.keysArray();
+		pos = 0;
+		count = keys.length;
+	}
+	public inline function hasNext() {
+		return pos < count;
+	}
+	public inline function next() {
+		var k = keys[pos++];
+		return {key:k, value:map.get(k)};
+	}
+}
+
 abstract UIDMap(hl.types.Int64Map) {
 	public inline function new() {
 		this = new hl.types.Int64Map();
@@ -45,7 +67,7 @@ abstract UIDMap(hl.types.Int64Map) {
 		return new hl.NativeArray.NativeArrayIterator<Serializable>(cast this.valuesArray());
 	}
 	public inline function keyValueIterator() {
-		return new hl.NativeArray.NativeArrayKeyValueIterator<Serializable>(cast this.valuesArray());
+		return new NativeKeyValueIterator(this);
 	}
 }
 #else
