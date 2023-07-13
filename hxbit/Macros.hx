@@ -94,6 +94,10 @@ class Macros {
 	static var PREFIX_VARS : Map<String,Bool> = null;
 	public static var IGNORED_META : Map<String,Bool> = new Map();
 	public static var VISIBILITY_VALUES = [];
+
+	/** Generate game-specific property getters, mostly to be used in networkAllow() **/
+	public static var CUSTOM_GETTERS : Array<{name: String, ret: ComplexType, func : {id: Int, name: String, field: Field} -> Dynamic }> = [];
+
 	@:persistent static var NW_BUILD_STACK : Array<String> = [];
 
 	#if macro
@@ -1970,22 +1974,32 @@ class Macros {
 		if( toSerialize.length != 0 || rpc.length != 0 || !isSubSer ) {
 			var cases = [];
 			for( i in 0...toSerialize.length )
-				cases.push( { id : i + firstFID, name : toSerialize[i].f.name } );
+				cases.push( { id : i + firstFID, name : toSerialize[i].f.name, field: toSerialize[i].f } );
 			for( i in 0...rpc.length )
-				cases.push( { id : i + startFID + firstRPCID, name : rpc[i].f.name.substr(0,-6) } );
-			var ecases = [for( c in cases ) { values : [ { expr : EConst(CInt("" + c.id)), pos : pos } ], expr : { expr : EConst(CString(c.name)), pos : pos }, guard : null } ];
-			var swExpr = { expr : EReturn( { expr : ESwitch(macro isRPC ? id + $v { startFID } : id, ecases, macro null), pos : pos } ), pos : pos };
-			fields.push( {
-				name : "networkGetName",
-				pos : pos,
-				access : access,
-				meta : noComplete,
-				kind : FFun({
-					args : [ { name : "id", type : macro : Int }, { name : "isRPC", type : macro : Bool, value:macro false } ],
-					ret : macro : String,
-					expr : if( isSubSer ) macro { if( id < (isRPC ? $v{ firstRPCID } : $v{ firstFID }) ) return super.networkGetName(id, isRPC); $swExpr; } else swExpr,
-				}),
+				cases.push( { id : i + startFID + firstRPCID, name : rpc[i].f.name.substr(0,-6), field: rpc[i].f } );
+
+			function networkGetter(name: String, ret: ComplexType, func : {id: Int, name: String, field: Field} -> Dynamic) {
+				var ecases = [for( c in cases ) { values : [ { expr : EConst(CInt("" + c.id)), pos : pos } ], expr : macro $v{func(c)}, guard : null } ];
+				var swExpr = { expr : EReturn( { expr : ESwitch(macro isRPC ? id + $v { startFID } : id, ecases, macro $v{func(null)}), pos : pos } ), pos : pos };
+				fields.push( {
+					name : name,
+					pos : pos,
+					access : access,
+					meta : noComplete,
+					kind : FFun({
+						args : [ { name : "id", type : macro : Int }, { name : "isRPC", type : macro : Bool, value:macro false } ],
+						ret : ret,
+						expr : if( isSubSer ) macro { if( id < (isRPC ? $v{ firstRPCID } : $v{ firstFID }) ) return super.$name(id, isRPC); $swExpr; } else swExpr,
+					}),
+				});
+			}
+
+			networkGetter("networkGetName", macro: String, function(c) {
+				if(c == null) return null;
+				return c.name;
 			});
+			for(getter in CUSTOM_GETTERS)
+				networkGetter(getter.name, getter.ret, getter.func);
 		}
 
 
