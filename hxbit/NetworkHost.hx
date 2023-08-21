@@ -228,7 +228,7 @@ class NetworkClient {
 				if( size < 0 )
 					throw "RPC on unreferenced object cannot be skip on this platform";
 				if( !host.isAuth )
-					host.logError("RPC @" + fid + " on unreferenced object", oid);
+					host.logError("RPC " + o.networkGetName(fid,true) + " on unreferenced object", oid);
 				ctx.skip(size);
 			} else if( !host.isAuth ) {
 				if( !o.networkRPC(ctx, fid, this) )
@@ -253,13 +253,13 @@ class NetworkClient {
 				if( size < 0 )
 					throw "RPC on unreferenced object cannot be skip on this platform";
 				if( !host.isAuth )
-					host.logError("RPC @" + fid + " on unreferenced object", oid);
+					host.logError("RPC " + o.networkGetName(fid,true) + " on unreferenced object", oid);
 				ctx.skip(size);
 				ctx.addByte(NetworkHost.CANCEL_RPC);
 				ctx.addInt(resultID);
 			} else if( !host.isAuth ) {
 				if( !o.networkRPC(ctx, fid, this) ) {
-					host.logError("RPC @" + fid + " on " + o + " has unreferenced object parameter");
+					host.logError("RPC " + o.networkGetName(fid,true) + " on " + o + " has unreferenced object parameter");
 					ctx.addByte(NetworkHost.CANCEL_RPC);
 					ctx.addInt(resultID);
 				}
