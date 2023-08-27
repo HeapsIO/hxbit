@@ -967,10 +967,11 @@ class NetworkHost {
 			prev = h;
 			h = h.__next;
 		}
+		var n = o.__next;
 		if( prev == null )
-			markHead = o.__next;
+			markHead = n == o ? null : n;
 		else
-			prev.__next = o.__next;
+			prev.__next = n == o ? prev : n;
 		o.__next = null;
 	}
 
