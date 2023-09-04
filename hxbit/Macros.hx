@@ -384,9 +384,7 @@ class Macros {
 				var ft = getPropField(f.type, f.meta.get(), partial);
 				if( ft == null ) return null;
 				fields.push( { name : f.name, type : ft, opt : f.meta.has(":optional") } );
-				#if (haxe_ver >= 4)
-				if( !f.isFinal ) isMutable = true;
-				#end
+				if( !f.isFinal || needProxy(ft) ) isMutable = true;
 			}
 			a.fields.length == 0 ? PDynamic : PObj(fields);
 		case TInst(c, pl):
@@ -2166,6 +2164,18 @@ class Macros {
 			} catch( e : Dynamic ) {
 				var pos = Context.currentPos();
 				var pt = p.t;
+
+				var hasProxy = false;
+				for( f in fields ) {
+					checkProxy(f.type);
+					if( f.type.isProxy )
+						hasProxy = true;
+				}
+				var optMeta : Metadata = [{ name : ":optional", pos : pos, params : [] }];
+				var loadT = haxe.macro.ComplexType.TAnonymous([for( f in fields ) { name : f.name, pos : pos, kind : FVar(f.type.t), meta : f.opt ? optMeta : null }]);
+				if( hasProxy )
+					pt = loadT;
+
 				var myT = TPath( { pack : ["hxbit"], name : name } );
 				var tfields = (macro class {
 					var obj : hxbit.NetworkSerializable.ProxyHost;
@@ -2198,6 +2208,13 @@ class Macros {
 					if( check )
 						markExpr = macro if(this.$fname != v) $markExpr;
 
+					var expr;
+					if( f.type.isProxy ) {
+						expr = macro { $markExpr; if( this.$fname != null ) this.$fname.unbindHost(); this.$fname = v; if( v != null ) v.bindHost(this,0); return v; }
+					} else {
+						expr = macro { $markExpr; this.$fname = v; return v; }
+					}
+
 					tfields.push( {
 						name : "set_" + f.name,
 						pos : pos,
@@ -2205,7 +2222,7 @@ class Macros {
 						kind : FFun({
 							ret : ft,
 							args : [ { name : "v", type : ft } ],
-							expr : macro { $markExpr; this.$fname = v; return v; }
+							expr : expr,
 						}),
 					});
 				}
@@ -2219,14 +2236,13 @@ class Macros {
 						expr : { expr : EBlock([for( f in fields ) { var fname = f.name; macro this.$fname = $i{fname}; }]), pos : pos },
 					})
 				});
-				var optMeta : Metadata = [{ name : ":optional", pos : pos, params : [] }];
 				tfields.push({
 					name : "__load",
 					pos : pos,
 					access : [APublic],
 					kind : FFun({
 						ret : null,
-						args : [{ name : "v", type : TAnonymous([for( f in fields ) { name : f.name, pos : pos, kind : FVar(f.type.t), meta : f.opt ? optMeta : null }]) }],
+						args : [{ name : "v", type : loadT }],
 						expr : { expr : EBlock([for( f in fields ) { var fname = f.name; macro this.$fname = v.$fname; }]), pos : pos },
 					})
 				});
