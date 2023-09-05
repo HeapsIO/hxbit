@@ -92,6 +92,7 @@ class Macros {
 
 	static var IN_ENUM_SER = false;
 	static var PREFIX_VARS : Map<String,Bool> = null;
+	static var ALLOW_CDB = false;
 	public static var IGNORED_META : Map<String,Bool> = new Map();
 	public static var VISIBILITY_VALUES = [];
 
@@ -248,12 +249,17 @@ class Macros {
 	}
 
 	static function getPropField( ft : Type, meta : Metadata, partial : Bool ) {
+		var prev = ALLOW_CDB;
+		for( m in meta )
+			if( m.name == ":allowCDB" )
+				ALLOW_CDB = true;
 		var t = getPropType(ft, partial);
+		ALLOW_CDB = prev;
 		if( t == null )
 			return null;
 		for( m in meta) {
 			switch( m.name ) {
-			case ":s", ":optional", ":serializePriority":
+			case ":s", ":optional", ":serializePriority",":allowCDB":
 				//
 			case ":increment":
 				var inc : Null<Float> = null;
@@ -366,6 +372,15 @@ class Macros {
 					return null;
 				default:
 				}
+				var ainf = a.get();
+				if( ainf.meta.has(":cdb") ) {
+					if( partial && !ALLOW_CDB ) {
+						Context.warning("Unsupported CDB type, store the id-kind or use @:allowCDB ", Context.currentPos());
+						return null;
+					}
+					isMutable = false;
+				} else if( ainf.meta.has(":noProxy") )
+					isMutable = false;
 				var pt = getPropType(t2,partial);
 				if( pt == null ) return null;
 				PAlias(pt);
@@ -1103,6 +1118,8 @@ class Macros {
 		switch( t.d ) {
 		case PMap(_), PArray(_), PObj(_), PVector(_), PFlags(_):
 			return !t.notMutable;
+		case PNull(st), PAlias(st):
+			return !t.notMutable && needProxy(st);
 		default:
 			return false;
 		}
@@ -2262,6 +2279,10 @@ class Macros {
 			}
 		case PFlags(e):
 			return TPath( { pack : ["hxbit"], name : "EnumFlagsProxy", params : [TPType(e.t)] } );
+		case PAlias(t):
+			return buildProxyType(t);
+		case PNull(t):
+			return TPath({ pack : [], name : "Null", params : [TPType(buildProxyType(t))] });
 		default:
 		}
 		return null;
