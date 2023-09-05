@@ -88,11 +88,15 @@ typedef PropType = {
 	@:optional var visibility : Int;
 }
 
+private enum Condition {
+	PartialResolution;
+	PreventCDB;
+}
+
 class Macros {
 
 	static var IN_ENUM_SER = false;
 	static var PREFIX_VARS : Map<String,Bool> = null;
-	static var ALLOW_CDB = false;
 	public static var IGNORED_META : Map<String,Bool> = new Map();
 	public static var VISIBILITY_VALUES = [];
 
@@ -115,7 +119,8 @@ class Macros {
 
 	public static macro function serializeValue( ctx : Expr, v : Expr ) : Expr {
 		var t = Context.typeof(v);
-		var pt = getPropType(t, false);
+		var conds = new haxe.EnumFlags<Condition>();
+		var pt = getPropType(t, conds);
 		if( pt == null ) {
 			Context.error("Unsupported serializable type " + t.toString(), v.pos);
 			return macro { };
@@ -124,9 +129,10 @@ class Macros {
 		return withPos(serializeExpr(ctx, v, pt),v.pos);
 	}
 
-	public static macro function unserializeValue( ctx : Expr, v : Expr, depth : Int = 0 ) : Expr {
+	public static macro function unserializeValue( ctx : Expr, v : Expr, depth : Int = 0, conds : Int = 0 ) : Expr {
 		var t = Context.typeof(v);
-		var pt = getPropType(t, false);
+		var conds : haxe.EnumFlags<Condition> = cast conds;
+		var pt = getPropType(t, conds);
 		if( pt == null ) {
 			Context.error("Unsupported serializable type " + t.toString(), v.pos);
 			return macro { };
@@ -145,12 +151,13 @@ class Macros {
 				}
 			}
 		}
-		return withPos(unserializeExpr(ctx, v, pt, depth),v.pos);
+		return withPos(unserializeExpr(ctx, v, pt, depth, conds),v.pos);
 	}
 
 	public static macro function getFieldType( v : Expr ) {
 		var t = Context.typeof(v);
-		var pt = getPropType(t, false);
+		var conds = new haxe.EnumFlags<Condition>();
+		var pt = getPropType(t, conds);
 		if( pt == null )
 			return macro null;
 		var v = toFieldType(pt);
@@ -248,13 +255,11 @@ class Macros {
 		return null;
 	}
 
-	static function getPropField( ft : Type, meta : Metadata, partial : Bool ) {
-		var prev = ALLOW_CDB;
+	static function getPropField( ft : Type, meta : Metadata, conds : haxe.EnumFlags<Condition> ) {
 		for( m in meta )
 			if( m.name == ":allowCDB" )
-				ALLOW_CDB = true;
-		var t = getPropType(ft, partial);
-		ALLOW_CDB = prev;
+				conds.unset(PreventCDB);
+		var t = getPropType(ft, conds);
 		if( t == null )
 			return null;
 		for( m in meta) {
@@ -308,7 +313,7 @@ class Macros {
 		return name;
 	}
 
-	static function getPropType( t : haxe.macro.Type, partial : Bool ) : PropType {
+	static function getPropType( t : haxe.macro.Type, conds : haxe.EnumFlags<Condition> ) : PropType {
 		var isProxy = false;
 		var isMutable = true;
 		var desc = switch( t ) {
@@ -323,45 +328,45 @@ class Macros {
 			case "Bool":
 				PBool;
 			case "Map", "haxe.ds.Map":
-				var tk = getPropType(pl[0],partial);
-				var tv = getPropType(pl[1],partial);
+				var tk = getPropType(pl[0],conds);
+				var tv = getPropType(pl[1],conds);
 				if( tk == null || tv == null )
 					return null;
 				PMap(tk, tv);
 			case "haxe.ds.Vector":
-				var tk = getPropType(pl[0],partial);
+				var tk = getPropType(pl[0],conds);
 				if( tk == null )
 					return null;
 				PVector(tk);
 			case "hxbit.VectorProxy":
-				var t = getPropType(pl[0],partial);
+				var t = getPropType(pl[0],conds);
 				if( t == null )
 					return null;
 				isProxy = true;
 				PVector(t);
 			case "hxbit.ArrayProxy", "hxbit.ArrayProxy2":
-				var t = getPropType(pl[0],partial);
+				var t = getPropType(pl[0],conds);
 				if( t == null )
 					return null;
 				isProxy = true;
 				PArray(t);
 			case "hxbit.MapProxy", "hxbit.MapProxy2":
-				var k = getPropType(pl[0],partial);
-				var v = getPropType(pl[1],partial);
+				var k = getPropType(pl[0],conds);
+				var v = getPropType(pl[1],conds);
 				if( k == null || v == null ) return null;
 				isProxy = true;
 				PMap(k, v);
 			case "hxbit.EnumFlagsProxy":
-				var e = getPropType(pl[0],partial);
+				var e = getPropType(pl[0],conds);
 				if( e == null ) return null;
 				isProxy = true;
 				PFlags(e);
 			case "haxe.EnumFlags":
-				var e = getPropType(pl[0],partial);
+				var e = getPropType(pl[0],conds);
 				if( e == null ) return null;
 				PFlags(e);
 			case "Null":
-				var p = getPropType(pl[0],partial);
+				var p = getPropType(pl[0],conds);
 				if( p != null && !isNullable(p) )
 					p = { d : PNull(p), t : TPath( { pack : [], name : "Null", params : [TPType(p.t)] } ) };
 				return p;
@@ -374,19 +379,25 @@ class Macros {
 				}
 				var ainf = a.get();
 				if( ainf.meta.has(":cdb") ) {
-					if( partial && !ALLOW_CDB ) {
+					if( conds.has(PreventCDB) ) {
 						Context.warning("Unsupported CDB type, store the id-kind or use @:allowCDB ", Context.currentPos());
 						return null;
 					}
 					isMutable = false;
 				} else if( ainf.meta.has(":noProxy") )
 					isMutable = false;
-				var pt = getPropType(t2,partial);
+				var pt = getPropType(t2,conds);
 				if( pt == null ) return null;
 				PAlias(pt);
 			}
 		case TEnum(e,_):
-			PEnum(getNativePath(e.get()));
+			var e = e.get();
+			var path = getNativePath(e);
+			if( conds.has(PreventCDB) && e.meta.has(":cdb") ) {
+				Context.warning("Unsupported enum containing CDB type, store the id-kind", Context.currentPos());
+				return null;
+			}
+			PEnum(path);
 		case TDynamic(_):
 			PDynamic;
 		case TAnonymous(a):
@@ -396,7 +407,7 @@ class Macros {
 			for( f in a.fields ) {
 				if( f.meta.has(":noSerialize") )
 					continue;
-				var ft = getPropField(f.type, f.meta.get(), partial);
+				var ft = getPropField(f.type, f.meta.get(), conds);
 				if( ft == null ) return null;
 				fields.push( { name : f.name, type : ft, opt : f.meta.has(":optional") } );
 				if( !f.isFinal || needProxy(ft) ) isMutable = true;
@@ -407,15 +418,15 @@ class Macros {
 			case "String":
 				PString;
 			case "Array":
-				var at = getPropType(pl[0],partial);
+				var at = getPropType(pl[0],conds);
 				if( at == null ) return null;
 				PArray(at);
 			case "haxe.ds.IntMap":
-				var vt = getPropType(pl[0],partial);
+				var vt = getPropType(pl[0],conds);
 				if( vt == null ) return null;
 				PMap({ t : macro : Int, d : PInt }, vt);
 			case "haxe.ds.StringMap":
-				var vt = getPropType(pl[0],partial);
+				var vt = getPropType(pl[0],conds);
 				if( vt == null ) return null;
 				PMap({ t : macro : String, d : PString }, vt);
 			case "haxe.io.Bytes":
@@ -424,7 +435,7 @@ class Macros {
 				var fields = c.get().fields.get();
 				for( f in fields )
 					if( f.name == "__value" ) {
-						var t = getPropType(f.type,partial);
+						var t = getPropType(f.type,conds);
 						if( t == null ) return t;
 						t.isProxy = true;
 						return t;
@@ -443,12 +454,12 @@ class Macros {
 		case TType(td, pl):
 			switch( td.toString() ) {
 			case "Null":
-				var p = getPropType(pl[0],partial);
+				var p = getPropType(pl[0],conds);
 				if( p != null && !isNullable(p) )
 					p = { d : PNull(p), t : TPath( { pack : [], name : "Null", params : [TPType(p.t)] } ) };
 				return p;
 			default:
-				var p = getPropType(Context.follow(t, true),partial);
+				var p = getPropType(Context.follow(t, true),conds);
 				if( p != null )
 					p.t = t.toComplexType(); // more general, still identical
 				return p;
@@ -456,9 +467,9 @@ class Macros {
 		case TLazy(f):
 			// browsing TLazy would flush the context leading to more recursions,
 			// since we are in our build phase, let's instead return Unknown
-			if( partial )
+			if( conds.has(PartialResolution) )
 				return { d : PUnknown, t : null };
-			return getPropType(f(), partial);
+			return getPropType(f(), conds);
 		default:
 			return null;
 		}
@@ -574,7 +585,7 @@ class Macros {
 		}
 	}
 
-	dynamic static function unserializeExpr( ctx : Expr, v : Expr, t : PropType, depth : Int ) {
+	dynamic static function unserializeExpr( ctx : Expr, v : Expr, t : PropType, depth : Int, conds : haxe.EnumFlags<Condition> ) {
 		switch( t.d ) {
 		case PInt64:
 			return macro $v = $ctx.getInt64();
@@ -596,7 +607,7 @@ class Macros {
 			return macro {
 				var $kname : $kt;
 				var $vname : $vt;
-				$v = $ctx.getMap(function() { hxbit.Macros.unserializeValue($ctx, $vk, $v{depth + 1}); return $vk; }, function() { hxbit.Macros.unserializeValue($ctx, $vv, $v{depth+1}); return $vv; });
+				$v = $ctx.getMap(function() { hxbit.Macros.unserializeValue($ctx, $vk, $v{depth + 1}, $v{conds.toInt()}); return $vk; }, function() { hxbit.Macros.unserializeValue($ctx, $vv, $v{depth+1}, $v{conds.toInt()}); return $vv; });
 			};
 		case PEnum(_):
 			var et = t.t;
@@ -625,10 +636,10 @@ class Macros {
 							vars.push( { field : name, expr : { expr : EConst(CIdent(name)), pos:v.pos } } );
 							if( nidx < 0 ) {
 								exprs.unshift(macro var $name : $ct);
-								exprs.push(macro hxbit.Macros.unserializeValue($ctx, $i{name}, $v{depth+1}));
+								exprs.push(macro hxbit.Macros.unserializeValue($ctx, $i{name}, $v{depth+1}, $v{conds.toInt()}));
 							} else {
 								exprs.unshift(macro var $name : $ct = null);
-								exprs.push(macro if( fbits & $v { 1 << nidx } != 0 ) hxbit.Macros.unserializeValue($ctx, $i{name}, $v{depth+1}));
+								exprs.push(macro if( fbits & $v { 1 << nidx } != 0 ) hxbit.Macros.unserializeValue($ctx, $i{name}, $v{depth+1}, $v{conds.toInt()}));
 							}
 						}
 						exprs.push( { expr : EBinop(OpAssign,v, { expr : EObjectDecl(vars), pos:v.pos } ), pos:v.pos } );
@@ -644,7 +655,7 @@ class Macros {
 			var ename = "e" + depth;
 			return macro {
 				var $ename : $at;
-				$v = $ctx.getArray(function() { hxbit.Macros.unserializeValue($ctx, $i{ename}, $v{depth+1}); return $i{ename}; });
+				$v = $ctx.getArray(function() { hxbit.Macros.unserializeValue($ctx, $i{ename}, $v{depth+1}, $v{conds.toInt()}); return $i{ename}; });
 			};
 		case PVector(at):
 			var at = toProxy(at);
@@ -652,7 +663,7 @@ class Macros {
 			var ename = "e" + depth;
 			return macro {
 				var $ename : $at;
-				$v = $ctx.getVector(function() { hxbit.Macros.unserializeValue($ctx, $i{ename}, $v{depth+1}); return $i{ename}; });
+				$v = $ctx.getVector(function() { hxbit.Macros.unserializeValue($ctx, $i{ename}, $v{depth+1}, $v{conds.toInt()}); return $i{ename}; });
 			};
 		case PSerializable(_):
 			function loop(t:ComplexType) {
@@ -682,18 +693,18 @@ class Macros {
 			var vname = "v" + depth;
 			return macro {
 				var $vname : $cvt;
-				${unserializeExpr(ctx,macro $i{vname},at,depth+1)};
+				${unserializeExpr(ctx,macro $i{vname},at,depth+1,conds)};
 				$v = cast $i{vname};
 			};
 		case PNull(t):
-			var e = unserializeExpr(ctx, v, t, depth);
+			var e = unserializeExpr(ctx, v, t, depth, conds);
 			return macro if( $ctx.getByte() == 0 ) $v = null else $e;
 		case PDynamic:
 			return macro $v = $ctx.getDynamic();
 		case PFlags(_):
 			return macro {
 				var v : Int;
-				${unserializeExpr(ctx,macro v,{ t : macro : Int, d : PInt },depth + 1)};
+				${unserializeExpr(ctx,macro v,{ t : macro : Int, d : PInt },depth + 1, conds)};
 				$v = ${t.isProxy ? macro new hxbit.EnumFlagsProxy(v) : macro new haxe.EnumFlags(v)};
 			};
 		case PStruct:
@@ -971,6 +982,10 @@ class Macros {
 				var cases = [], ucases = [], schemaExprs = [];
 				if( e.names.length >= 256 )
 					Context.error("Too many constructors", pos);
+				var conds = new haxe.EnumFlags<Condition>();
+				conds.set(PreventCDB);
+				if( e.meta.has(":allowCDB") || e.meta.has(":cdb") )
+					conds.unset(PreventCDB);
 				for( f in e.names ) {
 					var c = e.constructs.get(f);
 					switch( Context.follow(c.type) ) {
@@ -989,7 +1004,7 @@ class Macros {
 							var aname = "_" + a.name;
 							var at = haxe.macro.TypeTools.applyTypeParameters(a.t,e.params,tparams).toComplexType();
 							evals.push(macro var $aname : $at);
-							evals.push(macro hxbit.Macros.unserializeValue(ctx,$i{aname}));
+							evals.push(macro @:pos(e.pos) hxbit.Macros.unserializeValue(ctx,$i{aname},0,$v{conds.toInt()}));
 							etypes.push(macro { name : $v{a.name}, type : { var v : $at; hxbit.Macros.getFieldType(v); }, opt : $v{a.opt} });
 						}
 						evals.push({ expr : ECall({ expr : EConst(CIdent(c.name)), pos : pos },[for( a in args ) { expr : EConst(CIdent("_"+a.name)), pos : pos }]), pos : pos });
@@ -1409,7 +1424,10 @@ class Macros {
 			if( t == null ) t = quickInferType(einit);
 			if( t == null ) Context.error("Type required", pos);
 			var tt = Context.resolveType(t, pos);
-			var ftype = getPropField(tt, f.f.meta, true);
+			var conds = new haxe.EnumFlags<Condition>();
+			conds.set(PreventCDB);
+			conds.set(PartialResolution);
+			var ftype = getPropField(tt, f.f.meta, conds);
 			if( ftype == null ) {
 				// error here (even if it might error again in serialize code)
 				Context.error("Unsupported serializable type "+tt.toString(), pos);
@@ -1534,6 +1552,12 @@ class Macros {
 				var funArgs = f.args;
 				var resultCall = macro null;
 
+				var conds = new haxe.EnumFlags<Condition>();
+				conds.set(PreventCDB);
+				for( m in r.f.meta )
+					if( m.name == ":allowCDB" )
+						conds.unset(PreventCDB);
+
 				if( returnVal.value || returnVal.call ) {
 					var typeValue;
 					if( returnVal.call ) {
@@ -1558,7 +1582,7 @@ class Macros {
 					resultCall = withPos(macro function(__ctx:hxbit.NetworkSerializable.NetworkSerializer) {
 						var _v = cast null;
 						if( false ) $typeValue;
-						hxbit.Macros.unserializeValue(__ctx, _v);
+						hxbit.Macros.unserializeValue(__ctx, _v, 0, $v{conds});
 						if( __ctx.error ) return false;
 						if( onResult != null ) onResult(_v);
 						return true;
@@ -1676,7 +1700,7 @@ class Macros {
 				} else
 					exprs.push(macro if( false ) $fcall); // force typing
 				for( a in funArgs ) {
-					var e = macro hxbit.Macros.unserializeValue(__ctx, $i{ a.name });
+					var e = macro hxbit.Macros.unserializeValue(__ctx, $i{ a.name }, 0, $v{conds.toInt()});
 					e.pos = p;
 					exprs.push(e);
 				}
@@ -2043,13 +2067,14 @@ class Macros {
 			default: throw "assert";
 			};
 			var cases = [];
+			var conds = new haxe.EnumFlags<Condition>();
 			for( c in e.constructs ) {
 				switch( c.type ) {
 				case TFun(args,_):
 					var scans = [], eargs = [];
 					for( a in args ) {
 						var arg = macro $i{a.name};
-						var se = makeScanExpr(macro $arg, getPropType(a.t,false), pos);
+						var se = makeScanExpr(macro $arg, getPropType(a.t,conds), pos);
 						if( se != null )
 							scans.push(macro if( $arg != null ) $se);
 						eargs.push(arg);
@@ -2292,7 +2317,8 @@ class Macros {
 		var t = Context.getLocalType();
 		switch( t ) {
 		case TInst(_, [pt]):
-			var p = getPropType(pt, false);
+			var conds = new haxe.EnumFlags();
+			var p = getPropType(pt, conds);
 			if( p != null ) {
 				var t = buildProxyType(p);
 				if( t != null ) return toType(t);
