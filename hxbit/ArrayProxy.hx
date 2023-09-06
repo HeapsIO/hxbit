@@ -156,6 +156,11 @@ abstract ArrayProxy<T>(ArrayProxyData<T>) to ProxyChild {
 		this.array.unshift(x);
 	}
 
+	public inline function resize( len : Int ) : Void {
+		this.mark();
+		this.array.resize(len);
+	}
+
 	@:to inline function toIterable() : Iterable<T> {
 		return this.array;
 	}
