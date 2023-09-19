@@ -387,6 +387,8 @@ class NetworkClient {
 	function processMessagesData( data : haxe.io.Bytes, pos : Int, length : Int ) {
 		if( length > 0 )
 			lastMessage = haxe.Timer.stamp();
+		if( host == null )
+			return;
 		var end = pos + length;
 		host.receivingClient = this;
 		while( pos < end ) {
