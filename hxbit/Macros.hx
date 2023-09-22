@@ -1894,7 +1894,7 @@ class Macros {
 			else
 				scanExpr.push(macro refs[__uid] = this);
 			if( groups.keys().hasNext() ) {
-				scanExpr.push(macro var groups : Int = __cachedVisibility.get(from));
+				scanExpr.push(macro var groups : Int = __cachedVisibility == null ? 0 : __cachedVisibility.get(from));
 			}
 			for( f in toSerialize ) {
 				if( f.visibility != null ) continue;
