@@ -2313,6 +2313,84 @@ class Macros {
 		return null;
 	}
 
+	static function buildReadOnlyType( p : PropType ) : ComplexType {
+		switch( p.d ) {
+		case PMap(k,v):
+			var k = buildReadOnlyType(k);
+			var v = buildReadOnlyType(v);
+			return macro : hxbit.ReadOnly.ReadOnlyMap<$k,$v>;
+		case PArray(v):
+			var v = buildReadOnlyType(v);
+			return macro : hxbit.ReadOnly.ReadOnlyArray<$v>;
+		case PVector(v):
+			var v = buildReadOnlyType(v);
+			return macro : hxbit.ReadOnly.ReadOnlyVector<$v>;
+		case PNull(t):
+			var t = buildReadOnlyType(t);
+			return macro : Null<$t>;
+		case PAlias(t):
+			if( !needProxy(t) )
+				return p.t;
+			return buildReadOnlyType(t);
+		case PObj(fields):
+			// define type
+			var name = "ReadOnly_";
+			name += typeName(p);
+			try {
+				return Context.getType("hxbit." + name).toComplexType();
+			} catch( e : Dynamic ) {
+				var pos = Context.currentPos();
+				var tfields : Array<Field> = [];
+				for( f in fields ) {
+					var ro = buildReadOnlyType(f.type);
+					var fname = f.name;
+					tfields.push({
+						pos : pos,
+						name : f.name,
+						access : [APublic],
+						kind : FProp("get","never", ro),
+					});
+					tfields.push({
+						pos : pos,
+						name : "get_"+f.name,
+						access : [AInline],
+						kind : FFun({
+							args : [],
+							ret : ro,
+							expr : macro return this.$fname,
+						}),
+					});
+				}
+				tfields.push({
+					pos : pos,
+					name : "__value",
+					access : [APublic],
+					kind : FProp("get","never", p.t),
+				});
+				tfields.push({
+					pos : pos,
+					name : "get___value",
+					access : [AInline],
+					kind : FFun({
+						args : [],
+						expr : macro return this,
+					}),
+				});
+				var t : TypeDefinition = {
+					pos : pos,
+					pack : ["hxbit"],
+					name : name,
+					kind : TDAbstract(p.t,[p.t]),
+					fields : tfields,
+				};
+				Context.defineType(t);
+				return TPath({ pack : ["hxbit"], name : name });
+			}
+		default:
+			return p.t;
+		}
+	}
+
 	public static function buildSerializableProxy() {
 		var t = Context.getLocalType();
 		switch( t ) {
@@ -2321,6 +2399,23 @@ class Macros {
 			var p = getPropType(pt, conds);
 			if( p != null ) {
 				var t = buildProxyType(p);
+				if( t != null ) return toType(t);
+			}
+			throw "TODO "+pt+" ("+p+")";
+		default:
+			throw "assert";
+		}
+	}
+
+	public static function buildReadOnly() {
+		var t = Context.getLocalType();
+		switch( t ) {
+		case TInst(_, [pt]):
+			var conds = new haxe.EnumFlags<Condition>();
+			conds.set(PreventCDB);
+			var p = getPropType(pt, conds);
+			if( p != null ) {
+				var t = buildReadOnlyType(p);
 				if( t != null ) return toType(t);
 			}
 			throw "TODO "+pt+" ("+p+")";
