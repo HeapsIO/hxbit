@@ -91,6 +91,10 @@ abstract ArrayProxy<T>(ArrayProxyData<T>) to ProxyChild {
 		return new ArrayProxyIterator(__value);
 	}
 
+	public inline function keyValueIterator() {
+		return __value.keyValueIterator();
+	}
+
 	public inline function join( s : String ) {
 		return this.array.join(s);
 	}
@@ -231,6 +235,10 @@ abstract ArrayProxy2<T:ProxyChild>(ArrayProxyData<T>) to ProxyChild {
 
 	public inline function iterator() {
 		return new ArrayProxyIterator(__value);
+	}
+
+	public inline function keyValueIterator() {
+		return __value.keyValueIterator();
 	}
 
 	public inline function join( s : String ) {
