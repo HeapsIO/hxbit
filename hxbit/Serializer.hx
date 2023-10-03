@@ -1004,6 +1004,14 @@ class Serializer {
 			return (v:Bool) ? 1. : 0.;
 		case [PFloat, PInt]:
 			return Std.int(v);
+		case [PFloat, PInt64]:
+			return haxe.Int64.ofInt(Std.int((v:Float)));
+		case [PInt, PInt64]:
+			return ((v:Int):haxe.Int64);
+		case [PInt64, PInt]:
+			return haxe.Int64.toInt((v:haxe.Int64));
+		case [PInt64, PFloat]:
+			return haxe.Int64.toInt((v:haxe.Int64)) * 1.0;
 		case [PSerializable(_),PSerializable(to)]:
 			var cl = Type.resolveClass(to);
 			if( cl == null ) throw "Missing target class "+to;
