@@ -164,7 +164,7 @@ class NetworkClient {
 				}
 				logProps(bits1, 0);
 				logProps(bits2, 30);
-				host.logger("SYNC < " + o + "#" + o.__uid + " " + props.join("|"));
+				host.logger("SYNC < " + host.objStr(o) + " " + props.join("|"));
 			}
 			var old1 = o.__bits1, old2 = o.__bits2;
 			o.__bits1 = bits1;
@@ -239,7 +239,7 @@ class NetworkClient {
 				host.rpcClientValue = null;
 			}
 			if(host.logger != null && o != null) {
-				host.logger("RPC < " + o+"#"+o.__uid + " " + o.networkGetName(fid,true));
+				host.logger("RPC < " + host.objStr(o) + " " + o.networkGetName(fid,true));
 			}
 		case NetworkHost.RPC_WITH_RESULT:
 
@@ -683,7 +683,7 @@ class NetworkHost {
 	function beforeRPC(o:NetworkSerializable, id:Int) {
 		flushProps();
 		if( logger != null )
-			logger("RPC > " + o+"#"+o.__uid + " " + o.networkGetName(id,true));
+			logger("RPC > " + objStr(o) + " " + o.networkGetName(id,true));
 	}
 
 	function beginRPC(ctx:NetworkSerializer,o:NetworkSerializable, id:Int, onResult:NetworkSerializer->Void) {
@@ -776,6 +776,10 @@ class NetworkHost {
 			str = Std.int((haxe.Timer.stamp() - t0)*100)/100 + " " + str;
 			#if	sys Sys.println(str); #else trace(str); #end
 		});
+	}
+
+	function objStr(o:NetworkSerializable) {
+		return o + "#" + #if hxbit64 StringTools.hex(o.__uid.high)+StringTools.hex(o.__uid.low, 8) #else o.__uid #end;
 	}
 
 	public inline function addAliveEvent(f) {
@@ -953,11 +957,27 @@ class NetworkHost {
 			}
 			return;
 		}
-		if( logger != null )
-			logger("Register " + o + "#" + o.__uid);
+		logRegister(o);
 		ctx.addByte(REG);
 		ctx.addAnyRef(o);
 		if( checkEOM ) ctx.addByte(EOM);
+	}
+
+	function logRegister( o : NetworkSerializable ) {
+		if( logger == null )
+			return;
+		var groups = "";
+		#if hxbit_visibility
+		var bits = @:privateAccess globalCtx.evalVisibility(o);
+		if( bits != 0 ) {
+			var gstr = [];
+			for( g in VGROUPS )
+				if( bits & (1 << g.getIndex()) != 0 )
+					gstr.push(g.getName().toLowerCase());
+			groups = " "+gstr.join("|");
+		}
+		#end
+		logger("Register " + objStr(o) + groups);
 	}
 
 	function unmark( o : NetworkSerializable ) {
@@ -1019,7 +1039,7 @@ class NetworkHost {
 		o.__bits2 = 0;
 		unmark(o);
 		if( logger != null )
-			logger("Unregister " + o+"#"+o.__uid);
+			logger("Unregister " + objStr(o));
 		#if hxbit_visibility
 		for( c in clients ) {
 			var ctx = c.ctx;
@@ -1057,6 +1077,10 @@ class NetworkHost {
 		}
 	}
 
+	#if hxbit_visibility
+	static var VGROUPS = hxbit.VisibilityGroupDef.createAll();
+	#end
+
 	function flushProps() {
 		while( registerHead != null ) {
 			var o = registerHead;
@@ -1070,8 +1094,7 @@ class NetworkHost {
 				if( o2 != (o:Serializable) ) logError("Register conflict between objects", o.__uid);
 				continue;
 			}
-			if( logger != null )
-				logger("Register " + o + "#" + o.__uid);
+			logRegister(o);
 			globalCtx.addByte(REG);
 			globalCtx.addAnyRef(o);
 			if( checkEOM ) globalCtx.addByte(EOM);
@@ -1096,7 +1119,8 @@ class NetworkHost {
 							props.push(o.networkGetName(i+30));
 						i++;
 					}
-					logger("SYNC > " + o + "#" + o.__uid + " " + props.join("|"));
+					if( props.length > 0 )
+						logger("SYNC > " + objStr(o) + " " + props.join("|"));
 				}
 				if( stats != null )
 					stats.sync(o);
@@ -1112,6 +1136,15 @@ class NetworkHost {
 					o.__bits1 = bits1 & mask.low;
 					o.__bits2 = bits2 & mask.high;
 					if( prevGroups != newGroups ) {
+						if( logger != null ) {
+							var groups = [];
+							for( g in VGROUPS ) {
+								var mask = 1 << g.getIndex();
+								if( (prevGroups & mask) != (newGroups & mask) )
+									groups.push( ((prevGroups&mask) != 0 ? "-" : "+") + g.getName().toLowerCase() );
+							}
+							logger("VISIBILITY > " + objStr(o)+" "+groups.join("|"));
+						}
 						var activated = newGroups & ~prevGroups;
 						if( activated != 0 ) {
 							var mask = o.getVisibilityMask(activated);
