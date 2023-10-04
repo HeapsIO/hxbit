@@ -1266,6 +1266,11 @@ class Macros {
 				switch( f.kind ) {
 				case FFun(ff):
 					ff.expr = superImpl(f.name, ff.expr);
+					if( hasReturnVal(ff.expr).call ) {
+						replaceReturns(ff.expr);
+						ff.ret = macro : Void;
+						ff.args.push({ name : "__return" });
+					}
 				default:
 				}
 				f.name += "__impl";
