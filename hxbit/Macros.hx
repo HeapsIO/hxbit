@@ -321,7 +321,7 @@ class Macros {
 			switch( a.toString() ) {
 			case "haxe.Int64", "hl.I64":
 				PInt64;
-			case "Float":
+			case "Float", "Single":
 				PFloat;
 			case "Int","UInt":
 				PInt;
