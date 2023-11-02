@@ -720,6 +720,80 @@ class Macros {
 		return e;
 	}
 
+	public static function buildStructSerializable() {
+		var fields = Context.getBuildFields();
+		var toSerialize = [];
+		var customSer = null, customUnser = null, scanVis = null;
+		for( f in fields ) {
+			switch( f.name ) {
+			case "customSerialize": customSer = f;
+			case "customUnserialize": customUnser = f;
+			case "scanVisibility": scanVis = f;
+			default:
+				for( meta in f.meta )
+					if( meta.name == ":s" )
+						toSerialize.push(f);
+			}
+		}
+		if( toSerialize.length == 0 )
+			return null;
+		if( customSer != null || customUnser != null || scanVis != null )
+			throw "TODO";
+
+		var pos = Context.currentPos();
+		var el = [], ul = [], sl = [];
+		var conds = new haxe.EnumFlags<Condition>();
+		conds.set(PreventCDB);
+		conds.set(PartialResolution);
+		for( f in toSerialize ) {
+			var fname = f.name;
+			var pos = f.pos;
+			el.push(withPos(macro hxbit.Macros.serializeValue(__ctx,this.$fname),pos));
+			ul.push(withPos(macro hxbit.Macros.unserializeValue(__ctx,this.$fname),pos));
+			#if hxbit_visibility
+			var vt = switch( f.kind ) {
+			case FVar(t,_), FProp(_,_,t): t;
+			default: null;
+			}
+			if( vt == null ) Context.error("Type required", pos);
+			var tt = Context.resolveType(vt, pos);
+			var ftype = getPropField(tt, f.meta, conds);
+			if( ftype == null )
+				Context.error("Unsupported serializable type "+tt.toString(), pos);
+			var se = makeScanExpr(macro this.$fname, ftype, pos);
+			if( se != null ) sl.push(se);
+			#end
+		}
+		fields.push({
+			name : "customSerialize",
+			pos : pos,
+			kind : FFun({
+				args : [{ name : "__ctx", type : macro : hxbit.Serializer }],
+				expr : { expr : EBlock(el), pos : pos },
+			}),
+		});
+		fields.push({
+			name : "customUnserialize",
+			pos : pos,
+			kind : FFun({
+				args : [{ name : "__ctx", type : macro : hxbit.Serializer }],
+				expr : { expr : EBlock(ul), pos : pos },
+			}),
+		});
+		#if hxbit_visibility
+		fields.push({
+			name : "scanVisibility",
+			pos : pos,
+			access : [APublic],
+			kind : FFun({
+				args : [{ name : "from", type : macro : hxbit.NetworkSerializable }, { name : "refs", type : macro : hxbit.Serializer.UIDMap }],
+				expr : { expr : EBlock(sl), pos : pos },
+			}),
+		});
+		#end
+		return fields;
+	}
+
 	public static function buildSerializable() {
 		var cl = Context.getLocalClass().get();
 		if( cl.isInterface || Context.defined("display") || cl.meta.has(":skipSerialize") )
@@ -2063,8 +2137,8 @@ class Macros {
 
 	static function makeScanExpr( expr : Expr, t : PropType, pos : Position ) {
 		switch( t.d ) {
-		case PInt, PFloat, PBool, PString, PBytes, PInt64, PFlags(_), PUnknown, PStruct:
-		case PSerializable(name), PSerInterface(name):
+		case PInt, PFloat, PBool, PString, PBytes, PInt64, PFlags(_), PUnknown:
+		case PSerializable(_), PSerInterface(_), PStruct:
 			return macro if( $expr != null ) $expr.scanVisibility(from,refs);
 		case PEnum(name):
 			var e = switch( Context.resolveType(t.t, pos) ) {
