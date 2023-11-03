@@ -76,6 +76,7 @@ enum PropTypeDesc<PropType> {
 	PFlags( t : PropType );
 	PCustom;
 	PSerInterface( name : String );
+	PStruct( name : String, fields : Array<{ name : String, type : PropType }> );
 }
 
 typedef PropType = {
@@ -207,6 +208,7 @@ class Macros {
 		case PUnknown: PUnknown;
 		case PDynamic: PDynamic;
 		case PSerInterface(name): PSerInterface(name);
+		case PStruct(name, fields): PStruct(name,[for( f in fields ) { name : f.name, type : toFieldType(f.type) }]);
 		};
 	}
 
@@ -233,6 +235,10 @@ class Macros {
 
 	static function isCustomSerializable( c : Ref<ClassType> ) {
 		return lookupInterface(c, "hxbit.CustomSerializable");
+	}
+
+	static function isStructSerializable( c : Ref<ClassType> ) {
+		return lookupInterface(c, "hxbit.StructSerializable");
 	}
 
 	static function getVisibility( m : MetadataEntry ) : Null<Int> {
@@ -448,7 +454,19 @@ class Macros {
 					c.isInterface ? PSerInterface(path) : PSerializable(path);
 				} else if( isCustomSerializable(c) )
 					PCustom;
-				else
+				else if( isStructSerializable(c) ) {
+					var c = c.get();
+					var path = getNativePath(c);
+					var fields = [];
+					for( f in c.fields.get() ) {
+						if( !f.meta.has(":s") ) continue;
+						var t = getPropField(f.type, f.meta.get(), conds);
+						if( t == null )
+							return null;
+						fields.push({ name : f.name, type : t });
+					}
+					PStruct(path, fields);
+				} else
 					return null;
 			}
 		case TType(td, pl):
@@ -580,6 +598,14 @@ class Macros {
 			return serializeExpr(ctx, { expr : ECast(v, null), pos : v.pos }, { t : macro : Int, d : PInt });
 		case PCustom:
 			return macro $ctx.addCustom($v);
+		case PStruct(_):
+			return macro {
+				var v = $v;
+				if( v == null )
+					$ctx.addByte(0);
+				else
+					v.serialize($ctx);
+			}
 		case PUnknown:
 			throw "assert";
 		}
@@ -709,6 +735,17 @@ class Macros {
 			};
 		case PCustom:
 			return macro $v = $ctx.getCustom();
+		case PStruct(name,_):
+			var cexpr = Context.parse(t.t.toString(), v.pos);
+			return macro {
+				var b = $ctx.getInt();
+				if( b == 0 )
+					$v = null;
+				else {
+					$v = Type.createEmptyInstance($cexpr);
+					$v.unserialize($ctx, b);
+				}
+			}
 		case PUnknown:
 			throw "assert";
 		}
@@ -718,6 +755,98 @@ class Macros {
 		e.pos = p;
 		haxe.macro.ExprTools.iter(e, function(e) withPos(e, p));
 		return e;
+	}
+
+	public static function buildStructSerializable() {
+		var cl = Context.getLocalClass().get();
+		if( cl.isInterface )
+			return null;
+
+		var fields = Context.getBuildFields();
+		var toSerialize = [];
+		for( f in fields ) {
+			for( meta in f.meta )
+				if( meta.name == ":s" )
+					toSerialize.push(f);
+		}
+		if( toSerialize.length == 0 )
+			return null;
+
+		var sup = cl.superClass;
+		var isSubSer = sup != null && isStructSerializable(sup.t);
+		if( isSubSer )
+			Context.error("Struct serializable should not be subclassed", cl.pos);
+
+		var pos = Context.currentPos();
+		var serCode = [], serExprs = [], unserExprs = [], scanExprs = [];
+		var conds = new haxe.EnumFlags<Condition>();
+		conds.set(PreventCDB);
+		conds.set(PartialResolution);
+		unserExprs.push(macro __bits--);
+		serCode.push(macro var __bits = 0);
+		var bit = 0;
+		for( f in toSerialize ) {
+			var fname = f.name;
+			var pos = f.pos;
+
+			var vt = switch( f.kind ) {
+			case FVar(t,_), FProp(_,_,t): t;
+			default: null;
+			}
+			if( vt == null ) Context.error("Type required", pos);
+			var tt = Context.resolveType(vt, pos);
+			var ftype = getPropField(tt, f.meta, conds);
+			if( ftype == null )
+				Context.error("Unsupported serializable type "+tt.toString(), pos);
+
+			var sexpr = macro @:pos(pos) hxbit.Macros.serializeValue(__ctx,this.$fname);
+			var uexpr = macro @:pos(pos) hxbit.Macros.unserializeValue(__ctx,this.$fname);
+			if( isNullable(ftype) ) {
+				var b = bit++;
+				if( b == 31 ) Context.error("Too many nullable fields", pos);
+				serCode.push(macro @:pos(pos) if( this.$fname == null ) __bits |= 1 << $v{b});
+				sexpr = macro @:pos(pos) if( this.$fname != null ) $sexpr;
+				uexpr = macro @:pos(pos) if( __bits & (1 << $v{b}) == 0 ) $uexpr;
+			}
+			serExprs.push(sexpr);
+			unserExprs.push(uexpr);
+
+			#if hxbit_visibility
+			var se = makeScanExpr(macro this.$fname, ftype, pos);
+			if( se != null ) scanExprs.push(se);
+			#end
+		}
+		serCode.push(macro __ctx.addInt(__bits + 1));
+		fields.push({
+			name : "serialize",
+			pos : pos,
+			access : [APublic],
+			kind : FFun({
+				args : [{ name : "__ctx", type : macro : hxbit.Serializer }],
+				expr : { expr : EBlock(serCode.concat(serExprs)), pos : pos },
+			}),
+		});
+		fields.push({
+			name : "unserialize",
+			pos : pos,
+			access : [APublic],
+			kind : FFun({
+				args : [{ name : "__ctx", type : macro : hxbit.Serializer }, { name : "__bits", type : macro : Int }],
+				expr : { expr : EBlock(unserExprs), pos : pos },
+			}),
+		});
+		#if hxbit_visibility
+		fields.push({
+			name : "scanVisibility",
+			pos : pos,
+			access : [APublic],
+			kind : FFun({
+				args : [{ name : "from", type : macro : hxbit.NetworkSerializable }, { name : "refs", type : macro : hxbit.Serializer.UIDMap }],
+				expr : { expr : EBlock(scanExprs), pos : pos },
+			}),
+		});
+		#end
+		return fields;
 	}
 
 	public static function buildSerializable() {
@@ -2062,9 +2191,11 @@ class Macros {
 	}
 
 	static function makeScanExpr( expr : Expr, t : PropType, pos : Position ) {
+		if( t == null )
+			return macro {};
 		switch( t.d ) {
 		case PInt, PFloat, PBool, PString, PBytes, PInt64, PFlags(_), PUnknown, PCustom:
-		case PSerializable(_), PSerInterface(_):
+		case PSerializable(_), PSerInterface(_), PStruct(_):
 			return macro if( $expr != null ) $expr.scanVisibility(from,refs);
 		case PEnum(name):
 			var e = switch( Context.resolveType(t.t, pos) ) {

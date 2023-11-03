@@ -969,6 +969,24 @@ class Serializer {
 				Reflect.setField(v2, f.name, field);
 			}
 			return v2;
+		case [PStruct(name1,obj1), PStruct(name2,obj2)] if( name1 == name2 ):
+			var v2 = {};
+			for( f in obj2 ) {
+				var found = false;
+				var field : Dynamic = null;
+				for( f2 in obj1 )
+					if( f2.name == f.name ) {
+						found = true;
+						field = convertValue(path+"."+f2.name, Reflect.field(v, f2.name), f2.type, f.type);
+						break;
+					}
+				if( !found )
+					field = Convert.getDefault(f.type);
+				if( field == null && isNullable(f.type) )
+					continue;
+				Reflect.setField(v2, f.name, field);
+			}
+			return v2;
 		case [PNull(from),_]:
 			return convertValue(path, v, from, to);
 		case [_,PNull(to)]:
@@ -1098,10 +1116,13 @@ class Serializer {
 				return null;
 			var o = {};
 			bits--;
-			var nullables = [for( f in fields ) if( isNullable(f.type) ) f];
+			var bit = 0;
 			for( f in fields ) {
-				var nidx = nullables.indexOf(f);
-				if( nidx >= 0 && bits & (1 << nidx) == 0 ) continue;
+				if( isNullable(f.type) ) {
+					var flag = 1 << bit;
+					bit++;
+					if( bits & flag == 0 ) continue;
+				}
 				Reflect.setField(o, f.name, readValue(f.type));
 			}
 			return o;
@@ -1131,6 +1152,22 @@ class Serializer {
 			getInt();
 		case PCustom:
 			getCustom();
+		case PStruct(_, fields):
+			var bits = getInt();
+			if( bits == 0 )
+				return null;
+			var o = {};
+			bits--;
+			var bit = 0;
+			for( f in fields ) {
+				if( isNullable(f.type) ) {
+					var flag = 1 << bit;
+					bit++;
+					if( bits & flag != 0 ) continue;
+				}
+				Reflect.setField(o, f.name, readValue(f.type));
+			}
+			return o;
 		case PUnknown:
 			throw "assert";
 		}
@@ -1176,15 +1213,18 @@ class Serializer {
 				addByte(0);
 			else {
 				var fbits = 0;
-				var nullables = [for( f in fields ) if( isNullable(f.type) ) f];
-				for( i in 0...nullables.length )
-					if( Reflect.field(v, nullables[i].name) != null )
-						fbits |= 1 << i;
+				var bit = 0;
+				for( f in fields )
+					if( isNullable(f.type) ) {
+						if( Reflect.field(v, f.name) != null )
+							fbits |= 1 << bit;
+						bit++;
+					}
 				addInt(fbits + 1);
 				for( f in fields ) {
-					var nidx = nullables.indexOf(f);
-					if( nidx >= 0 && fbits & (1 << nidx) == 0 ) continue;
-					writeValue(Reflect.field(v, f.name), f.type);
+					var v : Dynamic = Reflect.field(v, f.name);
+					if( v == null && isNullable(f.type) ) continue;
+					writeValue(v, f.type);
 				}
 			}
 		case PMap(k, t):
@@ -1217,6 +1257,25 @@ class Serializer {
 			addInt(v);
 		case PCustom:
 			addCustom(v);
+		case PStruct(_, fields):
+			if( v == null )
+				addByte(0);
+			else {
+				var fbits = 0;
+				var bit = 0;
+				for( f in fields )
+					if( isNullable(f.type) ) {
+						if( Reflect.field(v, f.name) == null )
+							fbits |= 1 << bit;
+						bit++;
+					}
+				addInt(fbits + 1);
+				for( f in fields ) {
+					var v : Dynamic = Reflect.field(v, f.name);
+					if( v == null && isNullable(f.type) ) continue;
+					writeValue(v, f.type);
+				}
+			}
 		case PUnknown:
 			throw "assert";
 		}

@@ -135,6 +135,22 @@ class NetworkStats {
 					size += calcPropSize(f.type, Reflect.field(v, f.name));
 				}
 			}
+		case PStruct(_, fields):
+			if( v == null )
+				size++;
+			else {
+				var fbits = 0;
+				var nullables = [for( f in fields ) if( isNullable(f.type) ) f];
+				for( i in 0...nullables.length )
+					if( Reflect.field(v, nullables[i].name) != null )
+						fbits |= 1 << i;
+				size += intSize(fbits + 1);
+				for( f in fields ) {
+					var nidx = nullables.indexOf(f);
+					if( nidx >= 0 && fbits & (1 << nidx) == 0 ) continue;
+					size += calcPropSize(f.type, Reflect.field(v, f.name));
+				}
+			}
 		case PAlias(t):
 			return calcPropSize(t, v);
 		case PVector(t):
