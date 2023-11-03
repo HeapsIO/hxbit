@@ -138,7 +138,7 @@ class Convert {
 		case PVector(_): new haxe.ds.Vector<Dynamic>(0);
 		case PBool: false;
 		case PAlias(t): getDefault(t);
-		case PEnum(_), PNull(_), PObj(_), PSerializable(_), PSerInterface(_), PString, PUnknown, PBytes, PDynamic, PStruct: null;
+		case PEnum(_), PNull(_), PObj(_), PSerializable(_), PSerInterface(_), PString, PUnknown, PBytes, PDynamic, PCustom: null;
 		};
 	}
 

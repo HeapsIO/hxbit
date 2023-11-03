@@ -162,7 +162,7 @@ class NetworkStats {
 		case PFlags(_):
 			if( Std.isOfType(v, hxbit.NetworkSerializable.BaseProxy) ) v = v.value;
 			size += intSize(v);
-		case PStruct:
+		case PCustom:
 			// TODO
 		}
 		return size;
