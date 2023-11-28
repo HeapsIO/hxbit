@@ -753,6 +753,19 @@ class Macros {
 		return e;
 	}
 
+	static function makeScanExpr( expr, type, pos ) {
+		return makeRecExpr(expr, type, pos, function(expr, t) {
+			switch( t.d ) {
+			case PDynamic:
+				return macro @:privateAccess hxbit.NetworkHost.scanDynRec($expr, from, refs);
+			case PEnum(_):
+				return makeEnumCall(t,"scanVisibility",[macro cast $expr,macro from,macro refs]);
+			default:
+				return macro $expr.scanVisibility(from,refs);
+			}
+		});
+	}
+
 	public static function buildStructSerializable() {
 		var cl = Context.getLocalClass().get();
 		if( cl.isInterface )
@@ -1214,7 +1227,52 @@ class Macros {
 							expr : macro return doUnserialize(ctx),
 							ret : null,
 						}),
-					}],
+					}
+					#if hxbit_visibility
+					,{
+						name : "scanVisibility",
+						access : [AInline, APublic],
+						meta : [{name:":extern",pos:pos}],
+						pos : pos,
+						kind : FFun( {
+							args : [{ name : "value", type : pt.toComplexType() },{ name : "from", type : macro : hxbit.NetworkSerializable },{ name : "refs", type : macro : hxbit.Serializer.UIDMap }],
+							expr : macro return doScanVisibility(value, from, refs),
+							ret : null,
+						}),
+					}, {
+						name : "doScanVisibility",
+						access : [AStatic],
+						pos : pos,
+						kind : FFun({
+							args : [{ name : "value", type : pt.toComplexType() },{ name : "from", type : macro : hxbit.NetworkSerializable },{ name : "refs", type : macro : hxbit.Serializer.UIDMap }],
+							expr : {
+								var cases = [];
+								var conds = new haxe.EnumFlags<Condition>();
+								for( c in e.constructs ) {
+									switch( c.type ) {
+									case TFun(args,_):
+										var scans = [], eargs = [];
+										for( a in args ) {
+											var arg = macro $i{a.name};
+											var se = makeScanExpr(arg, getPropType(a.t,conds), pos);
+											if( se != null ) {
+												scans.push(macro if( $arg != null ) $se);
+												eargs.push(arg);
+											} else
+												eargs.push(macro _);
+										}
+										if( scans.length > 0 )
+											cases.push({ values : [macro $i{c.name}($a{eargs})], expr : macro {$b{scans}} });
+									default:
+									}
+								}
+								var swexpr = { expr : ESwitch(macro value,cases,macro null), pos : pos };
+								if( cases.length == 0 ) macro {} else swexpr;
+							}
+						})
+					}
+					#end
+					],
 					pos : pos,
 				};
 				Context.defineType(t);
@@ -2177,41 +2235,16 @@ class Macros {
 		return fields;
 	}
 
-	static function makeScanExpr( expr : Expr, t : PropType, pos : Position ) {
+	static function makeRecExpr( expr : Expr, t : PropType, pos : Position, mk : Expr -> PropType -> Expr ) {
 		if( t == null )
 			return macro {};
 		switch( t.d ) {
 		case PInt, PFloat, PBool, PString, PBytes, PInt64, PFlags(_), PUnknown, PCustom:
-		case PSerializable(_), PSerInterface(_), PStruct(_):
-			return macro if( $expr != null ) $expr.scanVisibility(from,refs);
-		case PEnum(name):
-			var e = switch( Context.resolveType(t.t, pos) ) {
-			case TEnum(e,_): e.get();
-			default: throw "assert";
-			};
-			var cases = [];
-			var conds = new haxe.EnumFlags<Condition>();
-			for( c in e.constructs ) {
-				switch( c.type ) {
-				case TFun(args,_):
-					var scans = [], eargs = [];
-					for( a in args ) {
-						var arg = macro $i{a.name};
-						var se = makeScanExpr(macro $arg, getPropType(a.t,conds), pos);
-						if( se != null )
-							scans.push(macro if( $arg != null ) $se);
-						eargs.push(arg);
-					}
-					if( scans.length > 0 )
-						cases.push({ values : [macro $i{c.name}($a{eargs})], expr : macro {$b{scans}} });
-				default:
-				}
-			}
-			var swexpr = { expr : ESwitch(expr,cases,macro null), pos : expr.pos };
-			return cases.length == 0 ? null : macro if( $expr != null ) $swexpr;
+		case PSerializable(_), PSerInterface(_), PStruct(_), PDynamic, PEnum(_):
+			return macro if( $expr != null ) ${mk(expr,t)};
 		case PMap(k,v):
-			var ek = makeScanExpr(macro __key, k, pos);
-			var ev = makeScanExpr(macro __val, v, pos);
+			var ek = makeRecExpr(macro __key, k, pos, mk);
+			var ev = makeRecExpr(macro __val, v, pos, mk);
 			if( ek == null && ev == null )
 				return null;
 			if( ek != null && ev != null )
@@ -2220,23 +2253,21 @@ class Macros {
 				return macro if( $expr != null ) { for( __key in $expr.keys() ) $ek; };
 			return macro if( $expr != null ) { for( __val in $expr ) $ev; };
 		case PArray(v), PVector(v):
-			var ev = makeScanExpr(macro __val, v, pos);
+			var ev = makeRecExpr(macro __val, v, pos, mk);
 			return ev == null ? null : macro if( $expr != null ) { for( __val in $expr ) $ev; };
 		case PObj(fields):
 			var out = [];
 			for( f in fields ) {
 				var name = f.name;
-				var ev = makeScanExpr(macro $expr.$name, f.type, pos);
+				var ev = makeRecExpr(macro $expr.$name, f.type, pos, mk);
 				if( ev != null )
 					out.push(macro if( $expr.$name != null ) $ev);
 			}
 			return out.length == 0 ? null : macro if( $expr != null ) $b{out};
 		case PAlias(t):
-			return makeScanExpr(expr, t, pos);
+			return makeRecExpr(expr, t, pos, mk);
 		case PNull(t):
-			return makeScanExpr(expr, t, pos);
-		case PDynamic:
-			return macro @:privateAccess hxbit.NetworkHost.scanDynRec($expr, from, refs);
+			return makeRecExpr(expr, t, pos, mk);
 		}
 		return null;
 	}
