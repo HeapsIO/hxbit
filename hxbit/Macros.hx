@@ -96,7 +96,6 @@ private enum Condition {
 
 class Macros {
 
-	static var IN_ENUM_SER = false;
 	static var PREFIX_VARS : Map<String,Bool> = null;
 	public static var IGNORED_META : Map<String,Bool> = new Map();
 	public static var VISIBILITY_VALUES = [];
@@ -126,7 +125,6 @@ class Macros {
 			Context.error("Unsupported serializable type " + t.toString(), v.pos);
 			return macro { };
 		}
-		IN_ENUM_SER = StringTools.startsWith(Context.getLocalClass().toString(), "hxbit.enumSer.");
 		return withPos(serializeExpr(ctx, v, pt),v.pos);
 	}
 
@@ -139,7 +137,6 @@ class Macros {
 			return macro { };
 		}
 		var cl = Context.getLocalClass();
-		IN_ENUM_SER = StringTools.startsWith(cl.toString(), "hxbit.enumSer.");
 		PREFIX_VARS = null;
 		for( v in cl.get().meta.extract(":prefixVar") ) {
 			if( v.params == null ) continue;
@@ -515,6 +512,12 @@ class Macros {
 		return Context.typeof(macro (null:$t));
 	}
 
+
+	static function makeEnumCall( t : PropType, name : String, args ) {
+		var et = t.t;
+		return macro (null : hxbit.Serializable.SerializableEnum<$et>).$name($a{args});
+	}
+
 	static function serializeExpr( ctx : Expr, v : Expr, t : PropType, skipCheck = false ) {
 
 		if( t.isProxy && !skipCheck )
@@ -538,11 +541,7 @@ class Macros {
 			var vv = { expr : EConst(CIdent("v")), pos : v.pos };
 			return macro $ctx.addMap($v, function(k:$kt) return hxbit.Macros.serializeValue($ctx, $vk), function(v:$vt) return hxbit.Macros.serializeValue($ctx, $vv));
 		case PEnum(_):
-			var et = t.t;
-			var ser = "serialize";
-			if( IN_ENUM_SER )
-				ser += "2";
-			return macro (null : hxbit.Serializable.SerializableEnum<$et>).$ser($ctx,$v);
+			return makeEnumCall(t, "serialize", [ctx, v]);
 		case PObj(fields):
 			var nullables = [for( f in fields ) if( isNullable(f.type) ) f];
 			var ct = t.t;
@@ -637,10 +636,7 @@ class Macros {
 			};
 		case PEnum(_):
 			var et = t.t;
-			var unser = "unserialize";
-			if( IN_ENUM_SER )
-				unser += "2";
-			return macro { var __e : $et; __e = (null : hxbit.Serializable.SerializableEnum<$et>).$unser($ctx); $v = __e; }
+			return macro { var __e : $et; __e = ${makeEnumCall(t,"unserialize",[ctx])}; $v = __e; }
 		case PObj(fields):
 			var nullables = [for( f in fields ) if( isNullable(f.type) ) f];
 			if( nullables.length >= 32 )
@@ -1221,15 +1217,6 @@ class Macros {
 					}],
 					pos : pos,
 				};
-
-				// hack to allow recursion (duplicate serialize/unserialize for recursive usage)
-				var tf = Reflect.copy(t.fields[t.fields.length - 2]);
-				tf.name += "2";
-				t.fields.push(tf);
-				var tf = Reflect.copy(t.fields[t.fields.length - 2]);
-				tf.name += "2";
-				t.fields.push(tf);
-
 				Context.defineType(t);
 				return Context.getType(className);
 			}
