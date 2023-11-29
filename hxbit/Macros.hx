@@ -152,6 +152,18 @@ class Macros {
 		return withPos(unserializeExpr(ctx, v, pt, depth, conds),v.pos);
 	}
 
+	public static macro function scanVisibilityValue( v : Expr ) : Expr {
+		var t = Context.typeof(v);
+		var conds = new haxe.EnumFlags<Condition>();
+		var pt = getPropType(t, conds);
+		if( pt == null )
+			return macro { };
+		var se = makeScanExpr(v, pt, v.pos);
+		if( se == null )
+			return macro { };
+		return se;
+	}
+
 	public static macro function getFieldType( v : Expr ) {
 		var t = Context.typeof(v);
 		var conds = new haxe.EnumFlags<Condition>();
@@ -734,12 +746,12 @@ class Macros {
 		case PStruct(name,_):
 			var cexpr = Context.parse(t.t.toString(), v.pos);
 			return macro {
-				var b = $ctx.getInt();
-				if( b == 0 )
+				if( $ctx.getByte() == 0 )
 					$v = null;
 				else {
+					@:privateAccess $ctx.inPos--;
 					$v = Type.createEmptyInstance($cexpr);
-					$v.unserialize($ctx, b);
+					$v.unserialize($ctx);
 				}
 			}
 		case PUnknown:
@@ -766,99 +778,42 @@ class Macros {
 		});
 	}
 
-	public static function buildStructSerializable() {
-		var cl = Context.getLocalClass().get();
-		if( cl.isInterface )
-			return null;
-
-		var fields = Context.getBuildFields();
-		var toSerialize = [];
+	static function patchField( fields : Array<Field>, code : Expr, fieldName : String, ?isNetwork : Bool ) {
+		code.expr = EMeta({ name : isNetwork ? ":networkSerializableGen" : ":serializableGen", params : [], pos : code.pos }, { expr : code.expr, pos : code.pos });
 		for( f in fields ) {
-			for( meta in f.meta )
-				if( meta.name == ":s" )
-					toSerialize.push(f);
-		}
-		if( toSerialize.length == 0 )
-			return null;
-
-		var sup = cl.superClass;
-		var isSubSer = sup != null && isStructSerializable(sup.t);
-		if( isSubSer )
-			Context.error("Struct serializable should not be subclassed", cl.pos);
-
-		var pos = Context.currentPos();
-		var serCode = [], serExprs = [], unserExprs = [], scanExprs = [];
-		var conds = new haxe.EnumFlags<Condition>();
-		conds.set(PreventCDB);
-		conds.set(PartialResolution);
-		unserExprs.push(macro __bits--);
-		serCode.push(macro var __bits = 0);
-		var bit = 0;
-		for( f in toSerialize ) {
-			var fname = f.name;
-			var pos = f.pos;
-
-			var vt = switch( f.kind ) {
-			case FVar(t,_), FProp(_,_,t): t;
-			default: null;
+			if( f.name != fieldName )
+				continue;
+			var injectPoint = null;
+			var cancelInject = false;
+			function iterRec(e:Expr) {
+				switch( e.expr ) {
+				case ECall({ expr : EField({ expr : EConst(CIdent("super")) },fff) },_) if( fff == fieldName ):
+					injectPoint = e;
+				case EMeta({ name : ":networkSerializableGen" },_):
+					cancelInject = true;
+				case EMeta({ name : ":serializableGen" },_):
+					injectPoint = e;
+				default:
+					haxe.macro.ExprTools.iter(e, iterRec);
+				}
 			}
-			if( vt == null ) Context.error("Type required", pos);
-			var tt = Context.resolveType(vt, pos);
-			var ftype = getPropField(tt, f.meta, conds);
-			if( ftype == null )
-				Context.error("Unsupported serializable type "+tt.toString(), pos);
-
-			var sexpr = macro @:pos(pos) hxbit.Macros.serializeValue(__ctx,this.$fname);
-			var uexpr = macro @:pos(pos) hxbit.Macros.unserializeValue(__ctx,this.$fname);
-			if( isNullable(ftype) ) {
-				var b = bit++;
-				if( b == 31 ) Context.error("Too many nullable fields", pos);
-				serCode.push(macro @:pos(pos) if( this.$fname == null ) __bits |= 1 << $v{b});
-				sexpr = macro @:pos(pos) if( this.$fname != null ) $sexpr;
-				uexpr = macro @:pos(pos) if( __bits & (1 << $v{b}) == 0 ) $uexpr;
+			switch( f.kind ) {
+			case FFun(f):
+				iterRec(f.expr);
+			default: throw "assert";
 			}
-			serExprs.push(sexpr);
-			unserExprs.push(uexpr);
-
-			#if hxbit_visibility
-			var se = makeScanExpr(macro this.$fname, ftype, pos);
-			if( se != null ) scanExprs.push(se);
-			#end
+			if( cancelInject )
+				return true;
+			if( injectPoint == null )
+				Context.error("Missing super() call", f.pos);
+			else
+				injectPoint.expr = code.expr;
+			return true;
 		}
-		serCode.push(macro __ctx.addInt(__bits + 1));
-		fields.push({
-			name : "serialize",
-			pos : pos,
-			access : [APublic],
-			kind : FFun({
-				args : [{ name : "__ctx", type : macro : hxbit.Serializer }],
-				expr : { expr : EBlock(serCode.concat(serExprs)), pos : pos },
-			}),
-		});
-		fields.push({
-			name : "unserialize",
-			pos : pos,
-			access : [APublic],
-			kind : FFun({
-				args : [{ name : "__ctx", type : macro : hxbit.Serializer }, { name : "__bits", type : macro : Int }],
-				expr : { expr : EBlock(unserExprs), pos : pos },
-			}),
-		});
-		#if hxbit_visibility
-		fields.push({
-			name : "scanVisibility",
-			pos : pos,
-			access : [APublic],
-			kind : FFun({
-				args : [{ name : "from", type : macro : hxbit.NetworkSerializable }, { name : "refs", type : macro : hxbit.Serializer.UIDMap }],
-				expr : { expr : EBlock(scanExprs), pos : pos },
-			}),
-		});
-		#end
-		return fields;
+		return false;
 	}
 
-	public static function buildSerializable() {
+	public static function buildSerializable(isStruct=false) {
 		var cl = Context.getLocalClass().get();
 		if( cl.isInterface || Context.defined("display") || cl.meta.has(":skipSerialize") )
 			return null;
@@ -928,26 +883,68 @@ class Macros {
 		var pos = Context.currentPos();
 		// todo : generate proper generic static var ?
 		// this is required for fixing conflicting member var / package name
-		var useStaticSer = cl.params.length == 0;
+		var useStaticSer = cl.params.length == 0 && !isStruct;
 		var el = [], ul = [], serializePriorityFuns = null;
-		for( f in toSerialize ) {
-			var fname = f.f.name;
-			var ef = useStaticSer && f.f != serializePriority ? macro __this.$fname : macro this.$fname;
-			el.push(withPos(macro hxbit.Macros.serializeValue(__ctx,$ef),f.f.pos));
-			ul.push(withPos(macro hxbit.Macros.unserializeValue(__ctx, $ef),f.f.pos));
-			if( f.vis != null ) {
-				el.push(macro if( @:privateAccess __ctx.visibilityGroups & (1<<$v{f.vis}) != 0 ) ${el.pop()});
-				ul.push(macro if( @:privateAccess __ctx.visibilityGroups & (1<<$v{f.vis}) != 0 ) ${ul.pop()} else $ef = cast null);
+
+		if( isStruct ) {
+			ul.push(macro var __bits = __ctx.getInt());
+			ul.push(macro __bits--);
+			el.push(macro var __bits = 0);
+			var bit = 0, elAfter = [];
+			var conds = new haxe.EnumFlags<Condition>();
+			conds.set(PreventCDB);
+			conds.set(PartialResolution);
+			for( s in toSerialize ) {
+				var f = s.f;
+				var fname = f.name;
+				var vt = switch( f.kind ) {
+				case FVar(t,_), FProp(_,_,t): t;
+				default: null;
+				}
+				if( vt == null ) Context.error("Type required", pos);
+				var tt = Context.resolveType(vt, pos);
+				var ftype = getPropField(tt, f.meta, conds);
+				if( ftype == null )
+					Context.error("Unsupported serializable type "+tt.toString(), pos);
+
+				var sexpr = macro @:pos(pos) hxbit.Macros.serializeValue(__ctx,this.$fname);
+				var uexpr = macro @:pos(pos) hxbit.Macros.unserializeValue(__ctx,this.$fname);
+				if( isNullable(ftype) ) {
+					var b = bit++;
+					if( b == 31 ) Context.error("Too many nullable fields", pos);
+					el.push(macro @:pos(pos) if( this.$fname == null ) __bits |= 1 << $v{b});
+					sexpr = macro @:pos(pos) if( this.$fname != null ) $sexpr;
+					uexpr = macro @:pos(pos) if( __bits & (1 << $v{b}) == 0 ) $uexpr;
+				}
+				elAfter.push(sexpr);
+				ul.push(uexpr);
 			}
-			if( f.f == serializePriority ) {
-				if( serializePriorityFuns != null ) throw "assert";
-				serializePriorityFuns = { ser : el.pop(), unser : ul.pop() };
+			el.push(macro __ctx.addInt(__bits + 1));
+			el = el.concat(elAfter);
+		} else {
+			for( f in toSerialize ) {
+				var fname = f.f.name;
+				var ef = useStaticSer && f.f != serializePriority ? macro __this.$fname : macro this.$fname;
+				el.push(withPos(macro hxbit.Macros.serializeValue(__ctx,$ef),f.f.pos));
+				ul.push(withPos(macro hxbit.Macros.unserializeValue(__ctx, $ef),f.f.pos));
+				if( f.vis != null ) {
+					el.push(macro if( @:privateAccess __ctx.visibilityGroups & (1<<$v{f.vis}) != 0 ) ${el.pop()});
+					ul.push(macro if( @:privateAccess __ctx.visibilityGroups & (1<<$v{f.vis}) != 0 ) ${ul.pop()} else $ef = cast null);
+				}
+				if( f.f == serializePriority ) {
+					if( serializePriorityFuns != null ) throw "assert";
+					serializePriorityFuns = { ser : el.pop(), unser : ul.pop() };
+				}
 			}
 		}
 
 		var noCompletion = [{ name : ":noCompletion", pos : pos }];
 		var access = [APublic];
-		if( isSubSer )
+		if( isStruct ) {
+			if( isSubSer )
+				Context.error("StructSerializable cannot extend Serializable", pos);
+			cl.meta.add(":final",[], pos);
+		} else if( isSubSer )
 			access.push(AOverride);
 		else
 			fields.push({
@@ -959,20 +956,22 @@ class Macros {
 			});
 
 		var clName = StringTools.endsWith(cl.module,"."+cl.name) ? cl.module.split(".") : [cl.name];
-		fields.push({
-			name : "__clid",
-			pos : pos,
-			access : [AStatic],
-			meta : noCompletion,
-			kind : FVar(macro : Int, macro @:privateAccess hxbit.Serializer.registerClass($p{clName})),
-		});
-		fields.push({
-			name : "getCLID",
-			pos : pos,
-			access : access,
-			meta : noCompletion,
-			kind : FFun({ args : [], ret : macro : Int, expr : macro return __clid }),
-		});
+		if( !isStruct ) {
+			fields.push({
+				name : "__clid",
+				pos : pos,
+				access : [AStatic],
+				meta : noCompletion,
+				kind : FVar(macro : Int, macro @:privateAccess hxbit.Serializer.registerClass($p{clName})),
+			});
+			fields.push({
+				name : "getCLID",
+				pos : pos,
+				access : access,
+				meta : noCompletion,
+				kind : FFun({ args : [], ret : macro : Int, expr : macro return __clid }),
+			});
+		}
 
 		var needSerialize = toSerialize.length != 0 || !isSubSer || addCustomSerializable;
 		var needUnserialize = needSerialize || fieldsInits.length != 0 || addCustomUnserializable;
@@ -1022,11 +1021,37 @@ class Macros {
 					expr : macro {
 						var schema = ${if( isSubSer ) macro super.getSerializeSchema() else macro new hxbit.Schema()};
 						$b{schema};
-						schema.isFinal = hxbit.Serializer.isClassFinal(__clid);
+						schema.isFinal = ${isStruct ? macro true : macro hxbit.Serializer.isClassFinal(__clid)};
 						return schema;
 					}
 				})
 			});
+			#if hxbit_visibility
+			var scanExprs = [];
+			if( !isStruct ) {
+				scanExprs.push(macro if( refs[__uid] != null ) return);
+				if( isSubSer )
+					scanExprs.push(macro super.scanVisibility(from, refs));
+				else
+					scanExprs.push(macro refs[__uid] = this);
+			}
+			for( s in toSerialize ) {
+				var name = s.f.name;
+				scanExprs.push(macro @:pos(s.f.pos) hxbit.Macros.scanVisibilityValue(this.$name));
+			}
+			var code = { expr : EBlock(scanExprs), pos : pos };
+			if( !patchField(fields,code,"scanVisibility") ) {
+				fields.push({
+					name : "scanVisibility",
+					pos : pos,
+					access : access,
+					kind : FFun({
+						args : [{ name : "from", type : macro : hxbit.NetworkSerializable }, { name : "refs", type : macro : hxbit.Serializer.UIDMap }],
+						expr : code,
+					}),
+				});
+			}
+			#end
 		}
 
 		if( fieldsInits.length > 0 || !isSubSer )
@@ -2066,65 +2091,43 @@ class Macros {
 				}),
 			});
 
-			var scanExpr = [];
-			scanExpr.push(macro if( refs[__uid] != null ) return);
+			var scanExprs = [];
+			scanExprs.push(macro if( refs[__uid] != null ) return);
 			if( isSubSer )
-				scanExpr.push(macro super.scanVisibility(from, refs));
+				scanExprs.push(macro super.scanVisibility(from, refs));
 			else
-				scanExpr.push(macro refs[__uid] = this);
+				scanExprs.push(macro refs[__uid] = this);
 			if( groups.keys().hasNext() ) {
-				scanExpr.push(macro var groups : Int = __cachedVisibility == null ? 0 : __cachedVisibility.get(from));
+				scanExprs.push(macro var groups : Int = __cachedVisibility == null ? 0 : __cachedVisibility.get(from));
 			}
 			for( f in toSerialize ) {
 				if( f.visibility != null ) continue;
 				var fname = f.f.name;
 				var expr = makeScanExpr(macro this.$fname, f.type, f.f.pos);
-				if( expr != null ) scanExpr.push(expr);
+				if( expr != null ) scanExprs.push(expr);
 			}
 			for( gid => info in groups ) {
-				scanExpr.push(macro if( groups & $v{1<<gid} != 0 ) $b{[for( f in info.fl ) {
+				scanExprs.push(macro if( groups & $v{1<<gid} != 0 ) $b{[for( f in info.fl ) {
 					var fname = f.f.name;
 					var expr = makeScanExpr(macro this.$fname, f.type, f.f.pos);
 					if( expr != null ) expr;
 				}]});
 			}
 
-
-			var found = false;
-			for( f in fields ) {
-				if( f.name == "scanVisibility" ) {
-					function iterRec(e:Expr) {
-						switch( e.expr ) {
-						case ECall({ expr : EField({ expr : EConst(CIdent("super")) },"scanVisibility") },_):
-							found = true;
-							e.expr = EBlock(scanExpr);
-						default:
-							haxe.macro.ExprTools.iter(e, iterRec);
-						}
-					}
-					switch( f.kind ) {
-					case FFun(f): iterRec(f.expr);
-					default: throw "assert";
-					}
-					if( !found )
-						Context.error("Missing super() call", f.pos);
-					break;
-				}
-			}
-
-			if( !found ) {
+			var code = { expr : EBlock(scanExprs), pos : pos };
+			if( !patchField(fields, code, "scanVisibility", true) ) {
 				fields.push({
 					name : "scanVisibility",
 					pos : pos,
 					access : access,
-					meta : noComplete,
+					meta : [{ name : ":generated", params : [], pos : pos }].concat(noComplete),
 					kind : FFun({
 						args : [
 							{ name : "from", type : macro : hxbit.NetworkSerializable },
 							{ name : "refs", type : macro : hxbit.Serializer.UIDMap },
 						],
 						ret : null,
-						expr : { expr : EBlock(scanExpr), pos : pos },
+						expr : code,
 					}),
 				});
 			}
@@ -2239,8 +2242,8 @@ class Macros {
 		if( t == null )
 			return macro {};
 		switch( t.d ) {
-		case PInt, PFloat, PBool, PString, PBytes, PInt64, PFlags(_), PUnknown, PCustom:
-		case PSerializable(_), PSerInterface(_), PStruct(_), PDynamic, PEnum(_):
+		case PInt, PFloat, PBool, PString, PBytes, PInt64, PFlags(_), PUnknown:
+		case PSerializable(_), PSerInterface(_), PStruct(_), PDynamic, PEnum(_), PCustom:
 			return macro if( $expr != null ) ${mk(expr,t)};
 		case PMap(k,v):
 			var ek = makeRecExpr(macro __key, k, pos, mk);

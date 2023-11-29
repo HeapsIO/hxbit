@@ -28,14 +28,15 @@ package hxbit;
 	This allows for small objects created on-the-fly that will not need to be cleaned from the references cache.
 	Its data Schema will be included in all the objects that references it similar to a normal anonymous structure { ... }
 **/
-@:autoBuild(hxbit.Macros.buildStructSerializable())
+@:autoBuild(hxbit.Macros.buildSerializable(true))
 interface StructSerializable {
 	public function serialize( ctx : Serializer ) : Void;
-	public function unserialize( ctx : Serializer, bits : Int ) : Void;
+	public function unserialize( ctx : Serializer ) : Void;
+	public function unserializeInit() : Void;
+	public function getSerializeSchema() : Schema;
 	#if hxbit_visibility
 	public function scanVisibility( from : NetworkSerializable, refs : hxbit.Serializer.UIDMap ) : Void;
 	#end
-
 }
 
 #end

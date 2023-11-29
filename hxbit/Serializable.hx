@@ -40,6 +40,9 @@ interface Serializable {
 	public function unserialize( ctx : Serializer ) : Void;
 	/** Returns the object data schema **/
 	public function getSerializeSchema() : Schema;
+	#if hxbit_visibility
+	public function scanVisibility( from : NetworkSerializable, refs : hxbit.Serializer.UIDMap ) : Void;
+	#end
 }
 
 @:genericBuild(hxbit.Macros.buildSerializableEnum())
