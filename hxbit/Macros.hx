@@ -168,6 +168,18 @@ class Macros {
 		return se;
 	}
 
+	public static macro function clearValue( v : Expr, ?isEnum:Bool ) : Expr {
+		var t = Context.typeof(v);
+		var conds = new haxe.EnumFlags<Condition>();
+		var pt = getPropType(t, conds);
+		if( pt == null )
+			return macro { };
+		var se = clearExpr(v, pt, v.pos, (e) -> isEnum ? macro { $v = $e; __changed = true; } : macro $v = $e);
+		if( se == null )
+			return macro { };
+		return se;
+	}
+
 	public static macro function getFieldType( v : Expr ) {
 		var t = Context.typeof(v);
 		var conds = new haxe.EnumFlags<Condition>();
@@ -773,13 +785,58 @@ class Macros {
 		return makeRecExpr(expr, type, pos, function(expr, t) {
 			switch( t.d ) {
 			case PDynamic:
-				return macro @:privateAccess hxbit.Serializer.markSerializableDyn($expr, mark, from);
+				return macro @:privateAccess hxbit.Serializer.markReferencesDyn($expr, mark, from);
 			case PEnum(_):
-				return makeEnumCall(t,"markSerializable",[macro cast $expr,macro mark, macro from]);
+				return makeEnumCall(t,"markReferences",[macro cast $expr,macro mark, macro from]);
 			default:
-				return macro $expr.markSerializable(mark,from);
+				return macro $expr.markReferences(mark,from);
 			}
 		});
+	}
+
+	static function clearExpr( expr : Expr, t : PropType, pos : Position, fset : Expr -> Expr ) {
+		switch( t.d ) {
+		case PInt, PFloat, PBool, PString, PBytes, PInt64, PFlags(_), PUnknown:
+			return null;
+		case PSerializable(_), PSerInterface(_):
+			return macro if( $expr != null ) {
+				if( ($expr.__mark & mark.clear) != 0 )
+					${fset(macro null)}
+				else
+					$expr.clearReferences(mark);
+			}
+		case PStruct(_), PCustom:
+			return macro if( $expr != null ) $expr.clearReferences(mark);
+		case PMap(k,v):
+			var ek = clearExpr(macro __key, k, pos, (_) -> macro { __map.remove(__key); continue; });
+			var ev = clearExpr(macro __val, v, pos, (e) -> e.expr.match(EConst(CIdent("null"))) ? macro { __map.remove(__key); continue; } : macro { __map.set(__key,$e); continue; } );
+			if( ek == null && ev == null )
+				return null;
+			var b = [];
+			if( ek != null ) b.push(ek);
+			if( ev != null ) b.push(ev);
+			return macro { var __map = $expr; if( __map != null ) { for( __key => __val in __map ) $b{b}; } };
+		case PArray(v), PVector(v):
+			var ev = clearExpr(macro __val, v, pos, (e) -> macro __arr[i] = $e);
+			return ev == null ? null : macro { var __arr = $expr; if( __arr != null ) { for( i => __val in __arr ) $ev; } };
+		case PObj(fields):
+			var out = [];
+			for( f in fields ) {
+				var name = f.name;
+				var ev = clearExpr(macro __obj.$name, f.type, pos, (e) -> macro __obj.$name = $e);
+				if( ev != null )
+					out.push(ev);
+			}
+			return out.length == 0 ? null : macro { var __obj = $expr; if( __obj != null ) $b{out}; }
+		case PEnum(_):
+			return macro { var _e = ${makeEnumCall(t,"clearReferences",[macro cast $expr, macro mark])}; if( _e != $expr ) ${fset(macro _e)}; };
+		case PDynamic:
+			return macro { var _e = @:privateAccess hxbit.Serializer.clearReferencesDyn($expr,mark); if( _e != $expr ) ${fset(macro _e)}; };
+		case PAlias(t):
+			return clearExpr(expr, t, pos, fset);
+		case PNull(t):
+			return clearExpr(expr, t, pos, fset);
+		}
 	}
 
 	static function patchField( fields : Array<Field>, code : Expr, fieldName : String, ?isNetwork : Bool ) {
@@ -958,7 +1015,7 @@ class Macros {
 				meta : noCompletion,
 				kind : FVar(macro : hxbit.UID, macro @:privateAccess hxbit.Serializer.allocUID()),
 			});
-			#if (hxbit_visibility || hxbit_mark)
+			#if (hxbit_visibility || hxbit_mark || hxbit_clear)
 			fields.push({
 				name : "__mark",
 				pos : pos,
@@ -1045,7 +1102,7 @@ class Macros {
 			if( !isStruct ) {
 				markExprs.push(macro if( (__mark&mark.set) == mark.set ) return);
 				if( isSubSer )
-					markExprs.push(macro super.markSerializable(mark, from));
+					markExprs.push(macro super.markReferences(mark, from));
 				else
 					markExprs.push(macro __mark |= mark.set);
 			}
@@ -1054,13 +1111,39 @@ class Macros {
 				markExprs.push(macro @:pos(s.f.pos) hxbit.Macros.markValue(this.$name));
 			}
 			var code = { expr : EBlock(markExprs), pos : pos };
-			if( !patchField(fields,code,"markSerializable") ) {
+			if( !patchField(fields,code,"markReferences") ) {
 				fields.push({
-					name : "markSerializable",
+					name : "markReferences",
 					pos : pos,
 					access : access,
 					kind : FFun({
 						args : [{ name : "mark", type : macro : hxbit.Serializable.MarkInfo },{ name : "from", type : macro : hxbit.NetworkSerializable }],
+						expr : code,
+					}),
+				});
+			}
+			#end
+			#if hxbit_clear
+			var clearExprs = [];
+			if( !isStruct ) {
+				clearExprs.push(macro if( (__mark&mark.set) == mark.set ) return);
+				if( isSubSer )
+					clearExprs.push(macro super.clearReferences(mark, from));
+				else
+					clearExprs.push(macro __mark |= mark.set);
+			}
+			for( s in toSerialize ) {
+				var name = s.f.name;
+				clearExprs.push(macro @:pos(s.f.pos) hxbit.Macros.clearValue(this.$name));
+			}
+			var code = { expr : EBlock(clearExprs), pos : pos };
+			if( !patchField(fields,code,"clearReferences") ) {
+				fields.push({
+					name : "clearReferences",
+					pos : pos,
+					access : access,
+					kind : FFun({
+						args : [{ name : "mark", type : macro : hxbit.Serializable.MarkInfo }],
 						expr : code,
 					}),
 				});
@@ -1205,6 +1288,7 @@ class Macros {
 					}
 					schemaExprs.push(macro s.fieldsNames.push($v{f}));
 				}
+				var clearAccess = [AStatic];
 				var t : TypeDefinition = {
 					name : className.split(".").pop(),
 					pack : ["hxbit","enumSer"],
@@ -1266,21 +1350,21 @@ class Macros {
 							expr : macro return doUnserialize(ctx),
 							ret : null,
 						}),
-					}
+					},
 					#if (hxbit_visibility || hxbit_mark)
-					,{
-						name : "markSerializable",
+					{
+						name : "markReferences",
 						access : [AInline, APublic],
 						meta : [{name:":extern",pos:pos}],
 						pos : pos,
 						kind : FFun( {
 							args : [{ name : "value", type : pt.toComplexType() },{ name : "mark", type : macro : hxbit.Serializable.MarkInfo },{ name : "from", type : macro : hxbit.NetworkSerializable }],
-							expr : macro return doMarkSerializable(value, mark, from),
+							expr : macro return doMarkReferences(value, mark, from),
 							ret : null,
 						}),
 					}, {
-						name : "doMarkSerializable",
-						access : [AStatic],
+						name : "doMarkReferences",
+						access : clearAccess,
 						pos : pos,
 						kind : FFun({
 							args : [{ name : "value", type : pt.toComplexType() },{ name : "mark", type : macro : hxbit.Serializable.MarkInfo },{ name : "from", type : macro : hxbit.NetworkSerializable }],
@@ -1293,12 +1377,8 @@ class Macros {
 										var marks = [], eargs = [];
 										for( a in args ) {
 											var arg = macro $i{a.name};
-											var se = markExpr(arg, getPropType(a.t,conds), pos);
-											if( se != null ) {
-												marks.push(macro if( $arg != null ) $se);
-												eargs.push(arg);
-											} else
-												eargs.push(macro _);
+											marks.push(macro hxbit.Macros.markValue($arg));
+											eargs.push(arg);
 										}
 										if( marks.length > 0 )
 											cases.push({ values : [macro $i{c.name}($a{eargs})], expr : macro {$b{marks}} });
@@ -1309,7 +1389,55 @@ class Macros {
 								if( cases.length == 0 ) macro {} else swexpr;
 							}
 						})
-					}
+					},
+					#end
+					#if hxbit_clear
+					{
+						name : "clearReferences",
+						access : [AInline, APublic],
+						meta : [{name:":extern",pos:pos}],
+						pos : pos,
+						kind : FFun( {
+							args : [{ name : "value", type : pt.toComplexType() },{ name : "mark", type : macro : hxbit.Serializable.MarkInfo }],
+							expr : macro return doClearReferences(value, mark),
+							ret : pt.toComplexType(),
+						}),
+					}, {
+						name : "doClearReferences",
+						access : [AStatic],
+						pos : pos,
+						kind : FFun({
+							args : [{ name : "value", type : pt.toComplexType() },{ name : "mark", type : macro : hxbit.Serializable.MarkInfo }],
+							ret : pt.toComplexType(),
+							expr : {
+								var cases = [];
+								var conds = new haxe.EnumFlags<Condition>();
+								for( c in e.constructs ) {
+									switch( c.type ) {
+									case TFun(args,_):
+										var marks = [], eargs = [];
+										for( a in args ) {
+											var arg = macro $i{a.name};
+											marks.push(macro hxbit.Macros.clearValue($arg,true));
+											eargs.push(arg);
+										}
+										if( marks.length > 0 ) {
+											marks.unshift(macro var __changed = false);
+											marks.push(macro __changed ? $i{c.name}($a{eargs}): value);
+											cases.push({ values : [macro $i{c.name}($a{eargs})], expr : macro {$b{marks}} });
+										}
+									default:
+									}
+								}
+								var swexpr = { expr : ESwitch(macro value,cases,macro value), pos : pos };
+								if( cases.length == 0 ) {
+									clearAccess.push(AInline);
+									macro return value;
+								} else
+									macro return $swexpr;
+							}
+						})
+					},
 					#end
 					],
 					pos : pos,
@@ -2109,7 +2237,7 @@ class Macros {
 			var markExprs = [];
 			markExprs.push(macro if( (__mark&mark.set) == mark.set ) return);
 			if( isSubSer )
-				markExprs.push(macro super.markSerializable(mark,from));
+				markExprs.push(macro super.markReferences(mark,from));
 			else
 				markExprs.push(macro __mark |= mark.set);
 
@@ -2141,9 +2269,9 @@ class Macros {
 			#end
 
 			var code = { expr : EBlock(markExprs), pos : pos };
-			if( !patchField(fields, code, "markSerializable", true) ) {
+			if( !patchField(fields, code, "markReferences", true) ) {
 				fields.push({
-					name : "markSerializable",
+					name : "markReferences",
 					pos : pos,
 					access : access,
 					meta : noComplete,
@@ -2265,8 +2393,6 @@ class Macros {
 	}
 
 	static function makeRecExpr( expr : Expr, t : PropType, pos : Position, mk : Expr -> PropType -> Expr ) {
-		if( t == null )
-			return macro {};
 		switch( t.d ) {
 		case PInt, PFloat, PBool, PString, PBytes, PInt64, PFlags(_), PUnknown:
 		case PSerializable(_), PSerInterface(_), PStruct(_), PDynamic, PEnum(_), PCustom:

@@ -1232,7 +1232,7 @@ class NetworkHost {
 		}
 		for( o in client.ctx.refs )
 			o.__mark = 0;
-		rootObject.markSerializable(markInf, client.ownerObject);
+		rootObject.markReferences(markInf, client.ownerObject);
 		targetClient = client;
 		var toRemove = null;
 		for( key => o in client.ctx.refs ) {

@@ -1325,29 +1325,71 @@ class Serializer {
 
 
 	#if (hxbit_visibility || hxbit_mark)
-	static function markSerializableDyn( value : Dynamic, mark : hxbit.Serializable.MarkInfo, from : NetworkSerializable ) {
+	static function markReferencesDyn( value : Dynamic, mark : hxbit.Serializable.MarkInfo, from : NetworkSerializable ) {
 		if( value == null ) return;
 		switch( Type.typeof(value) ) {
 		case TObject:
 			for( f in Reflect.fields(value) ) {
-				markSerializableDyn(Reflect.field(value,f), mark, from);
+				markReferencesDyn(Reflect.field(value,f), mark, from);
 			}
 		case TClass(c):
 			switch( c ) {
 			case Array:
 				var a : Array<Dynamic> = value;
 				for( v in a )
-					markSerializableDyn(v, mark, from);
+					markReferencesDyn(v, mark, from);
+			case haxe.ds.StringMap, haxe.ds.ObjectMap, haxe.ds.EnumValueMap, haxe.ds.IntMap:
+				throw "TODO";
 			default:
 				var s = Std.downcast(value, hxbit.Serializable.AnySerializable);
 				if( s != null )
-					s.markSerializable(mark, from);
+					s.markReferences(mark, from);
 			}
 		case TEnum(_):
 			for( v in Type.enumParameters(value) )
-				markSerializableDyn(value, mark, from);
+				markReferencesDyn(value, mark, from);
 		default:
 		}
+	}
+	#end
+
+	#if hxbit_clear
+	static function clearReferencesDyn( value : Dynamic, mark : hxbit.Serializable.MarkInfo ) : Dynamic {
+		if( value == null )
+			return null;
+		switch( Type.typeof(value) ) {
+		case TObject:
+			for( f in Reflect.fields(value) ) {
+				clearReferencesDyn(Reflect.field(value,f), mark);
+			}
+		case TClass(c):
+			switch( c ) {
+			case Array:
+				var a : Array<Dynamic> = value;
+				for( i => v in a )
+					a[i] = clearReferencesDyn(v, mark);
+			case haxe.ds.StringMap, haxe.ds.ObjectMap, haxe.ds.EnumValueMap, haxe.ds.IntMap:
+				throw "TODO";
+			default:
+				var s = Std.downcast(value, hxbit.Serializable.AnySerializable);
+				if( s != null )
+					s.clearReferences(mark);
+			}
+		case TEnum(e):
+			var vl = Type.enumParameters(value);
+			var changed = false;
+			for( i => v in vl ) {
+				var v2 = clearReferencesDyn(value, mark);
+				if( v != v2 ) {
+					vl[i] = v2;
+					changed = true;
+				}
+			}
+			if( changed )
+				return Type.createEnumIndex(e, Type.enumIndex(value), vl);
+		default:
+		}
+		return value;
 	}
 	#end
 

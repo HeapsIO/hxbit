@@ -29,11 +29,18 @@ abstract MarkInfo(Int) {
 		this = set;
 	}
 	inline function get_set() return this;
+	#if hxbit_clear
+	public var clear(get,never) : Int;
+	inline function get_clear() return 0x80000000;
+	#end
 }
 
 interface AnySerializable {
 	#if (hxbit_visibility || hxbit_mark)
-	public function markSerializable( mark : MarkInfo, from : NetworkSerializable ) : Void;
+	public function markReferences( mark : MarkInfo, from : NetworkSerializable ) : Void;
+	#end
+	#if hxbit_clear
+	public function clearReferences( mark : MarkInfo ) : Void;
 	#end
 }
 
@@ -42,7 +49,7 @@ interface AnySerializable {
   These fields are automatically generated when implementing the interface.
 **/
 interface Serializable extends AnySerializable {
-	#if (hxbit_visibility || hxbit_mark)
+	#if (hxbit_visibility || hxbit_mark || hxbit_clear)
 	public var __mark : Int;
 	#end
 	/** Unique identifier for the object, automatically set on new() **/
