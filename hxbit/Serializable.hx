@@ -32,8 +32,8 @@ abstract MarkInfo(Int) {
 }
 
 interface AnySerializable {
-	#if hxbit_visibility
-	public function scanVisibility( from : NetworkSerializable, mark : MarkInfo ) : Void;
+	#if (hxbit_visibility || hxbit_mark)
+	public function markSerializable( mark : MarkInfo, from : NetworkSerializable ) : Void;
 	#end
 }
 
@@ -42,7 +42,7 @@ interface AnySerializable {
   These fields are automatically generated when implementing the interface.
 **/
 interface Serializable extends AnySerializable {
-	#if hxbit_visibility
+	#if (hxbit_visibility || hxbit_mark)
 	public var __mark : Int;
 	#end
 	/** Unique identifier for the object, automatically set on new() **/

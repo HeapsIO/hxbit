@@ -1323,27 +1323,29 @@ class Serializer {
 		return value;
 	}
 
-	#if hxbit_visibility
-	static function scanVisibilityDyn( value : Dynamic, from : NetworkSerializable, mark : hxbit.Serializable.MarkInfo ) {
+
+	#if (hxbit_visibility || hxbit_mark)
+	static function markSerializableDyn( value : Dynamic, mark : hxbit.Serializable.MarkInfo, from : NetworkSerializable ) {
 		if( value == null ) return;
 		switch( Type.typeof(value) ) {
 		case TObject:
 			for( f in Reflect.fields(value) ) {
-				scanVisibilityDyn(Reflect.field(value,f), from, mark);
+				markSerializableDyn(Reflect.field(value,f), mark, from);
 			}
 		case TClass(c):
 			switch( c ) {
 			case Array:
 				var a : Array<Dynamic> = value;
 				for( v in a )
-					scanVisibilityDyn(v, from, mark);
+					markSerializableDyn(v, mark, from);
 			default:
-				var ns = Std.downcast(value, NetworkSerializable);
-				if( ns != null ) ns.scanVisibility(from, mark);
+				var s = Std.downcast(value, hxbit.Serializable.AnySerializable);
+				if( s != null )
+					s.markSerializable(mark, from);
 			}
 		case TEnum(_):
 			for( v in Type.enumParameters(value) )
-				scanVisibilityDyn(value, from, mark);
+				markSerializableDyn(value, mark, from);
 		default:
 		}
 	}

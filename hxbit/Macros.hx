@@ -111,6 +111,10 @@ class Macros {
 	}
 	#end
 
+	public static function initVisibility(vis) {
+		VISIBILITY_VALUES = vis;
+	}
+
 	public static function makeEnumPath( name : String ) {
 		name = name.split(".").join("_");
 		name = name.charAt(0).toUpperCase() + name.substr(1);
@@ -152,13 +156,13 @@ class Macros {
 		return withPos(unserializeExpr(ctx, v, pt, depth, conds),v.pos);
 	}
 
-	public static macro function scanVisibilityValue( v : Expr ) : Expr {
+	public static macro function markValue( v : Expr ) : Expr {
 		var t = Context.typeof(v);
 		var conds = new haxe.EnumFlags<Condition>();
 		var pt = getPropType(t, conds);
 		if( pt == null )
 			return macro { };
-		var se = makeScanExpr(v, pt, v.pos);
+		var se = markExpr(v, pt, v.pos);
 		if( se == null )
 			return macro { };
 		return se;
@@ -765,15 +769,15 @@ class Macros {
 		return e;
 	}
 
-	static function makeScanExpr( expr, type, pos ) {
+	static function markExpr( expr, type, pos ) {
 		return makeRecExpr(expr, type, pos, function(expr, t) {
 			switch( t.d ) {
 			case PDynamic:
-				return macro @:privateAccess hxbit.Serializer.scanVisibilityDyn($expr, from, mark);
+				return macro @:privateAccess hxbit.Serializer.markSerializableDyn($expr, mark, from);
 			case PEnum(_):
-				return makeEnumCall(t,"scanVisibility",[macro cast $expr,macro from,macro mark]);
+				return makeEnumCall(t,"markSerializable",[macro cast $expr,macro mark, macro from]);
 			default:
-				return macro $expr.scanVisibility(from,mark);
+				return macro $expr.markSerializable(mark,from);
 			}
 		});
 	}
@@ -954,7 +958,7 @@ class Macros {
 				meta : noCompletion,
 				kind : FVar(macro : hxbit.UID, macro @:privateAccess hxbit.Serializer.allocUID()),
 			});
-			#if hxbit_visibility
+			#if (hxbit_visibility || hxbit_mark)
 			fields.push({
 				name : "__mark",
 				pos : pos,
@@ -1036,27 +1040,27 @@ class Macros {
 					}
 				})
 			});
-			#if hxbit_visibility
-			var scanExprs = [];
+			#if (hxbit_visibility || hxbit_mark)
+			var markExprs = [];
 			if( !isStruct ) {
-				scanExprs.push(macro if( (__mark&mark.set) == mark.set ) return);
+				markExprs.push(macro if( (__mark&mark.set) == mark.set ) return);
 				if( isSubSer )
-					scanExprs.push(macro super.scanVisibility(from, mark));
+					markExprs.push(macro super.markSerializable(mark, from));
 				else
-					scanExprs.push(macro __mark |= mark.set);
+					markExprs.push(macro __mark |= mark.set);
 			}
 			for( s in toSerialize ) {
 				var name = s.f.name;
-				scanExprs.push(macro @:pos(s.f.pos) hxbit.Macros.scanVisibilityValue(this.$name));
+				markExprs.push(macro @:pos(s.f.pos) hxbit.Macros.markValue(this.$name));
 			}
-			var code = { expr : EBlock(scanExprs), pos : pos };
-			if( !patchField(fields,code,"scanVisibility") ) {
+			var code = { expr : EBlock(markExprs), pos : pos };
+			if( !patchField(fields,code,"markSerializable") ) {
 				fields.push({
-					name : "scanVisibility",
+					name : "markSerializable",
 					pos : pos,
 					access : access,
 					kind : FFun({
-						args : [{ name : "from", type : macro : hxbit.NetworkSerializable }, { name : "mark", type : macro : hxbit.Serializable.MarkInfo }],
+						args : [{ name : "mark", type : macro : hxbit.Serializable.MarkInfo },{ name : "from", type : macro : hxbit.NetworkSerializable }],
 						expr : code,
 					}),
 				});
@@ -1263,41 +1267,41 @@ class Macros {
 							ret : null,
 						}),
 					}
-					#if hxbit_visibility
+					#if (hxbit_visibility || hxbit_mark)
 					,{
-						name : "scanVisibility",
+						name : "markSerializable",
 						access : [AInline, APublic],
 						meta : [{name:":extern",pos:pos}],
 						pos : pos,
 						kind : FFun( {
-							args : [{ name : "value", type : pt.toComplexType() },{ name : "from", type : macro : hxbit.NetworkSerializable },{ name : "mark", type : macro : hxbit.Serializable.MarkInfo }],
-							expr : macro return doScanVisibility(value, from, mark),
+							args : [{ name : "value", type : pt.toComplexType() },{ name : "mark", type : macro : hxbit.Serializable.MarkInfo },{ name : "from", type : macro : hxbit.NetworkSerializable }],
+							expr : macro return doMarkSerializable(value, mark, from),
 							ret : null,
 						}),
 					}, {
-						name : "doScanVisibility",
+						name : "doMarkSerializable",
 						access : [AStatic],
 						pos : pos,
 						kind : FFun({
-							args : [{ name : "value", type : pt.toComplexType() },{ name : "from", type : macro : hxbit.NetworkSerializable },{ name : "mark", type : macro : hxbit.Serializable.MarkInfo }],
+							args : [{ name : "value", type : pt.toComplexType() },{ name : "mark", type : macro : hxbit.Serializable.MarkInfo },{ name : "from", type : macro : hxbit.NetworkSerializable }],
 							expr : {
 								var cases = [];
 								var conds = new haxe.EnumFlags<Condition>();
 								for( c in e.constructs ) {
 									switch( c.type ) {
 									case TFun(args,_):
-										var scans = [], eargs = [];
+										var marks = [], eargs = [];
 										for( a in args ) {
 											var arg = macro $i{a.name};
-											var se = makeScanExpr(arg, getPropType(a.t,conds), pos);
+											var se = markExpr(arg, getPropType(a.t,conds), pos);
 											if( se != null ) {
-												scans.push(macro if( $arg != null ) $se);
+												marks.push(macro if( $arg != null ) $se);
 												eargs.push(arg);
 											} else
 												eargs.push(macro _);
 										}
-										if( scans.length > 0 )
-											cases.push({ values : [macro $i{c.name}($a{eargs})], expr : macro {$b{scans}} });
+										if( marks.length > 0 )
+											cases.push({ values : [macro $i{c.name}($a{eargs})], expr : macro {$b{marks}} });
 									default:
 									}
 								}
@@ -2058,7 +2062,6 @@ class Macros {
 				}),
 			});
 
-
 			#if hxbit_visibility
 			var groups = new Map();
 			var allFields = haxe.Int64.ofInt(0);
@@ -2100,41 +2103,54 @@ class Macros {
 					expr : { expr : EBlock(maskExpr), pos : pos },
 				}),
 			});
+			#end
 
-			var scanExprs = [];
-			scanExprs.push(macro if( (__mark&mark.set) == mark.set ) return);
+			#if (hxbit_visibility || hxbit_mark)
+			var markExprs = [];
+			markExprs.push(macro if( (__mark&mark.set) == mark.set ) return);
 			if( isSubSer )
-				scanExprs.push(macro super.scanVisibility(from, mark));
+				markExprs.push(macro super.markSerializable(mark,from));
 			else
-				scanExprs.push(macro __mark |= mark.set);
-			if( groups.keys().hasNext() ) {
-				scanExprs.push(macro var groups : Int = __cachedVisibility == null ? 0 : __cachedVisibility.get(from));
-			}
+				markExprs.push(macro __mark |= mark.set);
+
 			for( f in toSerialize ) {
+				#if hxbit_visibility
 				if( f.visibility != null ) continue;
+				#end
 				var fname = f.f.name;
-				var expr = makeScanExpr(macro this.$fname, f.type, f.f.pos);
-				if( expr != null ) scanExprs.push(expr);
-			}
-			for( gid => info in groups ) {
-				scanExprs.push(macro if( groups & $v{1<<gid} != 0 ) $b{[for( f in info.fl ) {
-					var fname = f.f.name;
-					var expr = makeScanExpr(macro this.$fname, f.type, f.f.pos);
-					if( expr != null ) expr;
-				}]});
+				var expr = markExpr(macro this.$fname, f.type, f.f.pos);
+				if( expr != null ) markExprs.push(expr);
 			}
 
-			var code = { expr : EBlock(scanExprs), pos : pos };
-			if( !patchField(fields, code, "scanVisibility", true) ) {
+			#if hxbit_visibility
+				var gexprs = [], eexprs = [];
+				if( groups.keys().hasNext() ) {
+					gexprs.push(macro var groups : Int = __cachedVisibility == null ? 0 : __cachedVisibility.get(from));
+				}
+				for( gid => info in groups ) {
+					gexprs.push(macro if( groups & $v{1<<gid} != 0 ) $b{[for( f in info.fl ) {
+						var fname = f.f.name;
+						var expr = markExpr(macro this.$fname, f.type, f.f.pos);
+						if( expr != null ) {
+							eexprs.push(expr);
+							expr;
+						}
+					}]});
+				}
+				markExprs.push(macro if( from == null ) $b{eexprs} else $b{gexprs});
+			#end
+
+			var code = { expr : EBlock(markExprs), pos : pos };
+			if( !patchField(fields, code, "markSerializable", true) ) {
 				fields.push({
-					name : "scanVisibility",
+					name : "markSerializable",
 					pos : pos,
 					access : access,
-					meta : [{ name : ":generated", params : [], pos : pos }].concat(noComplete),
+					meta : noComplete,
 					kind : FFun({
 						args : [
-							{ name : "from", type : macro : hxbit.NetworkSerializable },
 							{ name : "mark", type : macro : hxbit.Serializable.MarkInfo },
+							{ name : "from", type : macro : hxbit.NetworkSerializable },
 						],
 						ret : null,
 						expr : code,
@@ -2273,8 +2289,7 @@ class Macros {
 			for( f in fields ) {
 				var name = f.name;
 				var ev = makeRecExpr(macro $expr.$name, f.type, pos, mk);
-				if( ev != null )
-					out.push(macro if( $expr.$name != null ) $ev);
+				if( ev != null ) out.push(ev);
 			}
 			return out.length == 0 ? null : macro if( $expr != null ) $b{out};
 		case PAlias(t):
