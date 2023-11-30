@@ -23,11 +23,28 @@ package hxbit;
 
 #if !macro
 
+abstract MarkInfo(Int) {
+	public var set(get,never) : Int;
+	public inline function new(set:Int) {
+		this = set;
+	}
+	inline function get_set() return this;
+}
+
+interface AnySerializable {
+	#if hxbit_visibility
+	public function scanVisibility( from : NetworkSerializable, mark : MarkInfo ) : Void;
+	#end
+}
+
 @:autoBuild(hxbit.Macros.buildSerializable())
 /**
   These fields are automatically generated when implementing the interface.
 **/
-interface Serializable {
+interface Serializable extends AnySerializable {
+	#if hxbit_visibility
+	public var __mark : Int;
+	#end
 	/** Unique identifier for the object, automatically set on new() **/
 	public var __uid : UID;
 	/** Returns the unique class id for this object **/
@@ -40,9 +57,6 @@ interface Serializable {
 	public function unserialize( ctx : Serializer ) : Void;
 	/** Returns the object data schema **/
 	public function getSerializeSchema() : Schema;
-	#if hxbit_visibility
-	public function scanVisibility( from : NetworkSerializable, refs : hxbit.Serializer.UIDMap ) : Void;
-	#end
 }
 
 @:genericBuild(hxbit.Macros.buildSerializableEnum())

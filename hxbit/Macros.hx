@@ -769,11 +769,11 @@ class Macros {
 		return makeRecExpr(expr, type, pos, function(expr, t) {
 			switch( t.d ) {
 			case PDynamic:
-				return macro @:privateAccess hxbit.NetworkHost.scanDynRec($expr, from, refs);
+				return macro @:privateAccess hxbit.Serializer.scanVisibilityDyn($expr, from, mark);
 			case PEnum(_):
-				return makeEnumCall(t,"scanVisibility",[macro cast $expr,macro from,macro refs]);
+				return makeEnumCall(t,"scanVisibility",[macro cast $expr,macro from,macro mark]);
 			default:
-				return macro $expr.scanVisibility(from,refs);
+				return macro $expr.scanVisibility(from,mark);
 			}
 		});
 	}
@@ -946,7 +946,7 @@ class Macros {
 			cl.meta.add(":final",[], pos);
 		} else if( isSubSer )
 			access.push(AOverride);
-		else
+		else {
 			fields.push({
 				name : "__uid",
 				pos : pos,
@@ -954,6 +954,16 @@ class Macros {
 				meta : noCompletion,
 				kind : FVar(macro : hxbit.UID, macro @:privateAccess hxbit.Serializer.allocUID()),
 			});
+			#if hxbit_visibility
+			fields.push({
+				name : "__mark",
+				pos : pos,
+				access : [APublic],
+				meta : noCompletion,
+				kind : FVar(macro : Int),
+			});
+			#end
+		}
 
 		var clName = StringTools.endsWith(cl.module,"."+cl.name) ? cl.module.split(".") : [cl.name];
 		if( !isStruct ) {
@@ -1029,11 +1039,11 @@ class Macros {
 			#if hxbit_visibility
 			var scanExprs = [];
 			if( !isStruct ) {
-				scanExprs.push(macro if( refs[__uid] != null ) return);
+				scanExprs.push(macro if( (__mark&mark.set) == mark.set ) return);
 				if( isSubSer )
-					scanExprs.push(macro super.scanVisibility(from, refs));
+					scanExprs.push(macro super.scanVisibility(from, mark));
 				else
-					scanExprs.push(macro refs[__uid] = this);
+					scanExprs.push(macro __mark |= mark.set);
 			}
 			for( s in toSerialize ) {
 				var name = s.f.name;
@@ -1046,7 +1056,7 @@ class Macros {
 					pos : pos,
 					access : access,
 					kind : FFun({
-						args : [{ name : "from", type : macro : hxbit.NetworkSerializable }, { name : "refs", type : macro : hxbit.Serializer.UIDMap }],
+						args : [{ name : "from", type : macro : hxbit.NetworkSerializable }, { name : "mark", type : macro : hxbit.Serializable.MarkInfo }],
 						expr : code,
 					}),
 				});
@@ -1260,8 +1270,8 @@ class Macros {
 						meta : [{name:":extern",pos:pos}],
 						pos : pos,
 						kind : FFun( {
-							args : [{ name : "value", type : pt.toComplexType() },{ name : "from", type : macro : hxbit.NetworkSerializable },{ name : "refs", type : macro : hxbit.Serializer.UIDMap }],
-							expr : macro return doScanVisibility(value, from, refs),
+							args : [{ name : "value", type : pt.toComplexType() },{ name : "from", type : macro : hxbit.NetworkSerializable },{ name : "mark", type : macro : hxbit.Serializable.MarkInfo }],
+							expr : macro return doScanVisibility(value, from, mark),
 							ret : null,
 						}),
 					}, {
@@ -1269,7 +1279,7 @@ class Macros {
 						access : [AStatic],
 						pos : pos,
 						kind : FFun({
-							args : [{ name : "value", type : pt.toComplexType() },{ name : "from", type : macro : hxbit.NetworkSerializable },{ name : "refs", type : macro : hxbit.Serializer.UIDMap }],
+							args : [{ name : "value", type : pt.toComplexType() },{ name : "from", type : macro : hxbit.NetworkSerializable },{ name : "mark", type : macro : hxbit.Serializable.MarkInfo }],
 							expr : {
 								var cases = [];
 								var conds = new haxe.EnumFlags<Condition>();
@@ -2092,11 +2102,11 @@ class Macros {
 			});
 
 			var scanExprs = [];
-			scanExprs.push(macro if( refs[__uid] != null ) return);
+			scanExprs.push(macro if( (__mark&mark.set) == mark.set ) return);
 			if( isSubSer )
-				scanExprs.push(macro super.scanVisibility(from, refs));
+				scanExprs.push(macro super.scanVisibility(from, mark));
 			else
-				scanExprs.push(macro refs[__uid] = this);
+				scanExprs.push(macro __mark |= mark.set);
 			if( groups.keys().hasNext() ) {
 				scanExprs.push(macro var groups : Int = __cachedVisibility == null ? 0 : __cachedVisibility.get(from));
 			}
@@ -2124,7 +2134,7 @@ class Macros {
 					kind : FFun({
 						args : [
 							{ name : "from", type : macro : hxbit.NetworkSerializable },
-							{ name : "refs", type : macro : hxbit.Serializer.UIDMap },
+							{ name : "mark", type : macro : hxbit.Serializable.MarkInfo },
 						],
 						ret : null,
 						expr : code,

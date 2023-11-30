@@ -1223,50 +1223,33 @@ class NetworkHost {
 	}
 
 	#if hxbit_visibility
+	var markInf = new hxbit.Serializable.MarkInfo(1);
 	public function checkReferences( ?client : NetworkClient ) {
 		if( client == null ) {
 			for( c in clients )
 				checkReferences(c);
 			return;
 		}
-		var refs = new hxbit.Serializer.UIDMap();
-		rootObject.scanVisibility(client.ownerObject, refs);
+		for( o in client.ctx.refs )
+			o.__mark = 0;
+		rootObject.scanVisibility(client.ownerObject, markInf);
 		targetClient = client;
-		for( key => o in client.ctx.refs )
-			if( !refs.exists(key) ) {
-				ctx.addByte(UNREG);
-				ctx.addUID(o.__uid);
-				if( checkEOM ) ctx.addByte(EOM);
-			}
-		client.ctx.refs = refs;
+		var toRemove = null;
+		for( key => o in client.ctx.refs ) {
+			if( o.__mark != 0 ) continue;
+			ctx.addByte(UNREG);
+			ctx.addUID(o.__uid);
+			if( checkEOM ) ctx.addByte(EOM);
+			if( toRemove == null ) toRemove = [];
+			toRemove.push(key);
+		}
+		if( toRemove != null ) {
+			for( key in toRemove )
+				client.ctx.refs.remove(key);
+		}
 		doSend();
 		targetClient = null;
 	}
-
-	static function scanDynRec( value : Dynamic, from : NetworkSerializable, refs : hxbit.Serializer.UIDMap ) {
-		if( value == null ) return;
-		switch( Type.typeof(value) ) {
-		case TObject:
-			for( f in Reflect.fields(value) ) {
-				scanDynRec(Reflect.field(value,f), from, refs);
-			}
-		case TClass(c):
-			switch( c ) {
-			case Array:
-				var a : Array<Dynamic> = value;
-				for( v in a )
-					scanDynRec(v, from, refs);
-			default:
-				var ns = Std.downcast(value, NetworkSerializable);
-				if( ns != null ) ns.scanVisibility(from, refs);
-			}
-		case TEnum(_):
-			for( v in Type.enumParameters(value) )
-				scanDynRec(value, from, refs);
-		default:
-		}
-	}
-
 	#end
 
 	static function enableReplication( o : NetworkSerializable, b : Bool ) {

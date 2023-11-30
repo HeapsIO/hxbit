@@ -89,7 +89,6 @@ interface NetworkSerializable extends Serializable extends ProxyHost {
 	public function evalVisibility( group : VisibilityGroup, from : NetworkSerializable ) : Bool;
 	public function setVisibilityDirty( group : VisibilityGroup ) : Void;
 	public function getVisibilityMask( groups : Int ) : haxe.Int64;
-	public function scanVisibility( from : NetworkSerializable, refs : hxbit.Serializer.UIDMap ) : Void;
 	#end
 }
 

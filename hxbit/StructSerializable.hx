@@ -29,14 +29,11 @@ package hxbit;
 	Its data Schema will be included in all the objects that references it similar to a normal anonymous structure { ... }
 **/
 @:autoBuild(hxbit.Macros.buildSerializable(true))
-interface StructSerializable {
+interface StructSerializable extends Serializable.AnySerializable {
 	public function serialize( ctx : Serializer ) : Void;
 	public function unserialize( ctx : Serializer ) : Void;
 	public function unserializeInit() : Void;
 	public function getSerializeSchema() : Schema;
-	#if hxbit_visibility
-	public function scanVisibility( from : NetworkSerializable, refs : hxbit.Serializer.UIDMap ) : Void;
-	#end
 }
 
 #end
