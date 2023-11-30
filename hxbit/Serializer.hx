@@ -1016,9 +1016,9 @@ class Serializer {
 			var arr : Array<Dynamic> = v;
 			var path = path+"[]";
 			return [for( v in arr ) convertValue(path, v,from,to)];
-		case [PAlias(from),_]:
+		case [PAlias(from)|PAliasCDB(from),_]:
 			return convertValue(path, v, from, to);
-		case [_,PAlias(to)]:
+		case [_,PAlias(to)|PAliasCDB(to)]:
 			return convertValue(path, v, from, to);
 		case [PMap(ft,fv),PMap(tt,tv)] if( Convert.sameType(ft,tt) ):
 			var path = path+"[]";
@@ -1083,7 +1083,7 @@ class Serializer {
 		case PInt64: getInt64();
 		case PInt: getInt();
 		case PFloat: getFloat();
-		case PAlias(t): readValue(t);
+		case PAlias(t), PAliasCDB(t): readValue(t);
 		case PBool: getBool();
 		case PString: getString();
 		case PArray(t): getArray(function() return readValue(t));
@@ -1181,7 +1181,7 @@ class Serializer {
 			addInt(v);
 		case PFloat:
 			addFloat(v);
-		case PAlias(t):
+		case PAlias(t), PAliasCDB(t):
 			writeValue(v,t);
 		case PBool:
 			addBool(v);

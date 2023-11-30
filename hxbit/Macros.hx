@@ -77,16 +77,18 @@ enum PropTypeDesc<PropType> {
 	PCustom;
 	PSerInterface( name : String );
 	PStruct( name : String, fields : Array<{ name : String, type : PropType }> );
+	PAliasCDB( k : PropType );
 }
 
 typedef PropType = {
 	var d : PropTypeDesc<PropType>;
 	var t : ComplexType;
-	@:optional var isProxy : Bool;
-	@:optional var increment : Float;
-	@:optional var condSend : Expr;
-	@:optional var notMutable : Bool;
-	@:optional var visibility : Int;
+	var ?isProxy : Bool;
+	var ?increment : Float;
+	var ?condSend : Expr;
+	var ?notMutable : Bool;
+	var ?noSync : Bool;
+	var ?visibility : Int;
 }
 
 private enum Condition {
@@ -200,7 +202,7 @@ class Macros {
 		case PObj(fields):
 			for( tf in fields )
 				f(tf.type);
-		case PAlias(t):
+		case PAlias(t), PAliasCDB(t):
 			f(t);
 		case PVector(t):
 			f(t);
@@ -225,7 +227,7 @@ class Macros {
 		case PMap(k, v): PMap(toFieldType(k), toFieldType(v));
 		case PArray(v): PArray(toFieldType(v));
 		case PObj(fields): PObj([for( f in fields ) { name : f.name, type : toFieldType(f.type), opt : f.opt }]);
-		case PAlias(t): return toFieldType(t);
+		case PAlias(t), PAliasCDB(t): return toFieldType(t);
 		case PVector(k): PVector(toFieldType(k));
 		case PNull(t): PNull(toFieldType(t));
 		case PFlags(t): PFlags(toFieldType(t));
@@ -322,6 +324,9 @@ class Macros {
 				}
 			case ":notMutable":
 				t.notMutable = true;
+			case ":noSync":
+				t.notMutable = true;
+				t.noSync = true;
 			case ":visible" if( m.params.length == 1 ):
 				t.visibility = getVisibility(m);
 			default:
@@ -408,18 +413,19 @@ class Macros {
 					return null;
 				default:
 				}
-				var ainf = a.get();
+				var ainf = a.get(), isCDB = false;
 				if( ainf.meta.has(":cdb") ) {
 					if( conds.has(PreventCDB) ) {
 						Context.warning("Unsupported CDB type, store the id-kind or use @:allowCDB ", Context.currentPos());
 						return null;
 					}
+					isCDB = true;
 					isMutable = false;
 				} else if( ainf.meta.has(":noProxy") )
 					isMutable = false;
 				var pt = getPropType(t2,conds);
 				if( pt == null ) return null;
-				PAlias(pt);
+				isCDB ? PAliasCDB(pt) : PAlias(pt);
 			}
 		case TEnum(e,_):
 			var e = e.get();
@@ -441,7 +447,7 @@ class Macros {
 				var ft = getPropField(f.type, f.meta.get(), conds);
 				if( ft == null ) return null;
 				fields.push( { name : f.name, type : ft, opt : f.meta.has(":optional") } );
-				if( !f.isFinal || needProxy(ft) ) isMutable = true;
+				if( !(f.isFinal || ft.noSync) || needProxy(ft) ) isMutable = true;
 			}
 			a.fields.length == 0 ? PDynamic : PObj(fields);
 		case TInst(c, pl):
@@ -529,7 +535,7 @@ class Macros {
 		switch( t.d ) {
 		case PInt, PFloat, PBool, PFlags(_), PInt64:
 			return false;
-		case PAlias(t):
+		case PAlias(t), PAliasCDB(t):
 			return isNullable(t);
 		default:
 			return true;
@@ -614,7 +620,7 @@ class Macros {
 			return macro $ctx.addKnownRef($v);
 		case PSerInterface(_):
 			return macro $ctx.addAnyRef($v);
-		case PAlias(t):
+		case PAlias(t), PAliasCDB(t):
 			return serializeExpr(ctx, { expr : ECast(v, null), pos : v.pos }, t);
 		case PNull(t):
 			var e = serializeExpr(ctx, v, t);
@@ -738,7 +744,7 @@ class Macros {
 			return macro $v = $ctx.getRef($cexpr,@:privateAccess $cexpr.__clid);
 		case PSerInterface(name):
 			return macro $v = cast $ctx.getAnyRef();
-		case PAlias(at):
+		case PAlias(at), PAliasCDB(at):
 			var cvt = at.t;
 			var vname = "v" + depth;
 			return macro {
@@ -796,7 +802,7 @@ class Macros {
 
 	static function clearExpr( expr : Expr, t : PropType, pos : Position, fset : Expr -> Expr ) {
 		switch( t.d ) {
-		case PInt, PFloat, PBool, PString, PBytes, PInt64, PFlags(_), PUnknown:
+		case PInt, PFloat, PBool, PString, PBytes, PInt64, PFlags(_), PUnknown, PAliasCDB(_):
 			return null;
 		case PSerializable(_), PSerInterface(_):
 			return macro if( $expr != null ) {
@@ -823,7 +829,7 @@ class Macros {
 			var out = [];
 			for( f in fields ) {
 				var name = f.name;
-				var ev = clearExpr(macro __obj.$name, f.type, pos, (e) -> macro __obj.$name = $e);
+				var ev = clearExpr(macro __obj.$name, f.type, pos, (e) -> macro @:pos(pos) __obj.$name = $e);
 				if( ev != null )
 					out.push(ev);
 			}
@@ -1128,7 +1134,7 @@ class Macros {
 			if( !isStruct ) {
 				clearExprs.push(macro if( (__mark&mark.set) == mark.set ) return);
 				if( isSubSer )
-					clearExprs.push(macro super.clearReferences(mark, from));
+					clearExprs.push(macro super.clearReferences(mark));
 				else
 					clearExprs.push(macro __mark |= mark.set);
 			}
@@ -1359,7 +1365,7 @@ class Macros {
 						pos : pos,
 						kind : FFun( {
 							args : [{ name : "value", type : pt.toComplexType() },{ name : "mark", type : macro : hxbit.Serializable.MarkInfo },{ name : "from", type : macro : hxbit.NetworkSerializable }],
-							expr : macro return doMarkReferences(value, mark, from),
+							expr : macro doMarkReferences(value, mark, from),
 							ret : null,
 						}),
 					}, {
@@ -2394,7 +2400,7 @@ class Macros {
 
 	static function makeRecExpr( expr : Expr, t : PropType, pos : Position, mk : Expr -> PropType -> Expr ) {
 		switch( t.d ) {
-		case PInt, PFloat, PBool, PString, PBytes, PInt64, PFlags(_), PUnknown:
+		case PInt, PFloat, PBool, PString, PBytes, PInt64, PFlags(_), PUnknown, PAliasCDB(_):
 		case PSerializable(_), PSerInterface(_), PStruct(_), PDynamic, PEnum(_), PCustom:
 			return macro if( $expr != null ) ${mk(expr,t)};
 		case PMap(k,v):
