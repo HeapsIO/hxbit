@@ -1223,7 +1223,7 @@ class NetworkHost {
 	}
 
 	#if hxbit_visibility
-	var markInf = new hxbit.Serializable.MarkInfo(1);
+	var markInf = new hxbit.Serializable.MarkInfo(1,1);
 	public function checkReferences( ?client : NetworkClient ) {
 		if( client == null ) {
 			for( c in clients )

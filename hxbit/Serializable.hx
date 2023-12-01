@@ -25,10 +25,12 @@ package hxbit;
 
 abstract MarkInfo(Int) {
 	public var set(get,never) : Int;
-	public inline function new(set:Int) {
-		this = set;
+	public var mask(get,never) : Int;
+	public inline function new(set:Int,mask:Int) {
+		this = set | (mask << 16);
 	}
-	inline function get_set() return this;
+	inline function get_set() return this & 0xFFFF;
+	inline function get_mask() return this >>> 16;
 	#if hxbit_clear
 	public var clear(get,never) : Int;
 	inline function get_clear() return 0x80000000;

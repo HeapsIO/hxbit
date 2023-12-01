@@ -496,6 +496,8 @@ class Macros {
 							return null;
 						fields.push({ name : f.name, type : t });
 					}
+					if( c.meta.has(":isProxy") )
+						isProxy = true;
 					PStruct(path, fields);
 				} else
 					return null;
@@ -554,7 +556,7 @@ class Macros {
 
 	static function serializeExpr( ctx : Expr, v : Expr, t : PropType, skipCheck = false ) {
 
-		if( t.isProxy && !skipCheck )
+		if( t.isProxy && !skipCheck && !t.d.match(PStruct(_)) )
 			return serializeExpr(ctx, { expr : EField(v, "__value"), pos : v.pos }, t, true);
 
 		switch( t.d ) {
@@ -1011,6 +1013,28 @@ class Macros {
 			if( isSubSer )
 				Context.error("StructSerializable cannot extend Serializable", pos);
 			cl.meta.add(":final",[], pos);
+			var isProxy = cl.meta.has(":isProxy");
+			if( isProxy ) {
+				for( s in toSerialize ) {
+					switch( s.f.kind ) {
+					case FProp(_):
+						Context.error("Property not allowed on proxy StructSerializable", pos);
+					case FVar(t,e):
+						s.f.kind = FProp("default","set", t, e);
+						var fname = s.f.name;
+						fields.push({
+							name : "set_"+fname,
+							access : [AInline],
+							pos : s.f.pos,
+							kind : FFun({
+								args : [{ name : "v", type : t }],
+								expr : macro { this.$fname = v; mark(); return v; }
+							})
+						});
+					default:
+					}
+				}
+			}
 		} else if( isSubSer )
 			access.push(AOverride);
 		else {
@@ -1110,7 +1134,7 @@ class Macros {
 				if( isSubSer )
 					markExprs.push(macro super.markReferences(mark, from));
 				else
-					markExprs.push(macro __mark |= mark.set);
+					markExprs.push(macro __mark = (__mark & mark.mask) | mark.set);
 			}
 			for( s in toSerialize ) {
 				var name = s.f.name;
@@ -1136,7 +1160,7 @@ class Macros {
 				if( isSubSer )
 					clearExprs.push(macro super.clearReferences(mark));
 				else
-					clearExprs.push(macro __mark |= mark.set);
+					clearExprs.push(macro __mark = (__mark&mark.mask) | mark.set);
 			}
 			for( s in toSerialize ) {
 				var name = s.f.name;
@@ -1294,7 +1318,6 @@ class Macros {
 					}
 					schemaExprs.push(macro s.fieldsNames.push($v{f}));
 				}
-				var clearAccess = [AStatic];
 				var t : TypeDefinition = {
 					name : className.split(".").pop(),
 					pack : ["hxbit","enumSer"],
@@ -1370,7 +1393,7 @@ class Macros {
 						}),
 					}, {
 						name : "doMarkReferences",
-						access : clearAccess,
+						access : [AStatic],
 						pos : pos,
 						kind : FFun({
 							args : [{ name : "value", type : pt.toComplexType() },{ name : "mark", type : macro : hxbit.Serializable.MarkInfo },{ name : "from", type : macro : hxbit.NetworkSerializable }],
@@ -1392,7 +1415,7 @@ class Macros {
 									}
 								}
 								var swexpr = { expr : ESwitch(macro value,cases,macro null), pos : pos };
-								if( cases.length == 0 ) macro {} else swexpr;
+								if( cases.length == 0 ) macro {} else macro if( value != null ) $swexpr;
 							}
 						})
 					},
@@ -1436,11 +1459,10 @@ class Macros {
 									}
 								}
 								var swexpr = { expr : ESwitch(macro value,cases,macro value), pos : pos };
-								if( cases.length == 0 ) {
-									clearAccess.push(AInline);
+								if( cases.length == 0 )
 									macro return value;
-								} else
-									macro return $swexpr;
+								else
+									macro return value == null ? null : $swexpr;
 							}
 						})
 					},
@@ -2245,7 +2267,7 @@ class Macros {
 			if( isSubSer )
 				markExprs.push(macro super.markReferences(mark,from));
 			else
-				markExprs.push(macro __mark |= mark.set);
+				markExprs.push(macro __mark = (__mark & mark.mask) | mark.set);
 
 			for( f in toSerialize ) {
 				#if hxbit_visibility
