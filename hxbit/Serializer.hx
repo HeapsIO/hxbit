@@ -343,7 +343,7 @@ class Serializer {
 		}
 	}
 
-	@:extern public inline function getMap<K,T>(fk:Void->K, ft:Void->T) : Map<K,T> {
+	extern public inline function getMap<K,T>(fk:Void->K, ft:Void->T) : Map<K,T> {
 		var len = getInt();
 		if( len == 0 )
 			return null;

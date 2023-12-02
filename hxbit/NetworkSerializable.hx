@@ -33,8 +33,7 @@ interface ProxyChild {
 /** Classes implementing this will not be replicated over the network **/
 interface NetworkNoReplication { }
 
-@:enum
-abstract Operation(Int) {
+enum abstract Operation(Int) {
 	/**
 		Allows initiating RPC on client side (only "normal" and "owner" rpc are checked against it).
 	**/
