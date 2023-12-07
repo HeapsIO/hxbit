@@ -2053,14 +2053,13 @@ class Macros {
 
 				var rpc : Field = {
 					name : name,
-					access : r.f.access.copy(),
+					access : r.f.access.concat([AFinal]),
 					kind : FFun({
 						args : rpcArgs,
 						ret : macro : Void,
 						expr : rpcExpr,
 					}),
 					pos : p,
-					meta : [{ name : ":final", pos : p }],
 				};
 				fields.push(rpc);
 
