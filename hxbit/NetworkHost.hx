@@ -90,7 +90,7 @@ class NetworkClient {
 
 		if( !wasSync && !host.isAuth ) {
 			switch( mid ) {
-			case NetworkHost.FULLSYNC, NetworkHost.MSG, NetworkHost.BMSG, NetworkHost.CUSTOM, NetworkHost.BCUSTOM:
+			case NetworkHost.FULLSYNC, NetworkHost.MSG, NetworkHost.BMSG:
 			default:
 				host.logError("Message "+mid+" was received before sync");
 			}
@@ -301,13 +301,6 @@ class NetworkClient {
 			var msg = ctx.getBytes();
 			host.onMessage(this, msg);
 
-		case NetworkHost.CUSTOM:
-			host.onCustom(this, ctx.getInt(), null);
-
-		case NetworkHost.BCUSTOM:
-			var id = ctx.getInt();
-			host.onCustom(this, id, ctx.getBytes());
-
 		#if hxbit_visibility
 		case NetworkHost.VIS_RESET:
 			var oid = ctx.getUID();
@@ -434,8 +427,6 @@ class NetworkHost {
 	static inline var RPC_RESULT = 7;
 	static inline var MSG		 = 8;
 	static inline var BMSG		 = 9;
-	static inline var CUSTOM	 = 10;
-	static inline var BCUSTOM	 = 11;
 	static inline var CANCEL_RPC = 12;
 	static inline var VIS_RESET	 = 13;
 	static inline var EOM		 = 0xFF;
@@ -613,9 +604,6 @@ class NetworkHost {
 	public dynamic function onSync( obj : hxbit.NetworkSerializable, bits1 : Int, bits2 : Int ) {
 	}
 
-	function onCustom( from : NetworkClient, id : Int, ?data : haxe.io.Bytes ) {
-	}
-
 	public function sendMessage( msg : Dynamic, ?to : NetworkClient ) {
 		flush();
 		var prev = targetClient;
@@ -627,18 +615,6 @@ class NetworkHost {
 			ctx.addByte(MSG);
 			ctx.addString(haxe.Serializer.run(msg));
 		}
-		if( checkEOM ) ctx.addByte(EOM);
-		doSend();
-		targetClient = prev;
-	}
-
-	function sendCustom( id : Int, ?data : haxe.io.Bytes, ?to : NetworkClient ) {
-		flush();
-		var prev = targetClient;
-		targetClient = to;
-		ctx.addByte(data == null ? CUSTOM : BCUSTOM);
-		ctx.addInt(id);
-		if( data != null ) ctx.addBytes(data);
 		if( checkEOM ) ctx.addByte(EOM);
 		doSend();
 		targetClient = prev;
@@ -1177,16 +1153,6 @@ class NetworkHost {
 			o = n;
 		}
 		markHead = null;
-	}
-
-	function isCustomMessage( bytes : haxe.io.Bytes, id : Int, pos = 0 ) {
-		if( bytes.length - pos < 2 )
-			return false;
-		ctx.setInput(bytes, pos);
-		var k = ctx.getByte();
-		if( k != CUSTOM && k != BCUSTOM )
-			return false;
-		return ctx.getInt() == id;
 	}
 
 	public function flush() {
