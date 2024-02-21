@@ -1078,6 +1078,35 @@ class Macros {
 		var needUnserialize = needSerialize || fieldsInits.length != 0 || addCustomUnserializable;
 
 		if( needSerialize ) {
+			var serExpr = macro @:privateAccess {
+				${ if( serializePriorityFuns != null ) serializePriorityFuns.ser else macro { } };
+				${ if( isSubSer ) macro super.serialize(__ctx) else macro { } };
+				${ if( useStaticSer ) macro doSerialize(__ctx,this) else macro $b{el} };
+				${ if( addCustomSerializable ) macro this.customSerialize(__ctx) else macro { } };
+			};
+			var serFound = false;
+			for( f in fields )
+				if( f.name == "serialize" ) {
+					var found = false;
+					function repl(e:Expr) {
+						switch( e.expr ) {
+						case ECall( { expr : EField( { expr : EConst(CIdent("super")) }, "serialize") }, [ctx]):
+							found = true;
+							return macro { var __ctx : hxbit.Serializer = $ctx; $serExpr; }
+						default:
+							return haxe.macro.ExprTools.map(e, repl);
+						}
+					}
+					switch( f.kind ) {
+					case FFun(f):
+						f.expr = repl(f.expr);
+					default:
+					}
+					if( !found ) Context.error("Override of serialize() with no super.serialize(ctx) found", f.pos);
+					serFound = true;
+					break;
+				}
+
 			if( useStaticSer ) fields.push({
 				name : "doSerialize",
 				pos : pos,
@@ -1089,19 +1118,14 @@ class Macros {
 					expr : macro $b{el},
 				}),
 			});
-			fields.push({
+			if( !serFound ) fields.push({
 				name : "serialize",
 				pos : pos,
 				access : access,
 				kind : FFun({
 					args : [ { name : "__ctx", type : macro : hxbit.Serializer } ],
 					ret : null,
-					expr : macro @:privateAccess {
-						${ if( serializePriorityFuns != null ) serializePriorityFuns.ser else macro { } };
-						${ if( isSubSer ) macro super.serialize(__ctx) else macro { } };
-						${ if( useStaticSer ) macro doSerialize(__ctx,this) else macro $b{el} };
-						${ if( addCustomSerializable ) macro this.customSerialize(__ctx) else macro { } };
-					}
+					expr : serExpr,
 				}),
 			});
 			var schema = [];
