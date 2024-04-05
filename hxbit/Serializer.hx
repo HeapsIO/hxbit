@@ -98,7 +98,8 @@ class Serializer {
 	}
 
 	static inline function allocUID() : UID {
-		return (SEQ << (#if hxbit64 64 #else 32 #end - SEQ_BITS)) | (++UID);
+		UID += 1;
+		return (SEQ << (#if hxbit64 64 #else 32 #end - SEQ_BITS)) | (UID);
 	}
 
 	static var CLASSES : Array<Class<Dynamic>> = [];
