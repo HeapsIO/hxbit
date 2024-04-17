@@ -933,7 +933,9 @@ class Serializer {
 
 	function isNullable( t : Schema.FieldType ) {
 		return switch( t ) {
-		case PInt, PFloat, PBool: false;
+		case PInt, PFloat, PBool, PFlags(_), PInt64: false;
+		case PAlias(t), PAliasCDB(t):
+			return isNullable(t);
 		default: true;
 		}
 	}
