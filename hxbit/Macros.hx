@@ -776,8 +776,9 @@ class Macros {
 					$v = null;
 				else {
 					@:privateAccess $ctx.inPos--;
-					$v = Type.createEmptyInstance($cexpr);
-					$v.unserialize($ctx);
+					var tmp = Type.createEmptyInstance($cexpr);
+					tmp.unserialize($ctx);
+					$v = tmp;
 				}
 			}
 		case PUnknown:
