@@ -151,7 +151,7 @@ class NetworkStats {
 					size += calcPropSize(f.type, Reflect.field(v, f.name));
 				}
 			}
-		case PAlias(t), PAliasCDB(t):
+		case PAlias(t), PAliasCDB(t), PNoSave(t):
 			return calcPropSize(t, v);
 		case PVector(t):
 			if( v == null )

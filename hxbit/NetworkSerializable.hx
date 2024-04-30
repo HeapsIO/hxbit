@@ -89,6 +89,7 @@ interface NetworkSerializable extends Serializable extends ProxyHost {
 	public function setVisibilityDirty( group : VisibilityGroup ) : Void;
 	public function getVisibilityMask( groups : Int ) : haxe.Int64;
 	#end
+	public function getNoSaveMask() : haxe.Int64;
 }
 
 class BaseProxy implements ProxyHost implements ProxyChild {
@@ -147,6 +148,7 @@ class NetworkSerializer extends Serializer {
 	public function new(host) {
 		super();
 		this.host = host;
+		forSave = false;
 	}
 
 	function get_error() {

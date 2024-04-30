@@ -186,6 +186,7 @@ class Serializer {
 	var visibilityGroups : Int = -1;
 	var hasVisibility : Bool;
 	#end
+	public var forSave : Bool = true;
 
 	public function new() {
 		if( CLIDS == null ) initClassIDS();
@@ -934,7 +935,7 @@ class Serializer {
 	function isNullable( t : Schema.FieldType ) {
 		return switch( t ) {
 		case PInt, PFloat, PBool, PFlags(_), PInt64: false;
-		case PAlias(t), PAliasCDB(t):
+		case PAlias(t), PAliasCDB(t), PNoSave(t):
 			return isNullable(t);
 		default: true;
 		}
@@ -1171,6 +1172,9 @@ class Serializer {
 				Reflect.setField(o, f.name, readValue(f.type));
 			}
 			return o;
+		case PNoSave(t):
+			if( forSave ) return null;
+			return readValueImpl(t);
 		case PUnknown:
 			throw "assert";
 		}
@@ -1279,6 +1283,8 @@ class Serializer {
 					writeValue(v, f.type);
 				}
 			}
+		case PNoSave(t):
+			if( !forSave ) writeValue(v, t);
 		case PUnknown:
 			throw "assert";
 		}

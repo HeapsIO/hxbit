@@ -78,6 +78,7 @@ enum PropTypeDesc<PropType> {
 	PSerInterface( name : String );
 	PStruct( name : String, fields : Array<{ name : String, type : PropType }> );
 	PAliasCDB( k : PropType );
+	PNoSave( k : PropType );
 }
 
 typedef PropType = {
@@ -227,7 +228,7 @@ class Macros {
 		case PMap(k, v): PMap(toFieldType(k), toFieldType(v));
 		case PArray(v): PArray(toFieldType(v));
 		case PObj(fields): PObj([for( f in fields ) { name : f.name, type : toFieldType(f.type), opt : f.opt }]);
-		case PAlias(t), PAliasCDB(t): return toFieldType(t);
+		case PAlias(t), PAliasCDB(t), PNoSave(t): return toFieldType(t);
 		case PVector(k): PVector(toFieldType(k));
 		case PNull(t): PNull(toFieldType(t));
 		case PFlags(t): PFlags(toFieldType(t));
@@ -327,6 +328,10 @@ class Macros {
 			case ":noSync":
 				t.notMutable = true;
 				t.noSync = true;
+			case ":noSave":
+				var prev = t;
+				t = Reflect.copy(t);
+				t.d = PNoSave(prev);
 			case ":visible" if( m.params.length == 1 ):
 				t.visibility = getVisibility(m);
 			case ":value":
@@ -539,7 +544,7 @@ class Macros {
 		switch( t.d ) {
 		case PInt, PFloat, PBool, PFlags(_), PInt64:
 			return false;
-		case PAlias(t), PAliasCDB(t):
+		case PAlias(t), PAliasCDB(t), PNoSave(t):
 			return isNullable(t);
 		default:
 			return true;
@@ -626,6 +631,8 @@ class Macros {
 			return macro $ctx.addAnyRef($v);
 		case PAlias(t), PAliasCDB(t):
 			return serializeExpr(ctx, { expr : ECast(v, null), pos : v.pos }, t);
+		case PNoSave(t):
+			return macro if( !$ctx.forSave ) ${serializeExpr(ctx,v,t)};
 		case PNull(t):
 			var e = serializeExpr(ctx, v, t);
 			return macro if( $v == null ) $ctx.addByte(0) else { $ctx.addByte(1); $e; };
@@ -756,6 +763,8 @@ class Macros {
 				${unserializeExpr(ctx,macro $i{vname},at,depth+1,conds)};
 				$v = cast $i{vname};
 			};
+		case PNoSave(at):
+			return macro if( !$ctx.forSave ) ${unserializeExpr(ctx, v, at, depth, conds)};
 		case PNull(t):
 			var e = unserializeExpr(ctx, v, t, depth, conds);
 			return macro if( $ctx.getByte() == 0 ) $v = null else $e;
@@ -843,9 +852,7 @@ class Macros {
 			return macro { var _e = ${makeEnumCall(t,"clearReferences",[macro cast $expr, macro mark])}; if( _e != $expr ) ${fset(macro _e)}; };
 		case PDynamic:
 			return macro { var _e = @:privateAccess hxbit.Serializer.clearReferencesDyn($expr,mark); if( _e != $expr ) ${fset(macro _e)}; };
-		case PAlias(t):
-			return clearExpr(expr, t, pos, fset);
-		case PNull(t):
+		case PAlias(t), PNull(t), PNoSave(t):
 			return clearExpr(expr, t, pos, fset);
 		}
 	}
@@ -911,17 +918,16 @@ class Macros {
 			}
 			if( f.meta == null ) continue;
 
-			var isPrio = false, isSer = null, vis = null;
+			var isPrio = false, isSer = null;
 			for( meta in f.meta ) {
 				switch( meta.name ) {
 				case ":s": isSer = meta;
 				case ":serializePriority": isPrio = true;
-				case ":visible": vis = getVisibility(meta);
 				}
 			}
 			if( isSer != null ) {
 				if( isPrio ) serializePriority = f;
-				toSerialize.push({ f : f, m : isSer, vis : vis });
+				toSerialize.push({ f : f, m : isSer, meta : f.meta });
 			}
 		}
 
@@ -988,6 +994,10 @@ class Macros {
 					sexpr = macro @:pos(pos) if( this.$fname != null ) $sexpr;
 					uexpr = macro @:pos(pos) if( __bits & (1 << $v{b}) == 0 ) $uexpr;
 				}
+				if( ftype.d.match(PNoSave(_)) ) {
+					sexpr = macro @:pos(pos) if( !ctx.forSave ) $sexpr;
+					uexpr = macro @:pos(pos) if( !ctx.forSave ) $uexpr;
+				}
 				elAfter.push(sexpr);
 				ul.push(uexpr);
 			}
@@ -997,15 +1007,32 @@ class Macros {
 			for( f in toSerialize ) {
 				var fname = f.f.name;
 				var ef = useStaticSer && f.f != serializePriority ? macro __this.$fname : macro this.$fname;
-				el.push(withPos(macro hxbit.Macros.serializeValue(__ctx,$ef),f.f.pos));
-				ul.push(withPos(macro hxbit.Macros.unserializeValue(__ctx, $ef),f.f.pos));
-				if( f.vis != null ) {
-					el.push(macro if( @:privateAccess __ctx.visibilityGroups & (1<<$v{f.vis}) != 0 ) ${el.pop()});
-					ul.push(macro if( @:privateAccess __ctx.visibilityGroups & (1<<$v{f.vis}) != 0 ) ${ul.pop()} else $ef = cast null);
+				var pos = f.f.pos;
+				var sexpr = macro @:pos(pos) hxbit.Macros.serializeValue(__ctx,$ef);
+				var uexpr = macro @:pos(pos) hxbit.Macros.unserializeValue(__ctx, $ef);
+				var vis = null, noSave = false;
+				for( m in f.meta ) {
+					switch( m.name ) {
+					case ":visibility":
+						vis = getVisibility(m);
+					case ":noSave":
+						noSave = true;
+					}
+				}
+				if( vis != null ) {
+					sexpr = macro if( @:privateAccess __ctx.visibilityGroups & (1<<$v{vis}) != 0 ) $sexpr;
+					uexpr = macro if( @:privateAccess __ctx.visibilityGroups & (1<<$v{vis}) != 0 ) $uexpr else $ef = cast null;
+				}
+				if( noSave ) {
+					sexpr = macro if( !__ctx.forSave ) $sexpr;
+					uexpr = macro if( !__ctx.forSave ) $uexpr;
 				}
 				if( f.f == serializePriority ) {
 					if( serializePriorityFuns != null ) throw "assert";
-					serializePriorityFuns = { ser : el.pop(), unser : ul.pop() };
+					serializePriorityFuns = { ser : sexpr, unser : uexpr };
+				} else {
+					el.push(sexpr);
+					ul.push(uexpr);
 				}
 			}
 		}
@@ -1797,6 +1824,7 @@ class Macros {
 		var syncExpr = [];
 		var initExpr = [];
 		var noComplete : Metadata = [ { name : ":noCompletion", pos : pos } ];
+		var saveMask : haxe.Int64 = 0;
 		for( f in toSerialize ) {
 			var pos = f.f.pos;
 			var fname = f.f.name;
@@ -1863,6 +1891,11 @@ class Macros {
 			var compExpr : Expr = macro this.$fname != v;
 			if(ftype.d.match(PEnum(_)))
 				compExpr = macro !Type.enumEq(this.$fname, v);
+
+			switch( ftype.d ) {
+			case PNoSave(_): saveMask |= (1:haxe.Int64) << bitID;
+			default:
+			}
 
 			var markFun = "__net_mark_" + f.f.name;
 			fields.push( {
@@ -2340,6 +2373,25 @@ class Macros {
 				});
 			}
 			#end
+
+
+			if( !isSubSer || saveMask != 0 ) {
+				fields.push({
+					name : "getNoSaveMask",
+					pos : pos,
+					access : access,
+					meta : noComplete,
+					kind : FFun({
+						args : [],
+						ret : macro : haxe.Int64,
+						expr : macro {
+							var mask = haxe.Int64.make($v{saveMask.high}, $v{saveMask.low});
+							${if( isSubSer ) macro mask |= super.getNoSaveMask() else macro null};
+							return mask;
+						}
+					}),
+				});
+			}
 		}
 
 		if( initExpr.length != 0 || !isSubSer ) {
@@ -2472,9 +2524,7 @@ class Macros {
 				if( ev != null ) out.push(ev);
 			}
 			return out.length == 0 ? null : macro if( $expr != null ) $b{out};
-		case PAlias(t):
-			return makeRecExpr(expr, t, pos, mk);
-		case PNull(t):
+		case PAlias(t), PNull(t), PNoSave(t):
 			return makeRecExpr(expr, t, pos, mk);
 		}
 		return null;
