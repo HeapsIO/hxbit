@@ -298,7 +298,7 @@ class Macros {
 			return null;
 		for( m in meta) {
 			switch( m.name ) {
-			case ":s", ":optional", ":serializePriority",":allowCDB":
+			case ":s", ":optional", ":serializePriority", ":allowCDB", ":isVar":
 				//
 			case ":increment":
 				var inc : Null<Float> = null;
