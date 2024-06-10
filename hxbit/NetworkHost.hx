@@ -1106,38 +1106,40 @@ class NetworkHost {
 					if( c.ctx.refs[o.__uid] == null )
 						continue;
 					var ctx = c.ctx;
-					var prevGroups : Int = o.__cachedVisibility == null ? 0 : o.__cachedVisibility.get(ctx.currentTarget);
-					var newGroups = @:privateAccess ctx.evalVisibility(o);
-					var mask = o.getVisibilityMask(newGroups);
-					o.__bits1 = bits1 & mask.low;
-					o.__bits2 = bits2 & mask.high;
-					if( prevGroups != newGroups ) {
-						if( logger != null ) {
-							var groups = [];
-							for( g in VGROUPS ) {
-								var mask = 1 << g.getIndex();
-								if( (prevGroups & mask) != (newGroups & mask) )
-									groups.push( ((prevGroups&mask) != 0 ? "-" : "+") + g.getName().toLowerCase() );
+					if( isAuth ) {
+						var prevGroups : Int = o.__cachedVisibility == null ? 0 : o.__cachedVisibility.get(ctx.currentTarget);
+						var newGroups = @:privateAccess ctx.evalVisibility(o);
+						var mask = o.getVisibilityMask(newGroups);
+						o.__bits1 = bits1 & mask.low;
+						o.__bits2 = bits2 & mask.high;
+						if( prevGroups != newGroups ) {
+							if( logger != null ) {
+								var groups = [];
+								for( g in VGROUPS ) {
+									var mask = 1 << g.getIndex();
+									if( (prevGroups & mask) != (newGroups & mask) )
+										groups.push( ((prevGroups&mask) != 0 ? "-" : "+") + g.getName().toLowerCase() );
+								}
+								logger("VISIBILITY > " + objStr(o)+" "+groups.join("|"));
 							}
-							logger("VISIBILITY > " + objStr(o)+" "+groups.join("|"));
+							var activated = newGroups & ~prevGroups;
+							if( activated != 0 ) {
+								var mask = o.getVisibilityMask(activated);
+								o.__bits1 |= mask.low;
+								o.__bits2 |= mask.high;
+							}
+							var disabled = prevGroups & ~newGroups;
+							if( disabled != 0 ) {
+								ctx.addByte(VIS_RESET);
+								ctx.addUID(o.__uid);
+								ctx.addInt(disabled);
+								if( checkEOM ) ctx.addByte(EOM);
+							}
 						}
-						var activated = newGroups & ~prevGroups;
-						if( activated != 0 ) {
-							var mask = o.getVisibilityMask(activated);
-							o.__bits1 |= mask.low;
-							o.__bits2 |= mask.high;
-						}
-						var disabled = prevGroups & ~newGroups;
-						if( disabled != 0 ) {
-							ctx.addByte(VIS_RESET);
-							ctx.addUID(o.__uid);
-							ctx.addInt(disabled);
-							if( checkEOM ) ctx.addByte(EOM);
-						}
+						if( o.__bits1 | o.__bits2 == 0 )
+							continue;
+						@:privateAccess ctx.visibilityGroups = newGroups;
 					}
-					if( o.__bits1 | o.__bits2 == 0 )
-						continue;
-					@:privateAccess ctx.visibilityGroups = newGroups;
 				#end
 					ctx.addByte(SYNC);
 					ctx.addUID(o.__uid);
