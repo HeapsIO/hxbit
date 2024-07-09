@@ -894,7 +894,7 @@ class Macros {
 
 	public static function buildSerializable(isStruct=false) {
 		var cl = Context.getLocalClass().get();
-		if( cl.isInterface || Context.defined("display") || cl.meta.has(":skipSerialize") )
+		if( cl.isInterface || cl.meta.has(":skipSerialize") )
 			return null;
 		var fields = Context.getBuildFields();
 		var toSerialize = [];
@@ -1641,7 +1641,7 @@ class Macros {
 
 	public static function buildNetworkSerializable(?fields: Array<Field>) {
 		var cl = Context.getLocalClass().get();
-		if( cl.isInterface || Context.defined("display") )
+		if( cl.isInterface )
 			return null;
 
 		var clName = Context.getLocalClass().toString();
