@@ -1013,7 +1013,7 @@ class Macros {
 				var vis = null, noSave = false;
 				for( m in f.meta ) {
 					switch( m.name ) {
-					case ":visibility":
+					case ":visible":
 						vis = getVisibility(m);
 					case ":noSave":
 						noSave = true;
