@@ -1110,8 +1110,10 @@ class NetworkHost {
 						var prevGroups : Int = o.__cachedVisibility == null ? 0 : o.__cachedVisibility.get(ctx.currentTarget);
 						var newGroups = @:privateAccess ctx.evalVisibility(o);
 						var mask = o.getVisibilityMask(newGroups);
-						o.__bits1 = bits1 & mask.low;
-						o.__bits2 = bits2 & mask.high;
+						var maskLow = mask.low & 0x3FFFFFFF;
+						o.__bits1 = bits1 & maskLow;
+						var maskHigh: haxe.Int32 = cast(mask >> 30);
+						o.__bits2 = bits2 & maskHigh;
 						if( prevGroups != newGroups ) {
 							if( logger != null ) {
 								var groups = [];
