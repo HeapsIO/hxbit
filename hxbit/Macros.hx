@@ -952,6 +952,8 @@ class Macros {
 			if( f.access.indexOf(AStatic) >= 0 ) continue;
 			switch( f.kind ) {
 			case FVar(_, e), FProp(_, _, _, e) if( e != null ):
+				if (f.access != null && f.access.contains(AFinal))
+					Context.error("Serializables may not have member final variables", f.pos);
 				// before unserializing
 				fieldsInits.push({ expr : EBinop(OpAssign,{ expr : EConst(CIdent(f.name)), pos : e.pos },e), pos : e.pos });
 			default:
