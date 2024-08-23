@@ -949,7 +949,7 @@ class Macros {
 
 		var fieldsInits = [];
 		for( f in fields ) {
-			if( f.access.indexOf(AStatic) >= 0 ) continue;
+			if( f.access != null && f.access.indexOf(AStatic) >= 0 ) continue;
 			switch( f.kind ) {
 			case FVar(_, e), FProp(_, _, _, e) if( e != null ):
 				// before unserializing
@@ -1700,7 +1700,7 @@ class Macros {
 				continue;
 			}
 
-			if( f.access.indexOf(AOverride) >= 0 && StringTools.startsWith(f.name, "set_") && superFields.exists(f.name.substr(4)) ) {
+			if( f.access != null && f.access.indexOf(AOverride) >= 0 && StringTools.startsWith(f.name, "set_") && superFields.exists(f.name.substr(4)) ) {
 				// overridden setter of network property
 				var fname = f.name.substr(4);
 				switch( f.kind ) {
