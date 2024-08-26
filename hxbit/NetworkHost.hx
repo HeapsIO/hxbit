@@ -1110,8 +1110,8 @@ class NetworkHost {
 						var prevGroups : Int = o.__cachedVisibility == null ? 0 : o.__cachedVisibility.get(ctx.currentTarget);
 						var newGroups = @:privateAccess ctx.evalVisibility(o);
 						var mask = o.getVisibilityMask(newGroups);
-						o.__bits1 = bits1 & mask.low;
-						o.__bits2 = bits2 & mask.high;
+						o.__bits1 = bits1 & (mask.low & 0x3FFFFFFF);
+						o.__bits2 = bits2 & (mask >>> 30).low;
 						if( prevGroups != newGroups ) {
 							if( logger != null ) {
 								var groups = [];
@@ -1125,8 +1125,8 @@ class NetworkHost {
 							var activated = newGroups & ~prevGroups;
 							if( activated != 0 ) {
 								var mask = o.getVisibilityMask(activated);
-								o.__bits1 |= mask.low;
-								o.__bits2 |= mask.high;
+								o.__bits1 |= (mask.low & 0x3FFFFFFF);
+								o.__bits2 |= (mask >>> 30).low;
 							}
 							var disabled = prevGroups & ~newGroups;
 							if( disabled != 0 ) {
