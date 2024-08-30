@@ -1917,6 +1917,13 @@ class Macros {
 					}
 				}),
 			});
+			fields.push({
+				name : "__net_bit_" + f.f.name,
+				access : [AStatic, AInline],
+				meta : noComplete,
+				pos : pos,
+				kind : FVar(macro: Int, macro $v{ bitID }),
+			});
 
 			var found = false;
 			for( set in fields )
