@@ -23,6 +23,7 @@ package hxbit;
 
 interface ProxyHost {
 	public function networkSetBit( bit : Int ) : Void;
+	public function networkSetBitCond( bit : Int ) : Void;
 }
 
 interface ProxyChild {
@@ -98,8 +99,11 @@ class BaseProxy implements ProxyHost implements ProxyChild {
 	public inline function networkSetBit(_) {
 		mark();
 	}
+	public inline function networkSetBitCond(b) {
+		networkSetBit(b);
+	}
 	public inline function mark() {
-		if( obj != null ) obj.networkSetBit(bit);
+		if( obj != null ) obj.networkSetBitCond(bit);
 	}
 	public inline function bindHost(o, bit) {
 		if( obj != null && (o != this.obj || bit != this.bit) )

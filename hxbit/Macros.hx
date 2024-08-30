@@ -1825,6 +1825,7 @@ class Macros {
 		var flushExpr = [];
 		var syncExpr = [];
 		var initExpr = [];
+		var condMarkCases: Array<Case> = [];
 		var noComplete : Metadata = [ { name : ":noCompletion", pos : pos } ];
 		var saveMask : haxe.Int64 = 0;
 		for( f in toSerialize ) {
@@ -1964,6 +1965,31 @@ class Macros {
 					ret : null,
 				}),
 				access : [AInline],
+			});
+			condMarkCases.push({
+				values : [macro $v{bitID}],
+				expr : markExpr,
+			});
+		}
+
+		if( toSerialize.length != 0 || !isSubSer ) {
+			var access = [APublic];
+			if( isSubSer )
+				access.push(AOverride);
+			var defaultCase = macro networkSetBit(b);
+			if( isSubSer )
+				defaultCase = macro super.networkSetBitCond(b);
+			var swExpr = { expr : ESwitch( { expr : EConst(CIdent("b")), pos : pos }, condMarkCases, defaultCase), pos : pos };
+			fields.push({
+				name : "networkSetBitCond",
+				pos : pos,
+				access : access,
+				meta : noComplete,
+				kind : FFun({
+					args : [ { name : "b", type : macro : Int } ],
+					ret : macro : Void,
+					expr : swExpr,
+				}),
 			});
 		}
 
@@ -2640,6 +2666,7 @@ class Macros {
 					inline function get___value() : $pt return cast this;
 					inline function mark() if( obj != null ) obj.networkSetBit(bit);
 					@:noCompletion public function networkSetBit(_) mark();
+					@:noCompletion public function networkSetBitCond(b) networkSetBit(b);
 					@:noCompletion public function bindHost(obj, bit) { this.obj = obj; this.bit = bit; }
 					@:noCompletion public function unbindHost() this.obj = null;
 					@:noCompletion public function toString() return hxbit.NetworkSerializable.BaseProxy.objToString(this);
