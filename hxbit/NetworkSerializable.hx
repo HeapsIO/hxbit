@@ -22,7 +22,7 @@
 package hxbit;
 
 interface ProxyHost {
-	public function networkSetBitCond( bit : Int ) : Void;
+	public function networkSetBit( bit : Int ) : Void;
 }
 
 interface ProxyChild {
@@ -81,7 +81,6 @@ interface NetworkSerializable extends Serializable extends ProxyHost {
 	public function networkRPC( ctx : NetworkSerializer, rpcID : Int, clientResult : NetworkHost.NetworkClient ) : Bool;
 	public function networkAllow( op : Operation, propId : Int, client : NetworkSerializable ) : Bool;
 	public function networkGetName( propId : Int, isRPC : Bool = false ) : String;
-	public function networkSetBit( bit : Int ) : Void;
 
 	#if hxbit_visibility
 	public var __cachedVisibility : Map<hxbit.NetworkSerializable,Int>;
@@ -96,11 +95,11 @@ interface NetworkSerializable extends Serializable extends ProxyHost {
 class BaseProxy implements ProxyHost implements ProxyChild {
 	public var obj : ProxyHost;
 	public var bit : Int;
-	@:noCompletion public inline function networkSetBitCond(_) {
+	public inline function networkSetBit(_) {
 		mark();
 	}
 	public inline function mark() {
-		if( obj != null ) obj.networkSetBitCond(bit);
+		if( obj != null ) obj.networkSetBit(bit);
 	}
 	public inline function bindHost(o, bit) {
 		if( obj != null && (o != this.obj || bit != this.bit) )
