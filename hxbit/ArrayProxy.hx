@@ -41,13 +41,11 @@ class ArrayProxyData<T> extends BaseProxy {
 class ArrayProxyIterator<T> {
 	public var a : Array<T>;
 	public var index : Int;
-	public var count : Int;
 	public inline function new(a) {
 		this.a = a;
 		this.index = 0;
-		this.count = a.length;
 	}
-	public inline function hasNext() return index < count;
+	public inline function hasNext() return index < a.length;
 	public inline function next() return a[index++];
 }
 
