@@ -2664,9 +2664,8 @@ class Macros {
 					var bit : Int;
 					@:noCompletion public var __value(get, never) : $pt;
 					inline function get___value() : $pt return cast this;
-					inline function mark() if( obj != null ) obj.networkSetBit(bit);
-					@:noCompletion public function networkSetBit(_) mark();
-					@:noCompletion public function networkSetBitCond(b) networkSetBit(b);
+					public inline function mark() if( obj != null ) obj.networkSetBitCond(bit);
+					@:noCompletion public inline function networkSetBitCond(_) mark();
 					@:noCompletion public function bindHost(obj, bit) { this.obj = obj; this.bit = bit; }
 					@:noCompletion public function unbindHost() this.obj = null;
 					@:noCompletion public function toString() return hxbit.NetworkSerializable.BaseProxy.objToString(this);
