@@ -1050,7 +1050,7 @@ class Macros {
 				for( s in toSerialize ) {
 					switch( s.f.kind ) {
 					case FProp(_):
-						Context.error("Property not allowed on proxy StructSerializable", pos);
+						Context.error("Property not allowed on proxy StructSerializable", s.f.pos);
 					case FVar(t,e):
 						s.f.kind = FProp("default","set", t, e);
 						var fname = s.f.name;
