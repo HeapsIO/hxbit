@@ -1165,6 +1165,12 @@ class Macros {
 				var name = s.f.name;
 				var acall = s.f == serializePriority ? "unshift" : "push";
 				var e = macro { schema.fieldsNames.$acall($v{name}); schema.fieldsTypes.$acall(hxbit.Macros.getFieldType(this.$name)); };
+				for( m in s.meta ) {
+					switch( m.name ) {
+					case ":noSave":
+						e = macro if (!forSave) $e{e};
+					}
+				}
 				schema.push(e);
 			}
 			fields.push({
@@ -1173,10 +1179,10 @@ class Macros {
 				access : access,
 				meta : noCompletion,
 				kind : FFun({
-					args : [],
+					args : [{ name : "forSave", type : macro : Bool, value : macro true }],
 					ret : null,
 					expr : macro {
-						var schema = ${if( isSubSer ) macro super.getSerializeSchema() else macro new hxbit.Schema()};
+						var schema = ${if( isSubSer ) macro super.getSerializeSchema(forSave) else macro new hxbit.Schema()};
 						$b{schema};
 						schema.isFinal = ${isStruct ? macro true : macro hxbit.Serializer.isClassFinal(__clid)};
 						return schema;

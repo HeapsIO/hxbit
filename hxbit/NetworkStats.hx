@@ -31,7 +31,7 @@ class NetworkStats {
 		var cid = o.getCLID();
 		var c = classes[cid];
 		if( c == null ) {
-			c = { name : Type.getClassName(Type.getClass(o)), props : [], rpcs : [], schema : o.getSerializeSchema() };
+			c = { name : Type.getClassName(Type.getClass(o)), props : [], rpcs : [], schema : o.getSerializeSchema(false) };
 			classes[cid] = c;
 		}
 		return c;
