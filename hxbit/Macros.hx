@@ -1888,8 +1888,9 @@ class Macros {
 			f.f.kind = FProp(getter,"set", ftype.t, einit);
 
 			var bitID = startFID++;
-			var markExpr = macro networkSetBit($v{ bitID });
-			markExpr = makeMarkExpr(fields, fname, ftype, markExpr);
+			var baseMarkExpr = macro networkSetBit($v{ bitID });
+			var markExpr = makeMarkExpr(fields, fname, ftype, baseMarkExpr);
+			var condMarkExpr = makeMarkExpr(fields, fname, ftype, baseMarkExpr, false);
 
 			var compExpr : Expr = macro this.$fname != v;
 			if(ftype.d.match(PEnum(_)))
@@ -1968,7 +1969,7 @@ class Macros {
 			});
 			condMarkCases.push({
 				values : [macro $v{bitID}],
-				expr : markExpr,
+				expr : condMarkExpr,
 			});
 		}
 
@@ -2558,10 +2559,10 @@ class Macros {
 		return null;
 	}
 
-	static function makeMarkExpr( fields : Array<Field>, fname : String, t : PropType, mark : Expr ) {
+	static function makeMarkExpr( fields : Array<Field>, fname : String, t : PropType, mark : Expr, forSetter=true ) {
 		var rname = "__ref_" + fname;
 		var needRef = false;
-		if( t.increment != null ) {
+		if( t.increment != null && forSetter ) {
 			needRef = true;
 			mark = macro if( Math.floor(v / $v{t.increment}) != this.$rname ) { this.$rname = Math.floor(v / $v{t.increment}); $mark; };
 		}
