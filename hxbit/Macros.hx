@@ -1825,6 +1825,7 @@ class Macros {
 		var flushExpr = [];
 		var syncExpr = [];
 		var initExpr = [];
+		var condMarkCases: Array<Case> = [];
 		var noComplete : Metadata = [ { name : ":noCompletion", pos : pos } ];
 		var saveMask : haxe.Int64 = 0;
 		for( f in toSerialize ) {
@@ -1887,8 +1888,9 @@ class Macros {
 			f.f.kind = FProp(getter,"set", ftype.t, einit);
 
 			var bitID = startFID++;
-			var markExpr = macro networkSetBit($v{ bitID });
-			markExpr = makeMarkExpr(fields, fname, ftype, markExpr);
+			var baseMarkExpr = macro networkSetBit($v{ bitID });
+			var markExpr = makeMarkExpr(fields, fname, ftype, baseMarkExpr);
+			var condMarkExpr = makeMarkExpr(fields, fname, ftype, baseMarkExpr, false);
 
 			var compExpr : Expr = macro this.$fname != v;
 			if(ftype.d.match(PEnum(_)))
@@ -1964,6 +1966,31 @@ class Macros {
 					ret : null,
 				}),
 				access : [AInline],
+			});
+			condMarkCases.push({
+				values : [macro $v{bitID}],
+				expr : condMarkExpr,
+			});
+		}
+
+		if( toSerialize.length != 0 || !isSubSer ) {
+			var access = [APublic];
+			if( isSubSer )
+				access.push(AOverride);
+			var defaultCase = macro networkSetBit(b);
+			if( isSubSer )
+				defaultCase = macro super.networkSetBitCond(b);
+			var swExpr = { expr : ESwitch( { expr : EConst(CIdent("b")), pos : pos }, condMarkCases, defaultCase), pos : pos };
+			fields.push({
+				name : "networkSetBitCond",
+				pos : pos,
+				access : access,
+				meta : noComplete,
+				kind : FFun({
+					args : [ { name : "b", type : macro : Int } ],
+					ret : macro : Void,
+					expr : swExpr,
+				}),
 			});
 		}
 
@@ -2532,10 +2559,10 @@ class Macros {
 		return null;
 	}
 
-	static function makeMarkExpr( fields : Array<Field>, fname : String, t : PropType, mark : Expr ) {
+	static function makeMarkExpr( fields : Array<Field>, fname : String, t : PropType, mark : Expr, forSetter=true ) {
 		var rname = "__ref_" + fname;
 		var needRef = false;
-		if( t.increment != null ) {
+		if( t.increment != null && forSetter ) {
 			needRef = true;
 			mark = macro if( Math.floor(v / $v{t.increment}) != this.$rname ) { this.$rname = Math.floor(v / $v{t.increment}); $mark; };
 		}
@@ -2638,8 +2665,8 @@ class Macros {
 					var bit : Int;
 					@:noCompletion public var __value(get, never) : $pt;
 					inline function get___value() : $pt return cast this;
-					inline function mark() if( obj != null ) obj.networkSetBit(bit);
-					@:noCompletion public function networkSetBit(_) mark();
+					public inline function mark() if( obj != null ) obj.networkSetBitCond(bit);
+					@:noCompletion public inline function networkSetBitCond(_) mark();
 					@:noCompletion public function bindHost(obj, bit) { this.obj = obj; this.bit = bit; }
 					@:noCompletion public function unbindHost() this.obj = null;
 					@:noCompletion public function toString() return hxbit.NetworkSerializable.BaseProxy.objToString(this);
