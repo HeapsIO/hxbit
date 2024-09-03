@@ -24,16 +24,16 @@ package hxbit;
 #if !macro
 
 /**
-	StructSerializable is a slighlty more compact version of Serializable, but doesn't have an unique id so it shouldn't be referenced multiple times.
+	StructSerializable is a slighlty more compact version of Serializable, but doesn't have a unique id so it shouldn't be referenced multiple times.
 	This allows for small objects created on-the-fly that will not need to be cleaned from the references cache.
-	Its data Schema will be included in all the objects that references it similar to a normal anonymous structure { ... }
+	Its data Schema will be included in all the objects that reference it similar to a normal anonymous structure { ... }
 **/
 @:autoBuild(hxbit.Macros.buildSerializable(true))
 interface StructSerializable extends Serializable.AnySerializable {
 	public function serialize( ctx : Serializer ) : Void;
 	public function unserialize( ctx : Serializer ) : Void;
 	public function unserializeInit() : Void;
-	public function getSerializeSchema() : Schema;
+	public function getSerializeSchema(forSave: Bool = true) : Schema;
 }
 
 #end
