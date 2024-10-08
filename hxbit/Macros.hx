@@ -1691,6 +1691,8 @@ class Macros {
 			}
 		}
 
+		var requiredSetters = new Map(), setterCount = 0;
+		
 		for( f in fields ) {
 
 			if( superRPC.exists(f.name) ) {
@@ -1707,6 +1709,9 @@ class Macros {
 				f.name += "__impl";
 				continue;
 			}
+
+			if( StringTools.startsWith(f.name, "set_") && requiredSetters.remove(f.name.substr(4)) )
+				setterCount--;
 
 			if( f.access != null && f.access.indexOf(AOverride) >= 0 && StringTools.startsWith(f.name, "set_") && superFields.exists(f.name.substr(4)) ) {
 				// overridden setter of network property
@@ -1730,6 +1735,13 @@ class Macros {
 							break;
 						}
 					toSerialize.push({ f : f, m : meta, visibility : vis, type : null });
+					if( f.kind != null )
+						switch( f.kind ) {
+						case FProp(_, "set",_,_):
+							requiredSetters.set(f.name, f.pos);
+							setterCount++;
+						default:
+						}
 					break;
 				}
 				if( meta.name == ":rpc" ) {
@@ -1749,6 +1761,14 @@ class Macros {
 					break;
 				}
 			}
+		}
+
+		if( setterCount > 0 ) {
+			for( f in fields )
+				if( f.name.substr(0,4) == "set_" )
+					requiredSetters.remove(f.name.substr(4));
+			for( name in requiredSetters.keys() )
+				Context.warning("Field '"+name+"' is declared with setter but not setter was implemented", requiredSetters.get(name));
 		}
 
 		var sup = cl.superClass;
