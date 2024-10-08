@@ -2161,7 +2161,7 @@ class Macros {
 				r.f.access.remove(APublic);
 				r.f.meta.push( { name : ":noCompletion", pos : p } );
 
-				var exprs = [ { expr : EVars([for( a in funArgs ) { name : a.name, type : a.opt ? TPath({ pack : [], name : "Null", params : [TPType(a.type)] }) : a.type, expr : macro cast null } ]), pos : p } ];
+				var exprs = [ { expr : EVars([for( a in funArgs ) { name : a.name, type : a.opt && a.type != null ? TPath({ pack : [], name : "Null", params : [TPType(a.type)] }) : a.type, expr : macro cast null } ]), pos : p } ];
 				if( returnVal.call ) {
 					exprs.push(macro var __v = cast null);
 					exprs.push(macro if( false ) { function onResult(v) __v = v; $fcall; }); // force typing
