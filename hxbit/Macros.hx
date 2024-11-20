@@ -1498,7 +1498,7 @@ class Macros {
 						access : [AStatic],
 						pos : pos,
 						kind : FFun({
-							args : [{ name : "value", type : pt.toComplexType() },{ name : "mark", type : macro : hxbit.Serializable.MarkInfo }],
+							args : [{ name : "__value", type : pt.toComplexType() },{ name : "mark", type : macro : hxbit.Serializable.MarkInfo }],
 							ret : pt.toComplexType(),
 							expr : {
 								var cases = [];
@@ -1514,17 +1514,17 @@ class Macros {
 										}
 										if( marks.length > 0 ) {
 											marks.unshift(macro var __changed = false);
-											marks.push(macro __changed ? $i{c.name}($a{eargs}): value);
+											marks.push(macro __changed ? $i{c.name}($a{eargs}): __value);
 											cases.push({ values : [macro $i{c.name}($a{eargs})], expr : macro {$b{marks}} });
 										}
 									default:
 									}
 								}
-								var swexpr = { expr : ESwitch(macro value,cases,macro value), pos : pos };
+								var swexpr = { expr : ESwitch(macro __value,cases,macro __value), pos : pos };
 								if( cases.length == 0 )
-									macro return value;
+									macro return __value;
 								else
-									macro return value == null ? null : $swexpr;
+									macro return __value == null ? null : $swexpr;
 							}
 						})
 					},
@@ -1692,7 +1692,7 @@ class Macros {
 		}
 
 		var requiredSetters = new Map(), setterCount = 0;
-		
+
 		for( f in fields ) {
 
 			if( superRPC.exists(f.name) ) {
