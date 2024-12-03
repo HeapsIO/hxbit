@@ -1423,8 +1423,8 @@ class Macros {
 						}),
 					},{
 						name : "serialize",
-						access : [AInline, APublic],
-						meta : [{name:":extern",pos:pos}],
+						access : [AInline, APublic, AExtern],
+						meta : [],
 						pos : pos,
 						kind : FFun( {
 							args : [{ name : "ctx", type : macro : hxbit.Serializer },{ name : "v", type : pt.toComplexType() }],
@@ -1433,8 +1433,8 @@ class Macros {
 						}),
 					},{
 						name : "unserialize",
-						access : [AInline, APublic],
-						meta : [{name:":extern",pos:pos}],
+						access : [AInline, APublic, AExtern],
+						meta : [],
 						pos : pos,
 						kind : FFun( {
 							args : [{ name : "ctx", type : macro : hxbit.Serializer }],
@@ -1445,8 +1445,8 @@ class Macros {
 					#if (hxbit_visibility || hxbit_mark)
 					{
 						name : "markReferences",
-						access : [AInline, APublic],
-						meta : [{name:":extern",pos:pos}],
+						access : [AInline, APublic, AExtern],
+						meta : [],
 						pos : pos,
 						kind : FFun( {
 							args : [{ name : "value", type : pt.toComplexType() },{ name : "mark", type : macro : hxbit.Serializable.MarkInfo },{ name : "from", type : macro : hxbit.NetworkSerializable }],
@@ -1485,8 +1485,8 @@ class Macros {
 					#if hxbit_clear
 					{
 						name : "clearReferences",
-						access : [AInline, APublic],
-						meta : [{name:":extern",pos:pos}],
+						access : [AInline, APublic,AExtern],
+						meta : [],
 						pos : pos,
 						kind : FFun( {
 							args : [{ name : "value", type : pt.toComplexType() },{ name : "mark", type : macro : hxbit.Serializable.MarkInfo }],
