@@ -2681,7 +2681,7 @@ class Macros {
 						hasProxy = true;
 				}
 				var optMeta : Metadata = [{ name : ":optional", pos : pos, params : [] }];
-				var loadT = haxe.macro.ComplexType.TAnonymous([for( f in fields ) { name : f.name, pos : pos, kind : FVar(f.type.t), meta : f.opt ? optMeta : null }]);
+				var loadT = haxe.macro.Expr.ComplexType.TAnonymous([for( f in fields ) { name : f.name, pos : pos, kind : FVar(f.type.t), meta : f.opt ? optMeta : null }]);
 				if( hasProxy )
 					pt = loadT;
 
