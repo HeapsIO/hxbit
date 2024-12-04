@@ -552,7 +552,7 @@ class Macros {
 	}
 
 	static function toType( t : ComplexType ) : Type {
-		return Context.typeof(macro (null:$t));
+		return ComplexTypeTools.toType(t);
 	}
 
 
