@@ -1768,7 +1768,7 @@ class Macros {
 				if( f.name.substr(0,4) == "set_" )
 					requiredSetters.remove(f.name.substr(4));
 			for( name in requiredSetters.keys() )
-				Context.warning("Field '"+name+"' is declared with setter but not setter was implemented", requiredSetters.get(name));
+				Context.warning("Method set_"+name+" required by property "+name+" is missing", requiredSetters.get(name));
 		}
 
 		var sup = cl.superClass;
