@@ -127,7 +127,7 @@ s.beginSave();
 var bytes = s.endSave();
 ```
 
-And in order to load versionned data, use:
+And in order to load versioned data, use:
 
 ```haxe
 var s = new hxbit.Serializer();
