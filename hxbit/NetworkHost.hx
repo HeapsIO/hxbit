@@ -723,6 +723,9 @@ class NetworkHost {
 		clients.push(c);
 
 		var refs = ctx.refs;
+		#if hxbit_visibility
+		refs = globalCtx.refs;
+		#end
 		ctx.enableChecks = false;
 		ctx.begin();
 		ctx.addByte(FULLSYNC);
@@ -934,9 +937,27 @@ class NetworkHost {
 			return;
 		}
 		logRegister(o);
-		ctx.addByte(REG);
-		ctx.addAnyRef(o);
-		if( checkEOM ) ctx.addByte(EOM);
+		commitRegister(o);
+	}
+	
+	function commitRegister( o : NetworkSerializable ) {
+		#if !hxbit_visibility
+			ctx.addByte(REG);
+			ctx.addAnyRef(o);
+			if( checkEOM ) ctx.addByte(EOM);
+		#else
+			for (client in clients) {
+				var ctx = client.ctx;
+				ctx.addByte(REG);
+				ctx.addAnyRef(o);
+				if( checkEOM ) ctx.addByte(EOM);
+			}
+
+			globalCtx.addByte(REG);
+			globalCtx.addAnyRef(o);
+			if( checkEOM ) globalCtx.addByte(EOM);
+			@:privateAccess if( isAuth ) globalCtx.out.pos = 0; // reset output
+		#end
 	}
 
 	function logRegister( o : NetworkSerializable ) {
@@ -1017,6 +1038,7 @@ class NetworkHost {
 		if( logger != null )
 			logger("Unregister " + objStr(o));
 		#if hxbit_visibility
+		globalCtx.refs.remove(o.__uid);
 		for( c in clients ) {
 			var ctx = c.ctx;
 			if( !ctx.refs.exists(o.__uid) ) continue;
@@ -1071,12 +1093,7 @@ class NetworkHost {
 				continue;
 			}
 			logRegister(o);
-			globalCtx.addByte(REG);
-			globalCtx.addAnyRef(o);
-			if( checkEOM ) globalCtx.addByte(EOM);
-			#if hxbit_visibility
-			@:privateAccess if( isAuth ) globalCtx.out.pos = 0; // reset output
-			#end
+			commitRegister(o);
 		}
 		var o = markHead;
 		while( o != null ) {
