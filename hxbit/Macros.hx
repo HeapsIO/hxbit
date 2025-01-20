@@ -1046,6 +1046,10 @@ class Macros {
 				Context.error("StructSerializable cannot extend Serializable", pos);
 			cl.meta.add(":final",[], pos);
 			var isProxy = cl.meta.has(":isProxy");
+			if( !isProxy && cl.superClass != null && cl.superClass.t.get().meta.has(":isProxy") ) {
+				isProxy = true;
+				cl.meta.add(":isProxy",[], pos);
+			}
 			if( isProxy ) {
 				for( s in toSerialize ) {
 					switch( s.f.kind ) {
