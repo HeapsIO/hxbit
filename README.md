@@ -237,3 +237,39 @@ You can also cancel the change of a property can calling `networkCancelProperty(
 
 The whole set of currently shared network objects can be saved using host.saveState() and loaded using host.loadState(bytes). It uses the versionning decribed previously. Once loaded, call host.makeAlive() to make sure all alive() calls are made to object.
 
+
+### Visibility
+
+It is possible to filter which clients an object's properties will be synced to. To enable this, compile with `-D hxbit_visibility`, and define the available groups by adding this macro to your hxml file:
+
+```haxe
+--macro hxbit.Macros.initVisibility(["groupOne", "self", "sameRoom"]) // The group names can be anything you want
+```
+
+Now, for example, if we want a certain property to only be synced between the host and the client that owns the property, we need to add the following attribute to it:
+
+```haxe
+@:s @:visible(self) public var private_property: String;
+```
+
+And then add the an `evalVisibility` method to the class:
+```haxe
+public override function evalVisibility(group: hxbit.VisibilityGroup, from: hxbit.NetworkSerializable): Bool {
+    if (group == Self) { // The group self was declared using the macro above
+        return from == this;
+    }
+    
+    // Example for syncing properties only if clients are in the same room
+    if (group == SameRoom) {
+        return this.roomId == from.roomId;
+    }
+
+    return true;
+}
+```
+
+If we now modify the `private_property`, it will only be synced between the host and owner, on every other client it will be `null`.
+
+The visibility can be revalidated by calling the method `setVisibilityDirty(GroupName);`. 
+An example of this would be if a property is only visible for clients in the same room, or a property that is only
+available to nearby players.
