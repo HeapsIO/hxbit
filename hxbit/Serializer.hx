@@ -313,7 +313,11 @@ class Serializer {
 	public inline function getArray<T>(f:Void->T) : Array<T> {
 		var len = getInt();
 		if( len == 0 )
+			#if hxbit_nullsafety
+			return [];
+			#else
 			return null;
+			#end
 		len--;
 		var a = [];
 		for( i in 0...len )
@@ -324,7 +328,11 @@ class Serializer {
 	public inline function getVector<T>(f:Void->T) : haxe.ds.Vector<T> {
 		var len = getInt();
 		if( len == 0 )
+			#if hxbit_nullsafety
+			return new haxe.ds.Vector<T>(0);
+			#else
 			return null;
+			#end
 		len--;
 		var a = new haxe.ds.Vector<T>(len);
 		for( i in 0...len )
@@ -348,7 +356,11 @@ class Serializer {
 	extern public inline function getMap<K,T>(fk:Void->K, ft:Void->T) : Map<K,T> {
 		var len = getInt();
 		if( len == 0 )
+			#if hxbit_nullsafety
+			return new Map<K,T>();
+			#else
 			return null;
+			#end
 		var m = new Map<K,T>();
 		while( --len > 0 ) {
 			var k = fk();
@@ -430,7 +442,11 @@ class Serializer {
 	public function getString() {
 		var len = getInt();
 		if( len == 0 )
+			#if hxbit_nullsafety
+			return "";
+			#else
 			return null;
+			#end
 		len--;
 		var s = input.getString(inPos, len);
 		inPos += len;
@@ -440,7 +456,11 @@ class Serializer {
 	public function getBytes() {
 		var len = getInt();
 		if( len == 0 )
+			#if hxbit_nullsafety
+			return haxe.io.Bytes.alloc(0);
+			#else
 			return null;
+			#end
 		len--;
 		var s = input.sub(inPos, len);
 		inPos += len;
