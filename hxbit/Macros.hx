@@ -2162,7 +2162,6 @@ class Macros {
 					}
 				case Immediate:
 					macro {
-						var vs = $v{visibility};
 						if( __host != null ) {
 							if( !__host.isAuth && !networkAllow(Ownership, $v{id}, __host.self.ownerObject) ) {
 								var fieldName = networkGetName($v{id}, true);
