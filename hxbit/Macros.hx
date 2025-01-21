@@ -2089,7 +2089,7 @@ class Macros {
 				}
 
 				var forwardRPC = macro {
-					@:privateAccess __host.doRPC(this,$v{id}, $v{visibility},$resultCall, function(__ctx) {
+					@:privateAccess __host.doRPC(this,$v{id}, $v{visibility}, $resultCall, function(__ctx) {
 						$b{[
 							for( a in funArgs )
 								withPos(macro hxbit.Macros.serializeValue(__ctx, $i{a.name}), f.expr.pos)
