@@ -638,12 +638,20 @@ class NetworkHost {
 		return targetClient != null; // owner not connected
 	}
 
-	inline function doRPC(o:NetworkSerializable, id:Int, onResult:NetworkSerializer->Void, serialize:NetworkSerializer->Void) {
+	inline function doRPC(o:NetworkSerializable, id:Int, visibilityGroup: Null<Int>, onResult:NetworkSerializer->Void, serialize:NetworkSerializer->Void) {
 		beforeRPC(o,id);
 		#if hxbit_visibility
 		for( c in clients ) {
 			var ctx = c.ctx;
 			if( targetClient != null && targetClient != c ) continue;
+
+			if ( isAuth && visibilityGroup != null && c.ownerObject?.__cachedVisibility != null ) {
+				var visibility = c.ownerObject.__cachedVisibility.get(o);
+				var mask = 1 << visibilityGroup;
+				if ( visibility & mask == 0 ) {
+					continue;
+				}
+			}
 		#end
 			var rpcPosition = beginRPC(ctx, o, id, onResult);
 			#if hxbit_visibility
