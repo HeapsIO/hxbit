@@ -736,12 +736,14 @@ class Serializer {
 		var classes = [], enums = [];
 		var schemas = [];
 		var sidx = CLASSES.indexOf(Schema);
+		var prevUID = UID;
 		for( i in 0...usedClasses.length ) {
 			if( !usedClasses[i] || i == sidx ) continue;
 			var c = CLASSES[i];
 			var schema = (Type.createEmptyInstance(c) : Serializable).getSerializeSchema();
 			schemas.push(schema);
 			classes.push(i);
+			schema.__uid = 0;
 			addKnownRef(schema);
 			refs.remove(schema.__uid);
 		}
@@ -749,10 +751,12 @@ class Serializer {
 			if( name == "hxbit.PropTypeDesc" ) continue;
 			var schema : hxbit.Schema = (getEnumClass(name) : Dynamic).getSchema();
 			schemas.push(schema);
+			schema.__uid = 0;
 			addKnownRef(schema);
 			refs.remove(schema.__uid);
 			enums.push(name);
 		}
+		UID = prevUID; // restore after schema create
 		var schemaData = end();
 		begin();
 		out.addBytes(content, 0, savePosition);
