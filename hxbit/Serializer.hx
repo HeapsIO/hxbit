@@ -743,7 +743,7 @@ class Serializer {
 			var schema = (Type.createEmptyInstance(c) : Serializable).getSerializeSchema();
 			schemas.push(schema);
 			classes.push(i);
-			schema.__uid = 0;
+			schema.__uid = 1;
 			addKnownRef(schema);
 			refs.remove(schema.__uid);
 		}
@@ -751,7 +751,7 @@ class Serializer {
 			if( name == "hxbit.PropTypeDesc" ) continue;
 			var schema : hxbit.Schema = (getEnumClass(name) : Dynamic).getSchema();
 			schemas.push(schema);
-			schema.__uid = 0;
+			schema.__uid = 1;
 			addKnownRef(schema);
 			refs.remove(schema.__uid);
 			enums.push(name);
