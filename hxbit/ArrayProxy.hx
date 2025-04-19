@@ -68,6 +68,10 @@ abstract ArrayProxy<T>(ArrayProxyData<T>) to ProxyChild {
 		return new ArrayProxy(new ArrayProxyData(this.array.copy()));
 	}
 
+	public inline function getArray() {
+		return __value;
+	}
+
 	public function filter( t : T->Bool ) {
 		return this.array.filter(t);
 	}
@@ -199,6 +203,10 @@ abstract ArrayProxy2<T:ProxyChild>(ArrayProxyData<T>) to ProxyChild {
 
 	inline function new(a) {
 		this = a;
+	}
+
+	public inline function getArray() {
+		return __value;
 	}
 
 	inline function bind(v:T) {

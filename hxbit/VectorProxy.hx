@@ -41,6 +41,10 @@ abstract VectorProxy<T>(VectorProxyData<T>) {
 	inline function new(a) {
 		this = a;
 	}
+	
+	public inline function getVector() {
+		return __value;
+	}
 
 	public inline function copy() {
 		return new VectorProxy(new VectorProxyData(this.array.copy()));

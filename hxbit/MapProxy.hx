@@ -43,6 +43,10 @@ abstract MapProxy<K,V>(MapData<K,V>) to ProxyChild {
 		this.map.set(key, value);
 	}
 
+	public inline function getMap() {
+		return __value;
+	}
+
 	@:arrayAccess public inline function get(key:K) return this.map.get(key);
 	public inline function exists(key:K) return this.map.exists(key);
 	public inline function remove(key:K) {
@@ -104,6 +108,10 @@ abstract MapProxy2<K,V:ProxyChild>(MapData<K,V>) to ProxyChild {
 		if( value != null ) bind(value);
 		this.mark();
 		this.map.set(key, value);
+	}
+
+	public inline function getMap() {
+		return __value;
 	}
 
 	inline function bind(v:V) {
