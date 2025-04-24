@@ -1020,6 +1020,8 @@ class Serializer {
 			if( cl == null ) throw "Missing target class "+to;
 			var v2 = #if haxe4 Std.downcast #else Std.instance #end(v, cl);
 			if( v2 != null ) return v2;
+		case [PMap(_)|PArray(_), PArray(_)] if( isEmpty(v,from) ):
+			return [];
 		case [PArray(from),PArray(to)]:
 			var arr : Array<Dynamic> = v;
 			var path = path+"[]";
@@ -1067,8 +1069,6 @@ class Serializer {
 			default:
 				// todo
 			}
-		case [PMap(_)|PArray(_), PArray(_)] if( isEmpty(v,from) ):
-			return [];
 		default:
 		}
 
