@@ -1058,10 +1058,34 @@ class Serializer {
 			default:
 				// todo
 			}
+		case [PMap(_)|PArray(_), PMap(k,_)] if( isEmpty(v,from) ):
+			switch( k ) {
+			case PInt: return new Map<Int,Dynamic>();
+			case PString: return new Map<String,Dynamic>();
+			case PEnum(_): return new haxe.ds.EnumValueMap<Dynamic,Dynamic>();
+			case PSerializable(_), PObj(_): new Map<{},Dynamic>();
+			default:
+				// todo
+			}
+		case [PMap(_)|PArray(_), PArray(_)] if( isEmpty(v,from) ):
+			return [];
 		default:
 		}
 
 		throw 'Cannot convert $path($v) from $from to $to';
+	}
+
+	function isEmpty(v:Dynamic,t:Schema.FieldType) {
+		switch( t ) {
+		case PMap(_):
+			var m : haxe.Constraints.IMap<Dynamic,Dynamic> = v;
+			return !m.keys().hasNext();
+		case PArray(_):
+			var a : Array<Dynamic> = v;
+			return a.length == 0;
+		default:
+		}
+		return false;
 	}
 
 	static var ENUM_CLASSES = new Map();
