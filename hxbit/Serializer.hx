@@ -192,6 +192,18 @@ class Serializer {
 		if( CLIDS == null ) initClassIDS();
 	}
 
+	public inline function getPosition( write : Bool = false ) {
+		return write ? (#if hl @:privateAccess out.pos #else -1 #end) : inPos;
+	}
+
+	public inline function writeToPosition( pos : Int, value : Int ) {
+		if( pos >= 0 ) {
+			#if hl
+			@:privateAccess out.b.setI32(pos, value);
+			#end
+		}
+	}
+
 	function set_remapIds(b) {
 		remapObjs = b ? new Map() : null;
 		return b;
