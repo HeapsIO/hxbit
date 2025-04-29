@@ -414,13 +414,10 @@ class Macros {
 					p = { d : PNull(p), t : TPath( { pack : [], name : "Null", params : [TPType(p.t)] } ) };
 				return p;
 			case name:
-				var t2 = Context.followWithAbstracts(t, true);
-				switch( t2 ) {
-				case TAbstract(a2, _) if( a2.toString() == name ):
+				var ainf = a.get();
+				if( ainf.type == null )
 					return null;
-				default:
-				}
-				var ainf = a.get(), isCDB = false;
+				var isCDB = false;
 				if( ainf.meta.has(":cdb") ) {
 					if( conds.has(PreventCDB) ) {
 						Context.warning("Unsupported CDB type, store the id-kind or use @:allowCDB ", Context.currentPos());
@@ -430,7 +427,7 @@ class Macros {
 					isMutable = false;
 				} else if( ainf.meta.has(":noProxy") )
 					isMutable = false;
-				var pt = getPropType(t2,conds);
+				var pt = getPropType(ainf.type.applyTypeParameters(ainf.params,pl),conds);
 				if( pt == null ) return null;
 				isCDB ? PAliasCDB(pt) : PAlias(pt);
 			}
@@ -459,6 +456,8 @@ class Macros {
 			a.fields.length == 0 ? PDynamic : PObj(fields);
 		case TInst(c, pl):
 			switch( c.toString() ) {
+			case "haxe._Int64.___Int64": // JS
+				PInt64;
 			case "String":
 				PString;
 			case "Array":
