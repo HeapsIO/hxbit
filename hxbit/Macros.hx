@@ -456,8 +456,6 @@ class Macros {
 			a.fields.length == 0 ? PDynamic : PObj(fields);
 		case TInst(c, pl):
 			switch( c.toString() ) {
-			case "haxe._Int64.___Int64": // JS
-				PInt64;
 			case "String":
 				PString;
 			case "Array":
