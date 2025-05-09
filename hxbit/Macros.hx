@@ -1565,7 +1565,7 @@ class Macros {
 		switch( t.d ) {
 		case PMap(_), PArray(_), PObj(_), PVector(_), PFlags(_):
 			return !t.notMutable;
-		case PNull(st), PAlias(st):
+		case PNull(st), PAlias(st), PNoSave(st):
 			return !t.notMutable && needProxy(st);
 		default:
 			return false;
