@@ -106,11 +106,11 @@ class Macros {
 	/** Generate game-specific property getters, mostly to be used in networkAllow() **/
 	public static var CUSTOM_GETTERS : Array<{name: String, ret: ComplexType, func : {id: Int, name: String, field: Field} -> Dynamic }> = [];
 
-	@:persistent static var NW_BUILD_STACK : Array<String> = [];
+	@:persistent static var SERIALIZABLES : Map<String,Bool> = [];
 
 	#if macro
 	public static function markAsSerializable( className : String ) {
-		NW_BUILD_STACK.push(className);
+		SERIALIZABLES.set(className, true);
 	}
 	#end
 
@@ -240,9 +240,13 @@ class Macros {
 		};
 	}
 
+	static inline function getClass( c : Ref<ClassType> ) {
+		return c.get();
+	}
+
 	static function lookupInterface( c : Ref<ClassType>, name : String ) {
 		while( true ) {
-			var cg = c.get();
+			var cg = getClass(c);
 			for( i in cg.interfaces ) {
 				if( i.t.toString() == name )
 					return true;
@@ -258,7 +262,7 @@ class Macros {
 	}
 
 	static function isSerializable( c : Ref<ClassType> ) {
-		return NW_BUILD_STACK.indexOf(c.toString()) >= 0 || c.get().meta.has(":isSerializable") || lookupInterface(c, "hxbit.Serializable");
+		return SERIALIZABLES.exists(c.toString()) || getClass(c).meta.has(":isSerializable") || lookupInterface(c, "hxbit.Serializable");
 	}
 
 	static function isCustomSerializable( c : Ref<ClassType> ) {
@@ -473,7 +477,7 @@ class Macros {
 			case "haxe.io.Bytes":
 				PBytes;
 			case name if( StringTools.startsWith(name, "hxbit.ObjProxy_") ):
-				var fields = c.get().fields.get();
+				var fields = getClass(c).fields.get();
 				for( f in fields )
 					if( f.name == "__value" ) {
 						var t = getPropType(f.type,conds);
@@ -484,13 +488,20 @@ class Macros {
 				throw "assert";
 			default:
 				if( isSerializable(c) ) {
-					var c = c.get();
-					var path = getNativePath(c);
-					c.isInterface ? PSerInterface(path) : PSerializable(path);
+					var path, isInt;
+					if( SERIALIZABLES.exists(c.toString()) ) {
+						path = c.toString();
+						isInt = false;
+					} else {
+						var c = getClass(c);
+						path = getNativePath(c);
+						isInt = c.isInterface;
+					}
+					isInt ? PSerInterface(path) : PSerializable(path);
 				} else if( isCustomSerializable(c) )
 					PCustom;
 				else if( isStructSerializable(c) ) {
-					var c = c.get();
+					var c = getClass(c);
 					var path = getNativePath(c);
 					var fields = [];
 					for( f in c.fields.get() ) {
@@ -1654,7 +1665,7 @@ class Macros {
 			return null;
 
 		var clName = Context.getLocalClass().toString();
-		NW_BUILD_STACK.push(clName);
+		SERIALIZABLES.set(clName, true);
 
 		if(fields == null)
 			fields = Context.getBuildFields();
@@ -2550,7 +2561,6 @@ class Macros {
 		if( toSerialize.length > 0 )
 			cl.meta.add(":sFields", [for( r in toSerialize ) { expr : EConst(CIdent(r.f.name)), pos : pos }], pos);
 
-		NW_BUILD_STACK.pop();
 		return fields;
 	}
 
