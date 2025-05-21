@@ -106,11 +106,11 @@ class Macros {
 	/** Generate game-specific property getters, mostly to be used in networkAllow() **/
 	public static var CUSTOM_GETTERS : Array<{name: String, ret: ComplexType, func : {id: Int, name: String, field: Field} -> Dynamic }> = [];
 
-	@:persistent static var SERIALIZABLES : Map<String,Bool> = [];
+	@:persistent static var SERIALIZABLES : Map<String,String> = [];
 
 	#if macro
 	public static function markAsSerializable( className : String ) {
-		SERIALIZABLES.set(className, true);
+		SERIALIZABLES.set(className, className);
 	}
 	#end
 
@@ -489,8 +489,9 @@ class Macros {
 			default:
 				if( isSerializable(c) ) {
 					var path, isInt;
-					if( SERIALIZABLES.exists(c.toString()) ) {
-						path = c.toString();
+					path = c.toString();
+					if( SERIALIZABLES.exists(path) ) {
+						path = SERIALIZABLES.get(path);
 						isInt = false;
 					} else {
 						var c = getClass(c);
@@ -1665,7 +1666,7 @@ class Macros {
 			return null;
 
 		var clName = Context.getLocalClass().toString();
-		SERIALIZABLES.set(clName, true);
+		SERIALIZABLES.set(clName, getNativePath(cl));
 
 		if(fields == null)
 			fields = Context.getBuildFields();
