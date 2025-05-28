@@ -1017,8 +1017,8 @@ class Macros {
 		} else {
 			for( f in toSerialize ) {
 				var fname = f.f.name;
-				var ef = useStaticSer && f.f != serializePriority ? macro __this.$fname : macro this.$fname;
 				var pos = f.f.pos;
+				var ef = useStaticSer && f.f != serializePriority ? macro @:pos(pos) __this.$fname : macro @:pos(pos) this.$fname;
 				var sexpr = macro @:pos(pos) hxbit.Macros.serializeValue(__ctx,$ef);
 				var uexpr = macro @:pos(pos) hxbit.Macros.unserializeValue(__ctx, $ef);
 				var vis = null, noSave = false;
