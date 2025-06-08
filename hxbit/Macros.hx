@@ -1061,6 +1061,7 @@ class Macros {
 				cl.meta.add(":isProxy",[], pos);
 			}
 			if( isProxy ) {
+				var bindList = [];
 				for( s in toSerialize ) {
 					var ft = ftypes.get(s.f.name);
 					checkProxy(ft);
@@ -1074,6 +1075,7 @@ class Macros {
 						var expr;
 						if( ft.isProxy ) {
 							expr = macro { mark(); if( this.$fname != null ) this.$fname.unbindHost(); this.$fname = v; if( v != null ) v.bindHost(this,0); return v; }
+							bindList.push(fname);
 						} else {
 							expr = macro { mark(); this.$fname = v; return v; }
 						}
@@ -1088,6 +1090,32 @@ class Macros {
 						});
 					default:
 					}
+				}
+				if( bindList.length > 0 ) {
+					fields.push({
+						name : "bindHost",
+						pos : pos,
+						access : [AOverride],
+						kind : FFun({
+							args : [{ name : "o", type : null }, { name : "bit", type : null }],
+							expr : macro {
+								super.bindHost(o,bit);
+								$b{[for( f in bindList ) macro this.$f?.bindHost(o,bit)]};
+							}
+						}),
+					});
+					fields.push({
+						name : "unbindHost",
+						pos : pos,
+						access : [AOverride],
+						kind : FFun({
+							args : [],
+							expr : macro {
+								super.unbindHost();
+								$b{[for( f in bindList ) macro this.$f?.unbindHost()]};
+							}
+						}),
+					});
 				}
 			}
 		} else if( isSubSer )

@@ -332,6 +332,11 @@ abstract ArrayProxy2<T:ProxyChild>(ArrayProxyData<T>) to ProxyChild {
 		this.bit = bit;
 	}
 
+	@:noCompletion public inline function unbindHost() {
+		this.obj = null;
+		for( o in this ) unbind(o);
+	}
+
 	@:arrayAccess inline function get(idx:Int) {
 		return this.array[idx];
 	}

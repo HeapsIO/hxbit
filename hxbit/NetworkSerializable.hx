@@ -102,13 +102,13 @@ class BaseProxy implements ProxyHost implements ProxyChild {
 	public inline function mark() {
 		if( obj != null ) obj.networkSetBitCond(bit);
 	}
-	public inline function bindHost(o, bit) {
+	public function bindHost(o, bit) {
 		if( obj != null && (o != this.obj || bit != this.bit) )
 			throw "Binding proxy twice";
 		this.obj = o;
 		this.bit = bit;
 	}
-	public inline function unbindHost() {
+	public function unbindHost() {
 		this.obj = null;
 	}
 	public static function objToString(o:Dynamic) {
