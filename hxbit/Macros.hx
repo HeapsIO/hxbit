@@ -973,7 +973,7 @@ class Macros {
 		// todo : generate proper generic static var ?
 		// this is required for fixing conflicting member var / package name
 		var useStaticSer = cl.params.length == 0 && !isStruct;
-		var el = [], ul = [], serializePriorityFuns = null;
+		var el = [], ul = [], serializePriorityFuns = null, ftypes = null;
 
 		if( isStruct ) {
 			ul.push(macro var __bits = __ctx.getInt());
@@ -983,6 +983,7 @@ class Macros {
 			var conds = new haxe.EnumFlags<Condition>();
 			conds.set(PreventCDB);
 			conds.set(PartialResolution);
+			ftypes = new Map();
 			for( s in toSerialize ) {
 				var f = s.f;
 				var fname = f.name;
@@ -995,7 +996,7 @@ class Macros {
 				var ftype = getPropField(tt, f.meta, conds);
 				if( ftype == null )
 					Context.error("Unsupported serializable type "+tt.toString(), pos);
-
+				ftypes.set(fname, ftype);
 				var sexpr = macro @:pos(pos) hxbit.Macros.serializeValue(__ctx,this.$fname);
 				var uexpr = macro @:pos(pos) hxbit.Macros.unserializeValue(__ctx,this.$fname);
 				if( isNullable(ftype) ) {
@@ -1061,19 +1062,28 @@ class Macros {
 			}
 			if( isProxy ) {
 				for( s in toSerialize ) {
+					var ft = ftypes.get(s.f.name);
+					checkProxy(ft);
+					var t = ft.t;
 					switch( s.f.kind ) {
 					case FProp(_):
 						Context.error("Property not allowed on proxy StructSerializable", s.f.pos);
-					case FVar(t,e):
+					case FVar(_,e):
 						s.f.kind = FProp("default","set", t, e);
 						var fname = s.f.name;
+						var expr;
+						if( ft.isProxy ) {
+							expr = macro { mark(); if( this.$fname != null ) this.$fname.unbindHost(); this.$fname = v; if( v != null ) v.bindHost(this,0); return v; }
+						} else {
+							expr = macro { mark(); this.$fname = v; return v; }
+						}
 						fields.push({
 							name : "set_"+fname,
 							access : [AInline],
 							pos : s.f.pos,
 							kind : FFun({
 								args : [{ name : "v", type : t }],
-								expr : macro { this.$fname = v; mark(); return v; }
+								expr : expr,
 							})
 						});
 					default:
