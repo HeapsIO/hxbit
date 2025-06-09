@@ -987,6 +987,7 @@ class Macros {
 			for( s in toSerialize ) {
 				var f = s.f;
 				var fname = f.name;
+				var pos = f.pos;
 				var vt = switch( f.kind ) {
 				case FVar(t,_), FProp(_,_,t): t;
 				default: null;
