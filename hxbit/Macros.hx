@@ -1062,6 +1062,7 @@ class Macros {
 				cl.meta.add(":isProxy",[], pos);
 			}
 			if( isProxy ) {
+				var proxyInits = [];
 				for( s in toSerialize ) {
 					var ft = ftypes.get(s.f.name);
 					checkProxy(ft);
@@ -1070,14 +1071,18 @@ class Macros {
 					case FProp(_):
 						Context.error("Property not allowed on proxy StructSerializable", s.f.pos);
 					case FVar(_,e):
-						s.f.kind = FProp("default","set", t, e);
 						var fname = s.f.name;
 						var expr;
 						if( ft.isProxy ) {
 							expr = macro { mark(); if( this.$fname != null ) this.$fname.unbindHost(); this.$fname = v; if( v != null ) v.bindHost(this,0); return v; }
+							if( e != null ) {
+								proxyInits.push(macro @:pos(e.pos) this.$fname = $e);
+								e = null;
+							}
 						} else {
 							expr = macro { mark(); this.$fname = v; return v; }
 						}
+						s.f.kind = FProp("default","set", t, e);
 						fields.push({
 							name : "set_"+fname,
 							access : [AInline],
@@ -1089,6 +1094,21 @@ class Macros {
 						});
 					default:
 					}
+				}
+				if( proxyInits.length > 0 ) {
+					var found = false;
+					for( f in fields )
+						if( f.name == "new" ) {
+							switch( f.kind ) {
+							case FFun(f):
+								f.expr = macro { $b{proxyInits}; ${f.expr}; };
+								found = true;
+							default:
+							}
+							break;
+						}
+					if( !found )
+						Context.error("Proxy initialisation requires expliciti class constructor", proxyInits[0].pos);
 				}
 			}
 		} else if( isSubSer )
