@@ -237,3 +237,79 @@ You can also cancel the change of a property can calling `networkCancelProperty(
 
 The whole set of currently shared network objects can be saved using host.saveState() and loaded using host.loadState(bytes). It uses the versionning decribed previously. Once loaded, call host.makeAlive() to make sure all alive() calls are made to object.
 
+
+### Visibility
+
+It is possible to filter which clients an object's properties will be synced to. To enable this, compile with `-D hxbit_visibility`, and define the available groups by adding this macro to your hxml file:
+
+```haxe
+--macro hxbit.Macros.initVisibility(["owner", "sameRoom"]) // The group names can be anything you want
+```
+
+We also need to implement a `rootObject`, which will reference all objects (objects not part of it wont be synced to clients):
+```haxe
+// Example player class
+class Player extends hxbit.NetworkSerializable {
+    public function new(client: hxbit.NetworkHost.NetworkClient) {
+        client.ownerObject = this;
+        enableReplication = true;
+    }
+}
+
+class RootObject extends hxbit.NetworkSerializable {
+    @:s public var players: Array<Player> = [];
+    public function new(client: hxbit.NetworkHost.NetworkClient) {
+        client.ownerObject = this;
+        enableReplication = true;
+    }
+}
+```
+
+Then set this as the root object on the server, and enable `lateRegistration`:
+
+```haxe
+var host = new NetworkHost();
+var rootObject:RootObject;
+
+...
+
+host.lateRegistration = true; // Also has to be set to true on clients
+
+host.wait('0.0.0.0', 9999, (client) -> {
+  trace('player connected');
+  rootObject.players.push(new Player(client));
+});
+
+rootObject = new RootObject(host.self);
+host.rootObject = rootObject;
+```
+
+Now, for example, if we want a certain property to only be synced between the host and the client that owns the object, we add the following attribute to it:
+
+```haxe
+@:s @:visible(owner) public var ownProperty: Int;
+```
+
+And then add the an `evalVisibility` method to the class:
+```haxe
+public override function evalVisibility(group: hxbit.VisibilityGroup, from: hxbit.NetworkSerializable): Bool {
+    if (group == Owner) { // The group owner was declared using the macro above
+        return from == this;
+    }
+    
+    // Example for syncing properties only if clients are in the same room
+    if (group == SameRoom) {
+        return this.roomId == from.roomId;
+    }
+
+    return true;
+}
+```
+
+If  `ownProperty` is modified, it will only be synced between the host and owner, on every other client it will be `null`.
+
+The visibility can be revalidated by calling the method `setVisibilityDirty(GroupName);`. 
+An example of this would be if a property is only visible for clients in the same room, or a property that is only
+available to nearby players.
+
+Note: make sure to call `host.makeAlive()` frequently on the clients, otherwise new objects wont appear until a RPC is called on them.
