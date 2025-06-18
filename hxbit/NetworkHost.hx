@@ -236,6 +236,7 @@ class NetworkClient {
 			var o : hxbit.NetworkSerializable = cast ctx.refs[oid];
 			var size = ctx.getInt32();
 			var fid = ctx.getByte();
+			host.rpcObject = o;
 			if( o == null ) {
 				if( size < 0 )
 					throw "RPC on unreferenced object cannot be skip on this platform";
@@ -250,6 +251,7 @@ class NetworkClient {
 				o.networkRPC(ctx, fid, this); // ignore result (client made an RPC on since-then removed object - it has been canceled)
 				host.rpcClientValue = null;
 			}
+			host.rpcObject = null;
 			if( host.logger != null && o != null )
 				host.logger("RPC < " + host.objStr(o) + " " + o.networkGetName(fid,true));
 		case NetworkHost.RPC_WITH_RESULT:
@@ -260,6 +262,7 @@ class NetworkClient {
 			var o : hxbit.NetworkSerializable = cast ctx.refs[oid];
 			var size = ctx.getInt32();
 			var fid = ctx.getByte();
+			host.rpcObject = o;
 			if( o == null ) {
 				if( size < 0 )
 					throw "RPC on unreferenced object cannot be skip on this platform";
@@ -282,6 +285,7 @@ class NetworkClient {
 				}
 				host.rpcClientValue = null;
 			}
+			host.rpcObject = null;
 
 			if( host.logger != null && o != null )
 				host.logger("RPC < " + host.objStr(o) + " " + o.networkGetName(fid,true));
@@ -465,6 +469,11 @@ class NetworkHost {
 		When a RPC of type Server is performed, this will tell the originating client from the RPC.
 	**/
 	public var rpcClient(get, never) : NetworkClient;
+
+	/**
+		When a RPC is being called, this is the object which received the RPC.
+	**/
+	public var rpcObject : NetworkSerializable;
 
 	public var sendRate : Float = 0.;
 	public var totalSentBytes : Int = 0;
