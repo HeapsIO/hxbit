@@ -49,12 +49,11 @@ class ArrayProxyIterator<T> {
 	public inline function next() return a[index++];
 }
 
+@:forward(length)
 abstract ArrayProxy<T>(ArrayProxyData<T>) to ProxyChild {
 
 	@:noCompletion public var __value(get, never) : Array<T>;
-	public var length(get, never) : Int;
 	inline function get___value() : Array<T> return this == null ? null : this.array;
-	inline function get_length() return this.array.length;
 
 	inline function new(a) {
 		this = a;
@@ -194,12 +193,11 @@ abstract ArrayProxy<T>(ArrayProxyData<T>) to ProxyChild {
 	}
 }
 
+@:forward(length)
 abstract ArrayProxy2<T:ProxyChild>(ArrayProxyData<T>) to ProxyChild {
 
 	@:noCompletion public var __value(get, never) : Array<T>;
-	public var length(get, never) : Int;
 	inline function get___value() : Array<T> return this == null ? null : this.array;
-	inline function get_length() return this.array.length;
 
 	inline function new(a) {
 		this = a;
