@@ -2087,9 +2087,13 @@ class Macros {
 
 				var conds = new haxe.EnumFlags<Condition>();
 				conds.set(PreventCDB);
-				for( m in r.f.meta )
+				var visibilityMask = 0;
+				for( m in r.f.meta ) {
 					if( m.name == ":allowCDB" )
 						conds.unset(PreventCDB);
+					if( m.name == ":visible" )
+						visibilityMask |= 1 << getVisibility(m);
+				}
 
 				if( returnVal.value || returnVal.call ) {
 					var typeValue;
@@ -2125,7 +2129,7 @@ class Macros {
 				}
 
 				var forwardRPC = macro {
-					@:privateAccess __host.doRPC(this,$v{id},$resultCall, function(__ctx) {
+					@:privateAccess __host.doRPC(this,$v{id}, $v{visibilityMask}, $resultCall, function(__ctx) {
 						$b{[
 							for( a in funArgs )
 								withPos(macro hxbit.Macros.serializeValue(__ctx, $i{a.name}), f.expr.pos)
