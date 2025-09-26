@@ -107,10 +107,14 @@ class Macros {
 	public static var CUSTOM_GETTERS : Array<{name: String, ret: ComplexType, func : {id: Int, name: String, field: Field} -> Dynamic }> = [];
 
 	@:persistent static var SERIALIZABLES : Map<String,String> = [];
+	@:persistent static var UNSERIALIZABLES : Map<String,String> = [];
 
 	#if macro
 	public static function markAsSerializable( className : String ) {
 		SERIALIZABLES.set(className, className);
+	}
+	public static function markAsUnserializable( className : String ) {
+		UNSERIALIZABLES.set(className, className);
 	}
 	#end
 
@@ -262,7 +266,8 @@ class Macros {
 	}
 
 	static function isSerializable( c : Ref<ClassType> ) {
-		return SERIALIZABLES.exists(c.toString()) || getClass(c).meta.has(":isSerializable") || lookupInterface(c, "hxbit.Serializable");
+		var path = c.toString();
+		return SERIALIZABLES.exists(path) || getClass(c).meta.has(":isSerializable") || lookupInterface(c, "hxbit.Serializable");
 	}
 
 	static function isCustomSerializable( c : Ref<ClassType> ) {
@@ -365,7 +370,10 @@ class Macros {
 		var isMutable = true;
 		var desc = switch( t ) {
 		case TAbstract(a, pl):
-			switch( a.toString() ) {
+			var path = a.toString();
+			if( UNSERIALIZABLES.exists(path) )
+				return null;
+			switch( path ) {
 			case "haxe.Int64", "hl.I64":
 				PInt64;
 			case "Float", "Single":
