@@ -108,6 +108,15 @@ class Convert {
 					return false;
 			}
 			return true;
+		case [PStruct(_,fa), PStruct(_,fb)]:
+			if( fa.length != fb.length ) return false;
+			for( i in 0...fa.length ) {
+				var a = fa[i];
+				var b = fb[i];
+				if( a.name != b.name || !sameType(a.type, b.type) )
+					return false;
+			}
+			return true;
 		case [PAlias(a), PAlias(b)]:
 			return sameType(a, b);
 		case [PAlias(a), _]:
