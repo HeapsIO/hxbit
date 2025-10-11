@@ -552,6 +552,7 @@ class Serializer {
 				throw "Unsupported enum "+ename;
 			addByte(10);
 			addString(ename);
+			usedEnums[ename] = true;
 			ser.doSerialize(this, v);
 		case t:
 			throw "Unsupported dynamic " + t;
