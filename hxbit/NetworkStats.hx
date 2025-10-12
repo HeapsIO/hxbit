@@ -21,10 +21,12 @@ private enum EmptyEnum {
 class NetworkStats {
 
 	var classes : Map<Int,StatClass>;
+	var structs : Map<String,StatClass>;
 	var curRPC : Stat;
 
 	public function new() {
 		classes = new Map();
+		structs = new Map();
 	}
 
 	function getClass( o : NetworkSerializable ) {
@@ -33,6 +35,16 @@ class NetworkStats {
 		if( c == null ) {
 			c = { name : Type.getClassName(Type.getClass(o)), props : [], rpcs : [], schema : o.getSerializeSchema(false) };
 			classes[cid] = c;
+		}
+		return c;
+	}
+
+	function getStruct( o : StructSerializable ) {
+		var name = Type.getClassName(Type.getClass(o)); // concrete type
+		var c = structs[name];
+		if( c == null ) {
+			c = { name : name, props : [], rpcs : null, schema : o.getSerializeSchema(false) };
+			structs[name] = c;
 		}
 		return c;
 	}
@@ -135,21 +147,12 @@ class NetworkStats {
 					size += calcPropSize(f.type, Reflect.field(v, f.name));
 				}
 			}
-		case PStruct(_, fields):
-			if( v == null )
-				size++;
-			else {
-				var fbits = 0;
-				var nullables = [for( f in fields ) if( isNullable(f.type) ) f];
-				for( i in 0...nullables.length )
-					if( Reflect.field(v, nullables[i].name) != null )
-						fbits |= 1 << i;
-				size += intSize(fbits + 1);
-				for( f in fields ) {
-					var nidx = nullables.indexOf(f);
-					if( nidx >= 0 && fbits & (1 << nidx) == 0 ) continue;
-					size += calcPropSize(f.type, Reflect.field(v, f.name));
-				}
+		case PStruct(name):
+			size++;
+			if( v != null ) {
+				var s = getStruct(v);
+				for( i => t in s.schema.fieldsTypes )
+					size += calcPropSize(t, Reflect.field(v, s.schema.fieldsNames[i]));
 			}
 		case PAlias(t), PAliasCDB(t), PNoSave(t):
 			return calcPropSize(t, v);
@@ -180,6 +183,8 @@ class NetworkStats {
 			size += intSize(v);
 		case PCustom:
 			// TODO
+		case POldStruct(_):
+			throw "assert";
 		}
 		return size;
 	}

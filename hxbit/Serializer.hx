@@ -112,6 +112,19 @@ class Serializer {
 		return idx;
 	}
 
+	static function registerVariant( base : Class<Dynamic>, variant : Class<Dynamic> ) {
+		var vars : Array<Class<Dynamic>> = (base : Dynamic).__variants;
+		if( vars.length == 255 ) throw "Too many variants for "+Type.getClassName(base);
+		vars.push(variant);
+		vars.sort((v1,v2) -> Reflect.compare(Type.getClassName(v1),Type.getClassName(v2)));
+		var val = 0;
+		for( i => v in vars ) {
+			(v : Dynamic).__clid = i + 1;
+			if( v == variant ) val = i + 1;
+		}
+		return val;
+	}
+
 	static inline function hash(name:String) {
 		var v = 1;
 		for( i in 0...name.length )
@@ -162,6 +175,7 @@ class Serializer {
 	}
 
 	public static function isClassFinal( index : Int ) {
+		if( CLIDS == null ) initClassIDS();
 		return CLIDS[index] == 0;
 	}
 
@@ -179,8 +193,9 @@ class Serializer {
 	var inPos : Int;
 	var usedClasses : Array<Bool> = [];
 	var usedEnums : Map<String,Bool> = [];
+	var usedStructs : Map<String,Bool> = [];
 	var convert : Array<Convert>;
-	var enumConvert : Map<String,Convert.EnumConvert> = [];
+	var typeConvert : Map<String,Convert.TypeConvert> = [];
 	var mapIndexes : Array<Int>;
 	#if hxbit_visibility
 	var visibilityGroups : Int = -1;
@@ -741,12 +756,13 @@ class Serializer {
 		begin();
 		usedClasses = [];
 		usedEnums = [];
+		usedStructs = [];
 	}
 
 	public function endSave( savePosition = 0 ) {
 		var content = end();
 		begin();
-		var classes = [], enums = [];
+		var classes = [], enums = [], structs = [];
 		var schemas = [];
 		var sidx = CLASSES.indexOf(Schema);
 		var prevUID = UID;
@@ -769,6 +785,14 @@ class Serializer {
 			refs.remove(schema.__uid);
 			enums.push(name);
 		}
+		for( name in usedStructs.keys() ) {
+			var schema : hxbit.Schema = (getStructClass(name) : Dynamic).getMultiSchema(true);
+			schemas.push(schema);
+			schema.__uid = 1;
+			addKnownRef(schema);
+			refs.remove(schema.__uid);
+			structs.push(name);
+		}
 		UID = prevUID; // restore after schema create
 		var schemaData = end();
 		begin();
@@ -786,6 +810,11 @@ class Serializer {
 			addCLID(0);
 			addInt32(schemas[i+classes.length].checkSum);
 		}
+		for( i in 0...structs.length ) {
+			addString(structs[i]);
+			addCLID(0);
+			addInt32(schemas[i+classes.length+enums.length].checkSum);
+		}
 		addString(null);
 		addInt(schemaData.length);
 		out.add(schemaData);
@@ -800,6 +829,7 @@ class Serializer {
 		var classByName = new Map();
 		var schemas = [];
 		var enumSchemas = [];
+		var structSchemas = [];
 		var mapIndexes = [];
 		var indexes = [];
 		var needConvert = false;
@@ -832,6 +862,16 @@ class Serializer {
 						enumSchemas.push({ name : clname, ourSchema : ourSchema });
 						continue;
 					}
+					var structCl = getStructClass(clname);
+					if( structCl != null ) {
+						var ourSchema : hxbit.Schema = (structCl : Dynamic).getMultiSchema(true);
+						if( ourSchema.checkSum != crc )
+							needConvert = true;
+						else
+							ourSchema = null;
+						structSchemas.push({ name : clname, ourSchema : ourSchema });
+						continue;
+					}
 				}
 				throw "Missing class "+clname+" found in HXS data";
 			}
@@ -861,7 +901,13 @@ class Serializer {
 				var schema = getKnownRef(Schema);
 				refs.remove(schema.__uid);
 				if( e.ourSchema != null )
-					enumConvert[e.name] = new Convert.EnumConvert(e.name, e.ourSchema, schema);
+					typeConvert[e.name] = new Convert.TypeConvert(e.name, getEnumClass(e.name), e.ourSchema, schema, false);
+			}
+			for( s in structSchemas ) {
+				var schema = getKnownRef(Schema);
+				refs.remove(schema.__uid);
+				if( s.ourSchema != null )
+					typeConvert[s.name] = new Convert.TypeConvert(s.name, getStructClass(s.name), s.ourSchema, schema, true);
 			}
 		} else {
 			// skip schema data
@@ -879,7 +925,7 @@ class Serializer {
 
 	static var EMPTY_MAP = new Map();
 
-	function convertEnum( econv : Convert.EnumConvert ) : Dynamic {
+	function convertType( econv : Convert.TypeConvert ) : Dynamic {
 		inPos--;
 		var cid = getByte() - 1;
 		var c = econv.constructs[cid];
@@ -892,12 +938,12 @@ class Serializer {
 		var bytes = writeConvValues(c, values, newCid + 1);
 		var oldIn = input;
 		var oldPos = inPos;
-		var oldConv = enumConvert;
-		enumConvert = EMPTY_MAP;
+		var oldConv = typeConvert;
+		typeConvert = EMPTY_MAP;
 		setInput(bytes, 0);
-		var v : Dynamic = getEnumClass(econv.enumClass).doUnserialize(this);
+		var v : Dynamic = econv.classValue.doUnserialize(this);
 		setInput(oldIn, oldPos);
-		enumConvert = oldConv;
+		typeConvert = oldConv;
 		return v;
 	}
 
@@ -908,8 +954,8 @@ class Serializer {
 		var bytes = writeConvValues(c, values);
 		var oldIn = input;
 		var oldPos = inPos;
-		var oldConv = enumConvert;
-		enumConvert = EMPTY_MAP;
+		var oldConv = typeConvert;
+		typeConvert = EMPTY_MAP;
 		setInput(bytes, 0);
 		var obj = Reflect.field(i,"oldHxBitFields");
 		if( obj != null ) {
@@ -919,7 +965,7 @@ class Serializer {
 		}
 		i.unserialize(this);
 		setInput(oldIn, oldPos);
-		enumConvert = oldConv;
+		typeConvert = oldConv;
 	}
 
 	function writeConvValues( c : Convert, values : haxe.ds.Vector<Dynamic>, ?extraByte ) {
@@ -986,24 +1032,6 @@ class Serializer {
 					if( f.opt ) continue;
 					field = Convert.getDefault(f.type);
 				} else if( field == null && f.opt )
-					continue;
-				Reflect.setField(v2, f.name, field);
-			}
-			return v2;
-		case [PStruct(name1,obj1), PStruct(name2,obj2)] if( name1 == name2 ):
-			var v2 = {};
-			for( f in obj2 ) {
-				var found = false;
-				var field : Dynamic = null;
-				for( f2 in obj1 )
-					if( f2.name == f.name ) {
-						found = true;
-						field = convertValue(path+"."+f2.name, Reflect.field(v, f2.name), f2.type, f.type);
-						break;
-					}
-				if( !found )
-					field = Convert.getDefault(f.type);
-				if( field == null && isNullable(f.type) )
 					continue;
 				Reflect.setField(v2, f.name, field);
 			}
@@ -1078,10 +1106,20 @@ class Serializer {
 			case PInt: return new Map<Int,Dynamic>();
 			case PString: return new Map<String,Dynamic>();
 			case PEnum(_): return new haxe.ds.EnumValueMap<Dynamic,Dynamic>();
-			case PSerializable(_), PObj(_): new Map<{},Dynamic>();
+			case PSerializable(_), PObj(_): return new Map<{},Dynamic>();
 			default:
 				// todo
 			}
+		case [POldStruct(name1,fl), PStruct(name2)] if( name1 == name2 ):
+			var s : Dynamic = {};
+			var schema = (Type.createEmptyInstance(Type.resolveClass(name2)) : StructSerializable).getSerializeSchema();
+			var fields = [for( i => t in schema.fieldsTypes ) schema.fieldsNames[i] => t];
+			for( f in fl ) {
+				var fto = fields.get(f.name);
+				if( fto != null )
+					Reflect.setField(s, f.name, convertValue(path+"."+f.name,Reflect.field(v,f.name),f.type,fto));
+			}
+			return s;
 		default:
 		}
 
@@ -1109,6 +1147,15 @@ class Serializer {
 		path = path.charAt(0).toUpperCase() + path.substr(1);
 		cl = Type.resolveClass("hxbit.enumSer." + path);
 		if( cl != null ) ENUM_CLASSES.set(name,cl);
+		return cl;
+	}
+
+	static var STRUCT_CLASSES = new Map();
+	static function getStructClass( name : String ) : Dynamic {
+		var cl = STRUCT_CLASSES.get(name);
+		if( cl != null ) return cl;
+		var cl = Type.resolveClass(name);
+		if( cl != null ) STRUCT_CLASSES.set(name,cl);
 		return cl;
 	}
 
@@ -1197,7 +1244,16 @@ class Serializer {
 			getInt();
 		case PCustom:
 			getCustom();
-		case PStruct(_, fields):
+		case PStruct(name):
+			var type = getByte();
+			if( type == 0 )
+				return null;
+			inPos--;
+			var ser : Dynamic = getStructClass(name);
+			if( ser == null )
+				throw "No struct unserializer found for " + name;
+			return ser.doUnserialize(this);
+		case POldStruct(_, fields):
 			var bits = getInt();
 			if( bits == 0 )
 				return null;
@@ -1305,28 +1361,21 @@ class Serializer {
 			addInt(v);
 		case PCustom:
 			addCustom(v);
-		case PStruct(_, fields):
+		case PStruct(name):
 			if( v == null )
 				addByte(0);
-			else {
-				var fbits = 0;
-				var bit = 0;
-				for( f in fields )
-					if( isNullable(f.type) ) {
-						if( Reflect.field(v, f.name) == null )
-							fbits |= 1 << bit;
-						bit++;
-					}
-				addInt(fbits + 1);
-				for( f in fields ) {
-					var v : Dynamic = Reflect.field(v, f.name);
-					if( v == null && isNullable(f.type) ) continue;
-					writeValue(v, f.type);
-				}
+			else if( v is StructSerializable ) {
+				(v:StructSerializable).serialize(this);
+			} else {
+				var s = (Type.createEmptyInstance(Type.resolveClass(name)) : StructSerializable);
+				var schema = s.getSerializeSchema(forSave);
+				addByte(s.getCLID());
+				for( i => f in schema.fieldsNames )
+					writeValue(Reflect.field(v,f), schema.fieldsTypes[i]);
 			}
 		case PNoSave(t):
 			if( !forSave ) writeValue(v, t);
-		case PUnknown:
+		case PUnknown, POldStruct(_):
 			throw "assert";
 		}
 	}

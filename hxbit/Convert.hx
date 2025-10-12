@@ -108,15 +108,6 @@ class Convert {
 					return false;
 			}
 			return true;
-		case [PStruct(_,fa), PStruct(_,fb)]:
-			if( fa.length != fb.length ) return false;
-			for( i in 0...fa.length ) {
-				var a = fa[i];
-				var b = fb[i];
-				if( a.name != b.name || !sameType(a.type, b.type) )
-					return false;
-			}
-			return true;
 		case [PAlias(a), PAlias(b)]:
 			return sameType(a, b);
 		case [PAlias(a), _]:
@@ -147,7 +138,7 @@ class Convert {
 		case PVector(_): new haxe.ds.Vector<Dynamic>(0);
 		case PBool: false;
 		case PAlias(t), PAliasCDB(t), PNoSave(t): getDefault(t);
-		case PEnum(_), PNull(_), PObj(_), PSerializable(_), PSerInterface(_), PString, PUnknown, PBytes, PDynamic, PCustom, PStruct(_): null;
+		default: null;
 		};
 	}
 
@@ -158,14 +149,16 @@ class Convert {
 
 }
 
-class EnumConvert {
+class TypeConvert {
 
-	public var enumClass : String;
+	public var classValue : Dynamic;
 	public var constructs : Array<Convert>;
 	public var reindex : Array<Int>;
+	public var isStruct : Bool;
 
-	public function new( classPath : String, ourSchema : Schema, schema : Schema ) {
-		this.enumClass = classPath;
+	public function new( classPath : String, classValue : Dynamic, ourSchema : Schema, schema : Schema, isStruct ) {
+		this.isStruct = isStruct;
+		this.classValue = classValue;
 		reindex = [];
 		constructs = [];
 
@@ -197,8 +190,12 @@ class EnumConvert {
 		case PObj(fields):
 			for( i => f in fields ) {
 				s.fieldsTypes.push(f.type);
-				// don't use field name for now : privilege position over name
-				s.fieldsNames.push("@"+i);
+				if( isStruct )
+					s.fieldsNames.push(f.name);
+				else {
+					// don't use field name for now : privilege position over name
+					s.fieldsNames.push("@"+i);
+				}
 			}
 		default: throw "assert";
 		}

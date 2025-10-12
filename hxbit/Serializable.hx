@@ -44,6 +44,16 @@ interface AnySerializable {
 	#if hxbit_clear
 	public function clearReferences( mark : MarkInfo ) : Void;
 	#end
+	/** Returns the unique class id for this object **/
+	public function getCLID() : Int;
+	/** Serialize the object id and fields using this Serializer **/
+	public function serialize( ctx : Serializer ) : Void;
+	/** Used internaly by unserializer **/
+	public function unserializeInit() : Void;
+	/** Unserialize object fields using this Serializer **/
+	public function unserialize( ctx : Serializer ) : Void;
+	/** Returns the object data schema **/
+	public function getSerializeSchema( ?forSave: Bool ) : Schema;
 }
 
 @:autoBuild(hxbit.Macros.buildSerializable())
@@ -56,16 +66,6 @@ interface Serializable extends AnySerializable {
 	#end
 	/** Unique identifier for the object, automatically set on new() **/
 	public var __uid : UID;
-	/** Returns the unique class id for this object **/
-	public function getCLID() : Int;
-	/** Serialize the object id and fields using this Serializer **/
-	public function serialize( ctx : Serializer ) : Void;
-	/** Used internaly by unserializer **/
-	public function unserializeInit() : Void;
-	/** Unserialize object fields using this Serializer **/
-	public function unserialize( ctx : Serializer ) : Void;
-	/** Returns the object data schema **/
-	public function getSerializeSchema(forSave: Bool = true) : Schema;
 }
 
 @:genericBuild(hxbit.Macros.buildSerializableEnum())

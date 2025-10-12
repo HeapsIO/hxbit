@@ -30,10 +30,6 @@ package hxbit;
 **/
 @:autoBuild(hxbit.Macros.buildSerializable(true))
 interface StructSerializable extends Serializable.AnySerializable {
-	public function serialize( ctx : Serializer ) : Void;
-	public function unserialize( ctx : Serializer ) : Void;
-	public function unserializeInit() : Void;
-	public function getSerializeSchema(forSave: Bool = true) : Schema;
 }
 
 #end
