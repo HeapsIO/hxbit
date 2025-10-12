@@ -942,6 +942,12 @@ class Serializer {
 		typeConvert = EMPTY_MAP;
 		setInput(bytes, 0);
 		var v : Dynamic = econv.classValue.doUnserialize(this);
+		var obj = Reflect.field(v,"oldHxBitFields");
+		if( obj != null ) {
+			for( r in c.read )
+				if( !r.written )
+					Reflect.setField(obj,r.path.split(".").pop(),values[r.index]);
+		}
 		setInput(oldIn, oldPos);
 		typeConvert = oldConv;
 		return v;
