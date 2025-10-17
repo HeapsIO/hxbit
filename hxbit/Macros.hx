@@ -117,6 +117,11 @@ class Macros {
 	public static function markAsUnserializable( className : String ) {
 		UNSERIALIZABLES.set(className, className);
 	}
+
+	public static dynamic function wrapRPC( rpc : { mode : RpcMode, f : Field }, doCall : haxe.macro.Expr ) {
+		return doCall;
+	}
+
 	#end
 
 	public static function initVisibility(vis) {
@@ -2191,6 +2196,8 @@ class Macros {
 
 				if( (returnVal.value || returnVal.call) && r.mode != Server && r.mode != Owner )
 					Context.error("Cannot use return value with default rpc mode, use @:rpc(server) or @:rpc(owner)", r.f.pos);
+
+				doCall = wrapRPC(r, doCall);
 
 				var rpcExpr = switch( r.mode ) {
 				case All:
