@@ -165,17 +165,19 @@ class TypeConvert {
 		for( index => name in schema.fieldsNames ) {
 			var found = false;
 			var from = schema.fieldsTypes[index];
-			for( i => s in ourSchema.fieldsNames )
-				if( s == name ) {
-					reindex.push(i);
-					var to = ourSchema.fieldsTypes[i];
-					if( to == null && from == null && i == index )
-						constructs.push(null);
-					else
-						constructs.push(new Convert(classPath+"."+name, makeSchema(to), makeSchema(from)));
-					found = true;
-					break;
-				}
+			if( ourSchema != null ) {
+				for( i => s in ourSchema.fieldsNames )
+					if( s == name ) {
+						reindex.push(i);
+						var to = ourSchema.fieldsTypes[i];
+						if( to == null && from == null && i == index )
+							constructs.push(null);
+						else
+							constructs.push(new Convert(classPath+"."+name, makeSchema(to), makeSchema(from)));
+						found = true;
+						break;
+					}
+			}
 			if( !found ) {
 				reindex.push(-1);
 				constructs.push(new Convert(classPath+"."+name,makeSchema(null),makeSchema(from)));
