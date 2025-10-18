@@ -381,7 +381,7 @@ class Macros {
 			if( UNSERIALIZABLES.exists(path) )
 				return null;
 			switch( path ) {
-			case "haxe.Int64", "hl.I64":
+			case "haxe.Int64", "hl.I64", "hl.GUID":
 				PInt64;
 			case "Float", "Single":
 				PFloat;
