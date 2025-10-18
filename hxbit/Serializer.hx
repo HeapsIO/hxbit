@@ -1188,17 +1188,33 @@ class Serializer {
 		case PVector(t): getVector(function() return readValue(t));
 		case PBytes: getBytes();
 		case PEnum(name):
+			var type = getByte();
+			if( type == 0 )
+				return null;
 			var ser : Dynamic = getEnumClass(name);
 			if( ser == null ) {
+				var conv = typeConvert[name];
+				if( conv != null && conv.constructs[type-1] != null )
+					return convertType(conv);
 				var e = Type.resolveEnum(name);
-				// an old enum can be tagged with @skipSerialize in order to allow loading old content.
-				// but this will only work if the enum does not have any constructor parameters !
-				if( e != null && Reflect.hasField(haxe.rtti.Meta.getType(e), "skipSerialize") ) {
-					getByte();
+				if( e != null && Reflect.hasField(haxe.rtti.Meta.getType(e), "skipSerialize") ) // legacy
 					return null;
-				}
 				throw "No enum unserializer found for " + name;
 			}
+			inPos--;
+			return ser.doUnserialize(this);
+		case PStruct(name):
+			var type = getByte();
+			if( type == 0 )
+				return null;
+			var ser : Dynamic = getStructClass(name);
+			if( ser == null ) {
+				var conv = typeConvert[name];
+				if( conv != null && conv.constructs[type-1] != null )
+					return convertType(conv);
+				throw "No struct unserializer found for " + name;
+			}
+			inPos--;
 			return ser.doUnserialize(this);
 		case PSerializable(name):
 			var cl = cast Type.resolveClass(name);
@@ -1250,15 +1266,6 @@ class Serializer {
 			getInt();
 		case PCustom:
 			getCustom();
-		case PStruct(name):
-			var type = getByte();
-			if( type == 0 )
-				return null;
-			inPos--;
-			var ser : Dynamic = getStructClass(name);
-			if( ser == null )
-				throw "No struct unserializer found for " + name;
-			return ser.doUnserialize(this);
 		case POldStruct(_, fields):
 			var bits = getInt();
 			if( bits == 0 )
