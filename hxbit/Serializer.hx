@@ -1161,6 +1161,9 @@ class Serializer {
 		var cl = STRUCT_CLASSES.get(name);
 		if( cl != null ) return cl;
 		var cl = Type.resolveClass(name);
+		if( cl == null ) return null;
+		while( cl != null && (cl:Dynamic).doUnserialize == null )
+			cl = Type.getSuperClass(cl);
 		if( cl != null ) STRUCT_CLASSES.set(name,cl);
 		return cl;
 	}
