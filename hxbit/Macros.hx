@@ -96,6 +96,7 @@ typedef PropType = {
 private enum Condition {
 	PartialResolution;
 	PreventCDB;
+	IsParam;
 }
 
 class Macros {
@@ -108,14 +109,14 @@ class Macros {
 	public static var CUSTOM_GETTERS : Array<{name: String, ret: ComplexType, func : {id: Int, name: String, field: Field} -> Dynamic }> = [];
 
 	@:persistent static var SERIALIZABLES : Map<String,String> = [];
-	@:persistent static var UNSERIALIZABLES : Map<String,String> = [];
+	@:persistent static var UNSERIALIZABLES : Map<String,Bool> = [];
 
 	#if macro
 	public static function markAsSerializable( className : String ) {
 		SERIALIZABLES.set(className, className);
 	}
-	public static function markAsUnserializable( className : String ) {
-		UNSERIALIZABLES.set(className, className);
+	public static function markAsUnserializable( className : String, dataOnly=false ) {
+		UNSERIALIZABLES.set(className, dataOnly);
 	}
 
 	public static dynamic function wrapRPC( rpc : { mode : RpcMode, f : Field }, doCall : haxe.macro.Expr ) {
@@ -137,6 +138,7 @@ class Macros {
 	public static macro function serializeValue( ctx : Expr, v : Expr ) : Expr {
 		var t = Context.typeof(v);
 		var conds = new haxe.EnumFlags<Condition>();
+		conds.set(IsParam); // force always (only check in unserialize)
 		var pt = getPropType(t, conds);
 		if( pt == null ) {
 			Context.error("Unsupported serializable type " + t.toString(), v.pos);
@@ -378,7 +380,8 @@ class Macros {
 		var desc = switch( t ) {
 		case TAbstract(a, pl):
 			var path = a.toString();
-			if( UNSERIALIZABLES.exists(path) )
+			var v = UNSERIALIZABLES.get(path);
+			if( v != null && (!v || !conds.has(IsParam)) )
 				return null;
 			switch( path ) {
 			case "haxe.Int64", "hl.I64", "hl.GUID":
@@ -2148,6 +2151,7 @@ class Macros {
 
 				var conds = new haxe.EnumFlags<Condition>();
 				conds.set(PreventCDB);
+				conds.set(IsParam);
 				for( m in r.f.meta )
 					if( m.name == ":allowCDB" )
 						conds.unset(PreventCDB);
