@@ -1444,6 +1444,8 @@ class Macros {
 					Context.error("Too many constructors", pos);
 				var conds = new haxe.EnumFlags<Condition>();
 				conds.set(PreventCDB);
+				if( e.meta.has(":rpcValue") )
+					conds.set(IsParam);
 				if( e.meta.has(":allowCDB") || e.meta.has(":cdb") )
 					conds.unset(PreventCDB);
 				for( f in e.names ) {
