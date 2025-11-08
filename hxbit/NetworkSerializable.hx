@@ -161,6 +161,7 @@ class NetworkSerializer extends Serializer {
 
 	#if hxbit_visibility
 	static var GROUPS = VisibilityGroup.createAll();
+	static var BITS_CACHE : Array<Null<Int>> = [for( i in 0...65536 ) i];
 	override function evalVisibility(s:Serializable):Int {
 		if( currentTarget == null )
 			return -1;
@@ -183,7 +184,7 @@ class NetworkSerializer extends Serializer {
 		for( i in 0...groups.length )
 			if( mask & (1<<i) != 0 && ns.evalVisibility(groups[i], currentTarget) )
 				bits |= 1 << i;
-		ns.__cachedVisibility.set(currentTarget, bits);
+		ns.__cachedVisibility.set(currentTarget, (bits >>> 16) == 0 ? BITS_CACHE[bits] : bits);
 		return bits;
 	}
 	#end
