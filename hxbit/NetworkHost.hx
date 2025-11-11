@@ -26,6 +26,7 @@ class NetworkClient {
 
 	var host : NetworkHost;
 	var resultID : Int;
+	var processID : Int;
 	var needAlive : Bool;
 	var wasSync : Bool;
 	public var seqID : Int;
@@ -75,6 +76,7 @@ class NetworkClient {
 		#if !hxbit_visibility
 		var ctx = host.ctx;
 		#end
+		var pid = ++processID;
 		ctx.setInput(bytes, pos);
 		ctx.errorPropId = -1;
 
@@ -338,6 +340,10 @@ class NetworkClient {
 		case x:
 			error("Unknown message code " + x+" @"+pos+":"+bytes.toHex());
 		}
+
+		if( processID != pid )
+			error("Network data was reentrant");
+
 		return ctx.getPosition();
 	}
 
