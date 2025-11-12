@@ -173,14 +173,14 @@ class TypeConvert {
 						if( to == null && from == null && i == index )
 							constructs.push(null);
 						else
-							constructs.push(new Convert(classPath+"."+name, makeSchema(to), makeSchema(from)));
+							constructs.push(new Convert(name.indexOf('.') > 0 ? name : classPath+"."+name, makeSchema(to), makeSchema(from)));
 						found = true;
 						break;
 					}
 			}
 			if( !found ) {
 				reindex.push(-1);
-				constructs.push(new Convert(classPath+"."+name,makeSchema(null),makeSchema(from)));
+				constructs.push(new Convert(name.indexOf('.') > 0 ? name : classPath+"."+name,makeSchema(null),makeSchema(from)));
 			}
 		}
 	}
