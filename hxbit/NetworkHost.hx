@@ -1053,6 +1053,9 @@ class NetworkHost {
 		#if hxbit_visibility
 		}
 		#end
+		#if hxbit_visibility
+		globalCtx.refs.remove(o.__uid);
+		#end
 	}
 
 	function doSend() {
