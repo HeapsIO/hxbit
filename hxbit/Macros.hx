@@ -2362,6 +2362,7 @@ class Macros {
 						});
 					case Clients:
 						exprs.push(macro {
+							if( __host != null && __host.isAuth ) return false;
 							$fcall;
 						});
 					case Server:
