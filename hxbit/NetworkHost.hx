@@ -221,8 +221,11 @@ class NetworkClient {
 				ctx.newObjects = [];
 			};
 			var sign = ctx.getBytes();
-			if( sign.compare(Serializer.getSignature()) != 0 )
+			if( sign.compare(Serializer.getSignature()) != 0 ) {
+				stop();
 				host.logError("Network signature mismatch");
+				return -1;
+			}
 			ctx.enableChecks = false;
 			while( true ) {
 				var o = ctx.getAnyRef();
