@@ -222,6 +222,7 @@ class NetworkClient {
 			};
 			var sign = ctx.getBytes();
 			if( sign.compare(Serializer.getSignature()) != 0 ) {
+				var host = host;
 				stop();
 				host.logError("Network signature mismatch");
 				return -1;
