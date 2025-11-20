@@ -2312,7 +2312,7 @@ class Macros {
 						var __res = @:privateAccess __clientResult.beginAsyncRPCResult(null);
 						function onResult(v) {
 							if( false ) v = __v;
-							@:privateAccess __clientResult.beginAsyncRPCResult(__res);
+							@:privateAccess if( __clientResult.beginAsyncRPCResult(__res) == null ) return;
 							hxbit.Macros.serializeValue(__ctx, v);
 							@:privateAccess __clientResult.endAsyncRPCResult();
 						}

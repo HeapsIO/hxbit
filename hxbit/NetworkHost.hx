@@ -370,10 +370,11 @@ class NetworkClient {
 			resultID = -1;
 			return prevID;
 		}
+		if( host == null ) return null;
 		resultID = rpc;
 		beginRPCResult();
 		resultID = prevID;
-		return null;
+		return rpc;
 	}
 
 	function endAsyncRPCResult() {
