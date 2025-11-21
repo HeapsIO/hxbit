@@ -370,7 +370,11 @@ class NetworkClient {
 			resultID = -1;
 			return prevID;
 		}
-		if( host == null ) return null;
+		if( host == null ) {
+			// was disconnected
+			resultID = -1;
+			return null;
+		}
 		resultID = rpc;
 		beginRPCResult();
 		resultID = prevID;
