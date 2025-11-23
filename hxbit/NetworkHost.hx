@@ -68,6 +68,7 @@ class NetworkClient {
 	function set_ownerObject(o) {
 		#if hxbit_visibility
 		ctx.currentTarget = o;
+		ctx.cachedVisibility = new Serializer.UIDMap();
 		#end
 		return ownerObject = o;
 	}
@@ -1067,6 +1068,7 @@ class NetworkHost {
 			if( checkEOM ) ctx.addByte(EOM);
 			ctx.refs.remove(o.__uid);
 		#if hxbit_visibility
+			ctx.cachedVisibility.remove(o.__uid);
 		}
 		#end
 		#if hxbit_visibility
@@ -1145,7 +1147,7 @@ class NetworkHost {
 						continue;
 					var ctx = c.ctx;
 					if( isAuth ) {
-						var prevGroups : Int = o.__cachedVisibility == null ? 0 : o.__cachedVisibility.get(ctx.currentTarget);
+						var prevGroups : Int = c.ctx.cachedVisibility.get(o.__uid);
 						var newGroups = @:privateAccess ctx.evalVisibility(o);
 						var mask = o.getVisibilityMask(newGroups);
 						o.__bits1 = bits1 & (mask.low & 0x3FFFFFFF);

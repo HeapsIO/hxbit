@@ -25,7 +25,7 @@ package hxbit;
 
 #if (hl && hxbit64)
 
-private class NativeKeyValueIterator {
+private class NativeKeyValueIterator<T> {
 	var map : hl.types.Int64Map;
 	var keys : hl.NativeArray<haxe.Int64>;
 	var pos : Int;
@@ -42,18 +42,18 @@ private class NativeKeyValueIterator {
 	}
 	public inline function next() {
 		var k = keys[pos++];
-		return {key:k, value:map.get(k)};
+		return {key:k, value:(map.get(k):T)};
 	}
 }
 
-abstract UIDMap(hl.types.Int64Map) {
+abstract UIDMap<T>(hl.types.Int64Map) {
 	public inline function new() {
 		this = new hl.types.Int64Map();
 	}
-	@:arrayAccess public inline function get( id : UID ) : Serializable {
+	@:arrayAccess public inline function get( id : UID ) : Null<T> {
 		return this.get(id);
 	}
-	@:arrayAccess public inline function set( id : UID, v : Serializable ) {
+	@:arrayAccess public inline function set( id : UID, v : T ) {
 		this.set(id,v);
 		return v;
 	}
@@ -64,14 +64,14 @@ abstract UIDMap(hl.types.Int64Map) {
 		return this.exists(id);
 	}
 	public inline function iterator() {
-		return new hl.NativeArray.NativeArrayIterator<Serializable>(cast this.valuesArray());
+		return new hl.NativeArray.NativeArrayIterator<T>(cast this.valuesArray());
 	}
 	public inline function keyValueIterator() {
-		return new NativeKeyValueIterator(this);
+		return new NativeKeyValueIterator<T>(this);
 	}
 }
 #else
-typedef UIDMap = Map<UID,Serializable>;
+typedef UIDMap<T> = Map<UID,T>;
 #end
 
 class Serializer {
@@ -179,7 +179,7 @@ class Serializer {
 		return CLIDS[index] == 0;
 	}
 
-	public var refs : UIDMap;
+	public var refs : UIDMap<Serializable>;
 
 	/**
 		Set this before serializing in order to reaffect object ids starting UID
