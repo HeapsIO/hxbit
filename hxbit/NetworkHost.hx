@@ -967,10 +967,17 @@ class NetworkHost {
 			}
 			return;
 		}
+		flushRegister(o);
+	}
+
+	function flushRegister( o : NetworkSerializable ) {
 		logRegister(o);
-		ctx.addByte(REG);
-		ctx.addAnyRef(o);
-		if( checkEOM ) ctx.addByte(EOM);
+		globalCtx.addByte(REG);
+		globalCtx.addAnyRef(o);
+		if( checkEOM ) globalCtx.addByte(EOM);
+		#if hxbit_visibility
+		@:privateAccess if( isAuth ) globalCtx.out.pos = 0; // reset output
+		#end
 	}
 
 	function logRegister( o : NetworkSerializable ) {
@@ -1107,13 +1114,7 @@ class NetworkHost {
 				if( o2 != (o:Serializable) ) logError("Register conflict between objects", o.__uid);
 				continue;
 			}
-			logRegister(o);
-			globalCtx.addByte(REG);
-			globalCtx.addAnyRef(o);
-			if( checkEOM ) globalCtx.addByte(EOM);
-			#if hxbit_visibility
-			@:privateAccess if( isAuth ) globalCtx.out.pos = 0; // reset output
-			#end
+			flushRegister(o);
 		}
 		var o = markHead;
 		while( o != null ) {
