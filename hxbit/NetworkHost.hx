@@ -564,6 +564,10 @@ class NetworkHost {
 		return null;
 	}
 
+	public function matchClient(obj,from:Serializable.MarkParam) {
+		return resolveClient(obj)?.ctx.cachedVisibility == from;
+	}
+
 	public function resetState() {
 		hxbit.Serializer.resetCounters();
 		ctx = new NetworkSerializer(this);
