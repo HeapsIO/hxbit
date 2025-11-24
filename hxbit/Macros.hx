@@ -1317,7 +1317,7 @@ class Macros {
 					pos : pos,
 					access : access,
 					kind : FFun({
-						args : [{ name : "mark", type : macro : hxbit.Serializable.MarkInfo },{ name : "from", type : macro : hxbit.NetworkSerializable }],
+						args : [{ name : "mark", type : macro : hxbit.Serializable.MarkInfo },{ name : "from", type : macro : hxbit.Serializable.MarkParam }],
 						expr : code,
 					}),
 				});
@@ -1559,7 +1559,7 @@ class Macros {
 						meta : [],
 						pos : pos,
 						kind : FFun( {
-							args : [{ name : "value", type : pt.toComplexType() },{ name : "mark", type : macro : hxbit.Serializable.MarkInfo },{ name : "from", type : macro : hxbit.NetworkSerializable }],
+							args : [{ name : "value", type : pt.toComplexType() },{ name : "mark", type : macro : hxbit.Serializable.MarkInfo },{ name : "from", type : macro : hxbit.Serializable.MarkParam }],
 							expr : macro doMarkReferences(value, mark, from),
 							ret : null,
 						}),
@@ -1568,7 +1568,7 @@ class Macros {
 						access : [AStatic],
 						pos : pos,
 						kind : FFun({
-							args : [{ name : "value", type : pt.toComplexType() },{ name : "mark", type : macro : hxbit.Serializable.MarkInfo },{ name : "from", type : macro : hxbit.NetworkSerializable }],
+							args : [{ name : "value", type : pt.toComplexType() },{ name : "mark", type : macro : hxbit.Serializable.MarkInfo },{ name : "from", type : macro : hxbit.Serializable.MarkParam }],
 							expr : {
 								var cases = [];
 								var conds = new haxe.EnumFlags<Condition>();
@@ -1577,7 +1577,9 @@ class Macros {
 									case TFun(args,_):
 										var marks = [], eargs = [];
 										for( a in args ) {
-											var arg = macro $i{a.name};
+											var name = a.name;
+											if( name == "from" ) name = "__from";
+											var arg = macro $i{name};
 											marks.push(macro hxbit.Macros.markValue($arg));
 											eargs.push(arg);
 										}
@@ -1891,7 +1893,6 @@ class Macros {
 				@:noCompletion public var __bits2 : Int = 0;
 				@:noCompletion public var __next : hxbit.NetworkSerializable;
 				#if hxbit_visibility
-				@:noCompletion public var __cachedVisibility : Map<hxbit.NetworkSerializable,Int>;
 				@:noCompletion public var __dirtyVisibilityGroups : Int;
 				#end
 				@:noCompletion public function networkSetBit( b : Int ) {
@@ -2509,7 +2510,7 @@ class Macros {
 			#if hxbit_visibility
 				var gexprs = [], eexprs = [];
 				if( groups.keys().hasNext() ) {
-					gexprs.push(macro var groups : Int = __cachedVisibility == null ? 0 : __cachedVisibility.get(from));
+					gexprs.push(macro var groups : Int = from.get(this));
 				}
 				for( gid => info in groups ) {
 					gexprs.push(macro if( groups & $v{1<<gid} != 0 ) $b{[for( f in info.fl ) {
@@ -2534,7 +2535,7 @@ class Macros {
 					kind : FFun({
 						args : [
 							{ name : "mark", type : macro : hxbit.Serializable.MarkInfo },
-							{ name : "from", type : macro : hxbit.NetworkSerializable },
+							{ name : "from", type : macro : hxbit.Serializable.MarkParam },
 						],
 						ret : null,
 						expr : code,

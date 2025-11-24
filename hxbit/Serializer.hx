@@ -1440,7 +1440,7 @@ class Serializer {
 
 
 	#if (hxbit_visibility || hxbit_mark)
-	static function markReferencesDyn( value : Dynamic, mark : hxbit.Serializable.MarkInfo, from : NetworkSerializable ) {
+	static function markReferencesDyn( value : Dynamic, mark : hxbit.Serializable.MarkInfo, from : hxbit.Serializable.MarkParam ) {
 		if( value == null ) return;
 		switch( Type.typeof(value) ) {
 		case TObject:

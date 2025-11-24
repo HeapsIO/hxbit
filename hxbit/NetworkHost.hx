@@ -1243,7 +1243,7 @@ class NetworkHost {
 		}
 		for( o in client.ctx.refs )
 			o.__mark = 0;
-		rootObject.markReferences(markInf, client.ownerObject);
+		rootObject.markReferences(markInf, client.ctx.cachedVisibility);
 		targetClient = client;
 		var toRemove = null;
 		for( key => o in client.ctx.refs ) {
