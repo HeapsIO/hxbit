@@ -564,9 +564,11 @@ class NetworkHost {
 		return null;
 	}
 
+	#if hxbit_visibility
 	public function matchClient(obj,from:Serializable.MarkParam) {
 		return resolveClient(obj)?.ctx.cachedVisibility == from;
 	}
+	#end
 
 	public function resetState() {
 		hxbit.Serializer.resetCounters();
