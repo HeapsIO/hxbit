@@ -119,7 +119,7 @@ class Macros {
 		UNSERIALIZABLES.set(className, dataOnly);
 	}
 
-	public static dynamic function wrapRPC( rpc : { mode : RpcMode, f : Field }, doCall : haxe.macro.Expr ) {
+	public static dynamic function wrapRPC( rpc : { mode : RpcMode, f : Field }, doCall : haxe.macro.Expr, id : Int ) {
 		return doCall;
 	}
 
@@ -2204,7 +2204,7 @@ class Macros {
 				if( (returnVal.value || returnVal.call) && r.mode != Server && r.mode != Owner )
 					Context.error("Cannot use return value with default rpc mode, use @:rpc(server) or @:rpc(owner)", r.f.pos);
 
-				doCall = wrapRPC(r, doCall);
+				doCall = wrapRPC(r, doCall, id);
 
 				var rpcExpr = switch( r.mode ) {
 				case All:
