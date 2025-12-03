@@ -1090,7 +1090,7 @@ class NetworkHost {
 	function doSend() {
 		var bytes;
 		@:privateAccess {
-			if( ctx.out.pos == 0 ) return;
+			if( ctx.out.length == 0 ) return;
 			bytes = ctx.out.getBytes();
 			ctx.out = new haxe.io.BytesBuffer();
 		}
