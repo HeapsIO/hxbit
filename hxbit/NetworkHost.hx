@@ -333,12 +333,17 @@ class NetworkClient {
 			var groups = ctx.getInt();
 			if( o != null ) {
 				var mask = o.getVisibilityMask(groups) & ~o.getVisibilityMask(0);
+				var old = o.__host;
+				o.__host = null;
 				for( i in 0...64 ) {
-					if( (mask >> i).low & 1 != 0 ) {
+					var im = mask >> i;
+					if( im == 0 ) break;
+					if( im.low & 1 != 0 ) {
 						var f = o.networkGetName(i);
 						Reflect.setProperty(o, f, null);
 					}
 				}
+				o.__host = old;
 			}
 		#end
 
