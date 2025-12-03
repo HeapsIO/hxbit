@@ -336,7 +336,7 @@ class NetworkClient {
 				for( i in 0...64 ) {
 					if( (mask >> i).low & 1 != 0 ) {
 						var f = o.networkGetName(i);
-						Reflect.setField(o, f, null);
+						Reflect.setProperty(o, f, null);
 					}
 				}
 			}
