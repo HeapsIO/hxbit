@@ -237,6 +237,7 @@ class NetworkClient {
 			var first = @:privateAccess ctx.newObjects[0];
 			host.makeAlive();
 			host.onFullSync(cast first);
+			if( host == null ) return -1; // disconnect during fullsync
 			host.receivingClient = this;
 		case NetworkHost.RPC:
 			var oid = ctx.getUID();
