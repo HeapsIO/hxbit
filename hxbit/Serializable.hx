@@ -57,7 +57,7 @@ interface AnySerializable {
 	/** Unserialize object fields using this Serializer **/
 	public function unserialize( ctx : Serializer ) : Void;
 	/** Returns the object data schema **/
-	public function getSerializeSchema( ?forSave: Bool ) : Schema;
+	public function getSerializeSchema( ?forSave: Bool = true ) : Schema;
 }
 
 @:autoBuild(hxbit.Macros.buildSerializable())
