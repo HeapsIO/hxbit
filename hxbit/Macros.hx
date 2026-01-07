@@ -232,24 +232,17 @@ class Macros {
 	public static macro function checkSuccess(e: Expr): Expr {
 		var t = Context.typeof(e);
 		switch(t) {
-		case TAbstract(a, _):
-			var abs = a.get();
-			if (abs.pack.length == 0 && abs.name == "Bool")
-				return e;
-			for (toType in abs.to) {
-				switch(toType.t) {
-					case TAbstract(ta, _) if (ta.get().name == "Bool"): return e;
-					default:
-				}
-			}
 		case TEnum(en, _):
 			var enumType = en.get();
 			for (m in enumType.meta.get())
 				if (m.name == ":rpcSuccess" && m.params.length > 0)
 					return macro $e == $e{m.params[0]};
+			return macro $e == cast null;
 		default:
+			if(!Context.unify(t, Context.typeof(macro true)))
+				Context.error("Checked value must unify with Bool, got " + t.toString(), e.pos);
+			return e;
 		}
-		return macro $e == cast null;
 	}
 
 	#if macro
