@@ -291,6 +291,7 @@ class NetworkClient {
 					ctx.addByte(NetworkHost.CANCEL_RPC);
 					ctx.addInt(resultID);
 				}
+				if( host == null ) return -1; // disconnect in rpc
 				host.rpcClientValue = null;
 			}
 			host.rpcObject = null;
@@ -359,6 +360,7 @@ class NetworkClient {
 	}
 
 	function beginRPCResult() {
+		if( host == null ) return; // disconnect in RPC
 		host.flush();
 
 		if( host.logger != null )
@@ -450,6 +452,7 @@ class NetworkClient {
 		if( host == null ) return;
 		host.clients.remove(this);
 		host.pendingClients.remove(this);
+		if( host.rpcClientValue == this ) host.rpcClientValue = null;
 		host = null;
 	}
 
