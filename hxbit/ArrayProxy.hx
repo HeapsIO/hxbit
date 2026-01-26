@@ -227,6 +227,10 @@ abstract ArrayProxy2<T:ProxyChild>(ArrayProxyData<T>) to ProxyChild {
 		return this.array.filter(t);
 	}
 
+	public inline function contains( x : T ) : Bool {
+		return this.array.contains(x);
+	}
+	
 	public inline function indexOf(x:T, ?fromIndex) {
 		return this.array.indexOf(x, fromIndex);
 	}
