@@ -628,7 +628,7 @@ class Serializer {
 	inline function getVisBits() {
 		return getInt();
 	}
-	function evalVisibility( s : Serializable ) {
+	function evalVisibility( s : NetworkSerializable ) {
 		return -1;
 	}
 	#end
@@ -664,7 +664,8 @@ class Serializer {
 		#if hxbit_visibility
 		var prevVis = visibilityGroups;
 		if( hasVisibility ) {
-			visibilityGroups = evalVisibility(s);
+			var ns = Std.downcast(s, NetworkSerializable);
+			visibilityGroups = ns == null ? -1 : evalVisibility(ns);
 			addVisBits(visibilityGroups);
 		}
 		#end

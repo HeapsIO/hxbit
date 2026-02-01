@@ -165,11 +165,8 @@ class NetworkSerializer extends Serializer {
 	static var GROUPS = VisibilityGroup.createAll();
 	static var GROUP_BITS = GROUPS.length < 16 ? GROUPS.length : 16;
 	static var BITS_CACHE : Array<Null<Int>> = [for( i in 0...(1 << GROUP_BITS) ) i];
-	override function evalVisibility(s:Serializable):Int {
+	override function evalVisibility(ns:NetworkSerializable):Int {
 		if( currentTarget == null )
-			return -1;
-		var ns = Std.downcast(s, NetworkSerializable);
-		if( ns == null )
 			return -1;
 		var v = cachedVisibility.get(ns.__uid);
 		var bits : Int, mask : Int;
