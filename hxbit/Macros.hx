@@ -2249,9 +2249,10 @@ class Macros {
 						if( __host.isAuth ) {
 							// multiple forward possible
 							@:privateAccess __host.dispatchClients(function(client) {
-								if( networkAllow(Ownership,$v{id},client.ownerObject) && __host.setTargetOwner(client.ownerObject) ) {
+								if( networkAllow(Ownership,$v{id},client.ownerObject) ) {
+									__host.setTargetClient(client);
 									$forwardRPC;
-									__host.setTargetOwner(null);
+									__host.setTargetClient(null);
 								}
 							});
 							if( networkAllow(Ownership, $v{id}, __host.self.ownerObject) )
@@ -2350,9 +2351,10 @@ class Macros {
 									return false;
 								// multiple forward possible
 								@:privateAccess __host.dispatchClients(function(client) {
-									if( networkAllow(Ownership,$v{id},client.ownerObject) && __host.setTargetOwner(client.ownerObject) ) {
+									if( networkAllow(Ownership,$v{id},client.ownerObject) ) {
+										__host.setTargetClient(client);
 										$forwardRPC;
-										__host.setTargetOwner(null);
+										__host.setTargetClient(null);
 									}
 								});
 								// only execute if ownership
@@ -2380,9 +2382,10 @@ class Macros {
 									return false;
 
 								@:privateAccess __host.dispatchClients(function(client) {
-									if(client != __host.rpcClient && __host.setTargetOwner(client.ownerObject) ) {
+									if( client != __host.rpcClient ) {
+										__host.setTargetClient(client);
 										$forwardRPC;
-										__host.setTargetOwner(null);
+										__host.setTargetClient(null);
 									}
 								});
 							}

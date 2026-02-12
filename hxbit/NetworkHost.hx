@@ -674,22 +674,12 @@ class NetworkHost {
 		targetClient = prev;
 	}
 
-	function setTargetOwner( owner : NetworkSerializable ) {
-		if( !isAuth )
-			return true;
-		if( owner == null ) {
+	inline function setTargetClient( client : NetworkClient ) {
+		if( client == null ) {
 			doSend();
-			targetClient = null;
-			return true;
+		} else {
+			targetClient = client;
 		}
-		flush();
-		targetClient = null;
-		for( c in clients )
-			if( c.ownerObject == owner ) {
-				targetClient = c;
-				break;
-			}
-		return targetClient != null; // owner not connected
 	}
 
 	inline function doRPC(o:NetworkSerializable, id:Int, onResult:NetworkSerializer->Void, serialize:NetworkSerializer->Void) {
