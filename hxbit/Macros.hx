@@ -2192,13 +2192,19 @@ class Macros {
 					rpcArgs.push( { name : "onResult", opt: true, type: retType == null ? null : TFunction([retType], macro:Void) } );
 				}
 
+				var beforeRPC = macro @:privateAccess __host.beforeRPC(this,$v{id});
+				var serializeRPC = macro function(__ctx) {
+					$b{[
+						for( a in funArgs )
+							withPos(macro hxbit.Macros.serializeValue(__ctx, $i{a.name}), f.expr.pos)
+					]};
+				};
 				var forwardRPC = macro {
-					@:privateAccess __host.doRPC(this,$v{id},$resultCall, function(__ctx) {
-						$b{[
-							for( a in funArgs )
-								withPos(macro hxbit.Macros.serializeValue(__ctx, $i{a.name}), f.expr.pos)
-						] };
-					});
+					$beforeRPC;
+					@:privateAccess __host.doRPC(this,$v{id},$resultCall,$serializeRPC);
+				};
+				var forwardClient = macro {
+					@:privateAccess __host.targetRPC(this,$v{id},$resultCall,$serializeRPC,client);
 				};
 
 				if( (returnVal.value || returnVal.call) && r.mode != Server && r.mode != Owner )
@@ -2248,12 +2254,10 @@ class Macros {
 							return; // no distant target possible (networkAllow = false)
 						if( __host.isAuth ) {
 							// multiple forward possible
+							$beforeRPC;
 							@:privateAccess __host.dispatchClients(function(client) {
-								if( networkAllow(Ownership,$v{id},client.ownerObject) ) {
-									__host.setTargetClient(client);
-									$forwardRPC;
-									__host.setTargetClient(null);
-								}
+								if( networkAllow(Ownership,$v{id},client.ownerObject) )
+									$forwardClient;
 							});
 							if( networkAllow(Ownership, $v{id}, __host.self.ownerObject) )
 								$doCall;
@@ -2350,12 +2354,10 @@ class Macros {
 								if( !networkAllow(RPC, $v{id}, __host.rpcClient.ownerObject) )
 									return false;
 								// multiple forward possible
+								$beforeRPC;
 								@:privateAccess __host.dispatchClients(function(client) {
-									if( networkAllow(Ownership,$v{id},client.ownerObject) ) {
-										__host.setTargetClient(client);
-										$forwardRPC;
-										__host.setTargetClient(null);
-									}
+									if( networkAllow(Ownership,$v{id},client.ownerObject) )
+										$forwardClient;
 								});
 								// only execute if ownership
 								if( !networkAllow(Ownership, $v{id}, __host.self.ownerObject) )
@@ -2380,13 +2382,10 @@ class Macros {
 								// check again
 								if( !networkAllow(Ownership,$v{id},__host.rpcClient.ownerObject) )
 									return false;
-
+								$beforeRPC;
 								@:privateAccess __host.dispatchClients(function(client) {
-									if( client != __host.rpcClient ) {
-										__host.setTargetClient(client);
-										$forwardRPC;
-										__host.setTargetClient(null);
-									}
+									if( client != __host.rpcClient )
+										$forwardClient;
 								});
 							}
 							$fcall;

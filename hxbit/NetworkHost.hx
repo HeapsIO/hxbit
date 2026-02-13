@@ -301,9 +301,10 @@ class NetworkClient {
 
 			if( resultID != -1 ) {
 				if( host.checkEOM ) ctx.addByte(NetworkHost.EOM);
-
+				var prev = host.targetClient;
+				host.targetClient = this;
 				host.doSend();
-				host.targetClient = null;
+				host.targetClient = prev;
 			}
 			resultID = old;
 
@@ -674,16 +675,18 @@ class NetworkHost {
 		targetClient = prev;
 	}
 
-	inline function setTargetClient( client : NetworkClient ) {
-		if( client == null ) {
-			doSend();
-		} else {
-			targetClient = client;
-		}
+	inline function targetRPC(o:NetworkSerializable, id:Int, onResult:NetworkSerializer->Void, serialize:NetworkSerializer->Void,client:NetworkClient) {
+		targetClient = client;
+		var rpcPosition = beginRPC(ctx, o, id, onResult);
+		#if hxbit_visibility
+		if( rpcPosition < 0 ) return;
+		#end
+		serialize(ctx);
+		endRPC(ctx, rpcPosition);
+		doSend();
 	}
 
 	inline function doRPC(o:NetworkSerializable, id:Int, onResult:NetworkSerializer->Void, serialize:NetworkSerializer->Void) {
-		beforeRPC(o,id);
 		#if hxbit_visibility
 		for( c in clients ) {
 			var ctx = c.ctx;
