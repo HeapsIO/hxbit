@@ -2313,6 +2313,62 @@ class Macros {
 				}
 				exprs.push(macro if( __ctx.error ) return false);
 				exprs.push(macro if( __host != null ) __host.makeAlive());
+
+				// -- when receiving the rpc, check for additional security
+
+				switch( r.mode ) {
+				case All:
+					exprs.push(macro {
+						if( __host != null && __host.isAuth ) {
+							// check again
+							if( !networkAllow(RPC,$v{id},__host.rpcClient.ownerObject) )
+								return false;
+							$forwardRPC;
+						}
+					});
+				case Owner:
+					// check again when receiving the RPC if we are on the good owner
+					// the server might relay to the actual owner or simply drop if not connected
+					exprs.push(macro {
+						if( __host != null && __host.isAuth ) {
+							// check again
+							if( !networkAllow(RPC, $v{id}, __host.rpcClient.ownerObject) )
+								return false;
+							// multiple forward possible
+							$beforeRPC;
+							@:privateAccess __host.dispatchClients(function(client) {
+								if( networkAllow(Ownership,$v{id},client.ownerObject) )
+									$forwardClient;
+							});
+							// only execute if ownership
+							if( !networkAllow(Ownership, $v{id}, __host.self.ownerObject) )
+								return true;
+						}
+					});
+				case Clients:
+					exprs.push(macro {
+						if( __host != null && __host.isAuth ) return false;
+					});
+				case Server:
+					exprs.push(macro {
+						if( __host == null || !__host.isAuth || !networkAllow(RPCServer, $v{id}, __host.rpcClient.ownerObject) )
+							return false;
+					});
+				case Immediate:
+					exprs.push(macro {
+						if( __host != null && __host.isAuth ) {
+							// check again
+							if( !networkAllow(Ownership,$v{id},__host.rpcClient.ownerObject) )
+								return false;
+							$beforeRPC;
+							@:privateAccess __host.dispatchClients(function(client) {
+								if( client != __host.rpcClient )
+									$forwardClient;
+							});
+						}
+					});
+				}
+
 				if( returnVal.call ) {
 					exprs.push(macro {
 						var __res = @:privateAccess __clientResult.beginAsyncRPCResult(null);
@@ -2330,68 +2386,8 @@ class Macros {
 						@:privateAccess __clientResult.beginRPCResult();
 						hxbit.Macros.serializeValue(__ctx, result);
 					});
-				} else {
-
-					// -- when receiving the rpc, check for additional security
-
-					switch( r.mode ) {
-					case All:
-						exprs.push(macro {
-							if( __host != null && __host.isAuth ) {
-								// check again
-								if( !networkAllow(RPC,$v{id},__host.rpcClient.ownerObject) )
-									return false;
-								$forwardRPC;
-							}
-							$fcall;
-						});
-					case Owner:
-						// check again when receiving the RPC if we are on the good owner
-						// the server might relay to the actual owner or simply drop if not connected
-						exprs.push(macro {
-							if( __host != null && __host.isAuth ) {
-								// check again
-								if( !networkAllow(RPC, $v{id}, __host.rpcClient.ownerObject) )
-									return false;
-								// multiple forward possible
-								$beforeRPC;
-								@:privateAccess __host.dispatchClients(function(client) {
-									if( networkAllow(Ownership,$v{id},client.ownerObject) )
-										$forwardClient;
-								});
-								// only execute if ownership
-								if( !networkAllow(Ownership, $v{id}, __host.self.ownerObject) )
-									return true;
-							}
-							$fcall;
-						});
-					case Clients:
-						exprs.push(macro {
-							if( __host != null && __host.isAuth ) return false;
-							$fcall;
-						});
-					case Server:
-						exprs.push(macro {
-							if( __host == null || !__host.isAuth || !networkAllow(RPCServer, $v{id}, __host.rpcClient.ownerObject) )
-								return false;
-							$fcall;
-						});
-					case Immediate:
-						exprs.push(macro {
-							if( __host != null && __host.isAuth ) {
-								// check again
-								if( !networkAllow(Ownership,$v{id},__host.rpcClient.ownerObject) )
-									return false;
-								$beforeRPC;
-								@:privateAccess __host.dispatchClients(function(client) {
-									if( client != __host.rpcClient )
-										$forwardClient;
-								});
-							}
-							$fcall;
-						});
-					}
-				}
+				} else
+					exprs.push(fcall);
 
 				rpcCases.push({ values : [{ expr : EConst(CInt(""+id)), pos : p }], guard : null, expr : { expr : EBlock(exprs), pos : p } });
 
