@@ -2159,7 +2159,8 @@ class Macros {
 					if( m.name == ":allowCDB" )
 						conds.unset(PreventCDB);
 
-				if( returnVal.value || returnVal.call ) {
+				var hasResult = returnVal.value || returnVal.call;
+				if( hasResult ) {
 					var typeValue;
 					if( returnVal.call ) {
 						replaceReturns(f.expr);
@@ -2207,7 +2208,7 @@ class Macros {
 					@:privateAccess __host.targetRPC(this,$v{id},$resultCall,$serializeRPC,client);
 				};
 
-				if( (returnVal.value || returnVal.call) && r.mode != Server && r.mode != Owner )
+				if( hasResult && r.mode != Server && r.mode != Owner )
 					Context.error("Cannot use return value with default rpc mode, use @:rpc(server) or @:rpc(owner)", r.f.pos);
 
 				doCall = wrapRPC(r, doCall, id);
@@ -2337,8 +2338,11 @@ class Macros {
 							// multiple forward possible
 							$beforeRPC;
 							@:privateAccess __host.dispatchClients(function(client) {
-								if( networkAllow(Ownership,$v{id},client.ownerObject) )
+								if( networkAllow(Ownership,$v{id},client.ownerObject) ) {
+									// ignore result from clients if another client dispatched the call
+									${if( hasResult ) macro var onResult = null else macro null};
 									$forwardClient;
+								}
 							});
 							// only execute if ownership
 							if( !networkAllow(Ownership, $v{id}, __host.self.ownerObject) )
