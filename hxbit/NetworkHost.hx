@@ -300,11 +300,11 @@ class NetworkClient {
 				host.logger("RPC < " + host.objStr(o) + " " + o.networkGetName(fid,true));
 
 			if( resultID != -1 ) {
+				// targetClient was set by beginRPCResult
+				if( host.targetClient == null ) throw "assert";
 				if( host.checkEOM ) ctx.addByte(NetworkHost.EOM);
-				var prev = host.targetClient;
-				host.targetClient = this;
 				host.doSend();
-				host.targetClient = prev;
+				host.targetClient = null;
 			}
 			resultID = old;
 
