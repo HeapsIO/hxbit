@@ -277,17 +277,20 @@ class NetworkClient {
 				if( !host.isAuth )
 					host.logError("RPC @" + fid + " on unreferenced object", oid);
 				ctx.skip(size);
+				host.targetClient = this;
 				ctx.addByte(NetworkHost.CANCEL_RPC);
 				ctx.addInt(resultID);
 			} else if( !host.isAuth ) {
 				if( !o.networkRPC(ctx, fid, this) ) {
 					host.logError("RPC " + o.networkGetName(fid,true) + " on " + o + " has unreferenced object parameter");
+					host.targetClient = this;
 					ctx.addByte(NetworkHost.CANCEL_RPC);
 					ctx.addInt(resultID);
 				}
 			} else {
 				host.rpcClientValue = this;
 				if( !o.networkRPC(ctx, fid, this) ) {
+					host.targetClient = this;
 					ctx.addByte(NetworkHost.CANCEL_RPC);
 					ctx.addInt(resultID);
 				}
