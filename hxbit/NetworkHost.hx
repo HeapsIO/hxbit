@@ -1084,7 +1084,11 @@ class NetworkHost {
 		#end
 	}
 
-	function doSend() {
+	inline function doSend() {
+		#if hxbit_visibility if( !isAuth ) #end flushSend();
+	}
+
+	function flushSend() {
 		var bytes;
 		@:privateAccess {
 			if( ctx.out.length == 0 ) return;
@@ -1216,7 +1220,7 @@ class NetworkHost {
 			for( c in clients )
 				if( @:privateAccess c.ctx.out.length > 0 ) {
 					targetClient = c;
-					doSend();
+					flushSend();
 					targetClient = null;
 				}
 		}
