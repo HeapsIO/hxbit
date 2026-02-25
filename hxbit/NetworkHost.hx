@@ -1217,12 +1217,17 @@ class NetworkHost {
 		if( @:privateAccess globalCtx.out.length > 0 ) doSend();
 		#if hxbit_visibility
 		if( isAuth ) {
-			for( c in clients )
+			inline function flushData(c:NetworkClient) {
 				if( @:privateAccess c.ctx.out.length > 0 ) {
 					targetClient = c;
 					flushSend();
 					targetClient = null;
 				}
+			}
+			for( c in pendingClients )
+				flushData(c);
+			for( c in clients )
+				flushData(c);
 		}
 		#end
 		// update sendRate
