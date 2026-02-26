@@ -332,6 +332,12 @@ class NetworkClient {
 			var msg = ctx.getBytes();
 			host.onMessage(this, msg);
 
+		case NetworkHost.PING:
+			// nothing
+		case NetworkHost.PING_READY:
+			// discard extra time
+			lastMessage = haxe.Timer.stamp();
+
 		#if hxbit_visibility
 		case NetworkHost.VIS_RESET:
 			var oid = ctx.getUID();
@@ -424,8 +430,10 @@ class NetworkClient {
 	}
 
 	function processMessagesData( data : haxe.io.Bytes, pos : Int, length : Int ) {
-		if( length > 0 )
-			lastMessage = haxe.Timer.stamp();
+		if( length > 0 ) {
+			var now = haxe.Timer.stamp();
+			if( lastMessage < now ) lastMessage = now else lastMessage -= 1; // if we receive while we are in extra time, let's accelerate
+		}
 		if( host == null )
 			return;
 		var end = pos + length;
@@ -476,9 +484,9 @@ class NetworkHost {
 	static inline var BMSG		 = 9;
 	static inline var CANCEL_RPC = 12;
 	static inline var VIS_RESET	 = 13;
+	static inline var PING_READY = 0xFD;
+	static inline var PING		 = 0xFE;
 	static inline var EOM		 = 0xFF;
-
-	public static var CLIENT_TIMEOUT = 60. * 60.; // 1 hour timeout
 
 	public var checkEOM(get, never) : Bool;
 	inline function get_checkEOM() return true;
@@ -507,6 +515,24 @@ class NetworkHost {
 	public var sendRate : Float = 0.;
 	public var totalSentBytes : Int = 0;
 	public var syncingProperties = false;
+
+	/**
+		Set a regular ping if no other data was sent during this time. Prevent clientTimeout from occuring.
+		(default : 10s)
+	**/
+	public var autoPingTime : Float = 10;
+
+	/**
+		How much time before a client that didn't sent any data is automaticaly disconnected (default : 60s)
+	**/
+	public var clientTimeout : Float = 60;
+
+	/**
+		Gives additional timeout delay after sending a fullSync to a client. (default: 5min)
+		The client can call ping(true) to indicate that its ready and cancel the extra time.
+	**/
+	public var fullSyncExtraTime : Float = 60 * 5;
+
 	var isDispatching = false;
 
 	/*
@@ -516,7 +542,7 @@ class NetworkHost {
 	var isSyncingProperty : Int = -1;
 
 	var perPacketBytes = 20; // IP + UDP headers
-	var lastSentTime : Float = 0.;
+	var lastSentTime : Float;
 	var lastSentBytes = 0;
 	var markHead : NetworkSerializable;
 	var registerHead : NetworkSerializable;
@@ -546,6 +572,7 @@ class NetworkHost {
 	public function new() {
 		current = this;
 		isAuth = true;
+		lastSentTime = haxe.Timer.stamp();
 		self = new NetworkClient(this);
 		clients = [];
 		aliveEvents = [];
@@ -644,6 +671,20 @@ class NetworkHost {
 
 	function get_rpcClient() {
 		return rpcClientValue == null ? self : rpcClientValue;
+	}
+
+	/**
+		This can be used to manually ping the other side.
+		If you set ready to true, it will also reset the extra time that was set for fullsync
+	**/
+	public function ping( ready = false ) {
+		for( c in clients ) {
+			targetClient = c;
+			ctx.addByte(ready ? PING_READY : PING);
+			if( checkEOM ) ctx.addByte(EOM);
+			doSend();
+			targetClient = null;
+		}
 	}
 
 	public dynamic function logError( msg : String, ?objectId : UID ) {
@@ -788,6 +829,7 @@ class NetworkHost {
 
 		doSend();
 		targetClient = null;
+		c.lastMessage = haxe.Timer.stamp() + fullSyncExtraTime;
 	}
 
 	public function defaultLogger( ?filter : String -> Bool ) {
@@ -1244,12 +1286,15 @@ class NetworkHost {
 			sendRate = rate;
 		else
 			sendRate = sendRate * 0.8 + rate * 0.2; // smooth
-		lastSentTime = now;
-		lastSentBytes = totalSentBytes;
+		if( db > 0 ) {
+			lastSentTime = now;
+			lastSentBytes = totalSentBytes;
+		} else if( dt > autoPingTime && autoPingTime > 0 )
+			ping();
 
 		// check for unresponsive clients (nothing received from them)
 		for( c in clients )
-			if( now - c.lastMessage > CLIENT_TIMEOUT )
+			if( now - c.lastMessage > clientTimeout )
 				c.stop();
 	}
 
