@@ -1293,6 +1293,9 @@ class NetworkHost {
 			ping();
 
 		// check for unresponsive clients (nothing received from them)
+		for( c in pendingClients )
+			if( now - c.lastMessage > clientTimeout )
+				c.stop();
 		for( c in clients )
 			if( now - c.lastMessage > clientTimeout )
 				c.stop();
