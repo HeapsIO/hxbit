@@ -225,7 +225,7 @@ class NetworkClient {
 			if( sign.compare(Serializer.getSignature()) != 0 ) {
 				var host = host;
 				stop();
-				host.logError("Network signature mismatch");
+				host.onInvalidSignature();
 				return -1;
 			}
 			ctx.enableChecks = false;
@@ -693,6 +693,10 @@ class NetworkHost {
 
 	public dynamic function logError( msg : String, ?objectId : UID ) {
 		throw msg + (objectId == null ? "":  "(" + objectId + ")");
+	}
+
+	public dynamic function onInvalidSignature() {
+		logError("Network signature mismatch");
 	}
 
 	public dynamic function onMessage( from : NetworkClient, msg : Dynamic ) {
