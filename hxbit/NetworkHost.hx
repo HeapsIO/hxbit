@@ -460,6 +460,10 @@ class NetworkClient {
 		}
 	}
 
+	public function timeout() {
+		stop();
+	}
+
 	public function stop() {
 		if( host == null ) return;
 		host.clients.remove(this);
@@ -1295,10 +1299,10 @@ class NetworkHost {
 		// check for unresponsive clients (nothing received from them)
 		for( c in pendingClients )
 			if( now - c.lastMessage > clientTimeout )
-				c.stop();
+				c.timeout();
 		for( c in clients )
 			if( now - c.lastMessage > clientTimeout )
-				c.stop();
+				c.timeout();
 	}
 
 	#if hxbit_visibility
