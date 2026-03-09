@@ -717,9 +717,9 @@ class Macros {
 						var vars = [];
 						for( f in fields ) {
 							var nidx = nullables.indexOf(f);
-							var name = f.name;
+							var name = f.name+"_";
 							var ct = f.type.t;
-							vars.push( { field : name, expr : { expr : EConst(CIdent(name)), pos:v.pos } } );
+							vars.push( { field : f.name, expr : { expr : EConst(CIdent(name)), pos:v.pos } } );
 							if( nidx < 0 ) {
 								exprs.unshift(macro var $name : $ct);
 								exprs.push(macro hxbit.Macros.unserializeValue($ctx, $i{name}, $v{depth+1}, $v{conds.toInt()}));
