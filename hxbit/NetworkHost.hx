@@ -32,6 +32,7 @@ class NetworkClient {
 	public var seqID : Int;
 	public var ownerObject(default,set) : NetworkSerializable;
 	public var lastMessage : Float;
+	public var lastSentMessage : Float;
 	#if hxbit_visibility
 	public var ctx : NetworkSerializable.NetworkSerializer;
 	#end
@@ -546,8 +547,9 @@ class NetworkHost {
 	var isSyncingProperty : Int = -1;
 
 	var perPacketBytes = 20; // IP + UDP headers
-	var lastSentTime : Float;
 	var lastSentBytes = 0;
+	var lastSentTime : Float;
+	var currentTime : Float;
 	var markHead : NetworkSerializable;
 	var registerHead : NetworkSerializable;
 	var ctx : NetworkSerializer;
@@ -1155,12 +1157,15 @@ class NetworkHost {
 		if( targetClient != null ) {
 			totalSentBytes += (bytes.length + perPacketBytes);
 			targetClient.send(bytes);
+			targetClient.lastSentMessage = currentTime;
 		}
 		else {
 			totalSentBytes += (bytes.length + perPacketBytes) * clients.length;
 			if( clients.length == 0 ) totalSentBytes += bytes.length + perPacketBytes; // still count for statistics
-			for( c in clients )
+			for( c in clients ) {
 				c.send(bytes);
+				c.lastSentMessage = currentTime;
+			}
 		}
 	}
 
@@ -1286,6 +1291,7 @@ class NetworkHost {
 		// update sendRate
 		var now = haxe.Timer.stamp();
 		var dt = now - lastSentTime;
+		currentTime = now;
 		if( dt < 1 )
 			return;
 		var db = totalSentBytes - lastSentBytes;
@@ -1297,16 +1303,25 @@ class NetworkHost {
 		if( db > 0 ) {
 			lastSentTime = now;
 			lastSentBytes = totalSentBytes;
-		} else if( dt > autoPingTime && autoPingTime > 0 )
-			ping();
+		}
 
 		// check for unresponsive clients (nothing received from them)
 		for( c in pendingClients )
 			if( now - c.lastMessage > clientTimeout )
 				c.timeout();
-		for( c in clients )
+		for( c in clients ) {
 			if( now - c.lastMessage > clientTimeout )
 				c.timeout();
+			else if( now - c.lastSentMessage > autoPingTime && autoPingTime > 0 ) {
+				var prev = targetClient;
+				targetClient = c;
+				ctx.addByte(PING);
+				if( checkEOM ) ctx.addByte(EOM);
+				doSend();
+				targetClient = prev;
+				c.lastSentMessage = now;
+			}
+		}
 	}
 
 	#if hxbit_visibility
