@@ -165,9 +165,10 @@ class NetworkSerializer extends Serializer {
 	static var GROUPS = VisibilityGroup.createAll();
 	static var GROUP_BITS = GROUPS.length < 16 ? GROUPS.length : 16;
 	static var BITS_CACHE : Array<Null<Int>> = [for( i in 0...(1 << GROUP_BITS) ) i];
+	public var defaultVisibilityMask = 0;
 	override function evalVisibility(ns:NetworkSerializable):Int {
 		if( currentTarget == null )
-			return -1;
+			return defaultVisibilityMask;
 		var v = cachedVisibility.get(ns.__uid);
 		var bits : Int, mask : Int;
 		if( v != null ) {
