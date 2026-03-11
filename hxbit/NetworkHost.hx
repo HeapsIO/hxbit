@@ -1344,6 +1344,10 @@ class NetworkHost {
 			if( checkEOM ) ctx.addByte(EOM);
 			if( toRemove == null ) toRemove = [];
 			toRemove.push(key);
+			if( logger != null ) {
+				var ns = Std.downcast(o, NetworkSerializable);
+				logger("UNREF > " + (ns == null ? ""+ns.__uid : objStr(ns)));
+			}
 		}
 		if( toRemove != null ) {
 			for( key in toRemove )
