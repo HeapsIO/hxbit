@@ -371,8 +371,8 @@ class NetworkClient {
 	}
 
 	function beginRPCResult() {
+		host?.flush();
 		if( host == null ) return; // disconnect in RPC
-		host.flush();
 
 		if( host.logger != null )
 			host.logger("RPC RESULT #" + resultID);
@@ -390,13 +390,13 @@ class NetworkClient {
 			resultID = -1;
 			return prevID;
 		}
+		resultID = rpc;
+		beginRPCResult();
 		if( host == null ) {
 			// was disconnected
 			resultID = -1;
 			return null;
 		}
-		resultID = rpc;
-		beginRPCResult();
 		resultID = prevID;
 		return rpc;
 	}
