@@ -334,7 +334,12 @@ class NetworkClient {
 			host.onMessage(this, msg);
 
 		case NetworkHost.PING:
+			ctx.addByte(NetworkHost.PONG);
+			if( host.checkEOM ) ctx.addByte(NetworkHost.EOM);
+
+		case NetworkHost.PONG:
 			// nothing
+
 		case NetworkHost.PING_READY:
 			// discard extra time
 			lastMessage = haxe.Timer.stamp();
@@ -489,6 +494,7 @@ class NetworkHost {
 	static inline var BMSG		 = 9;
 	static inline var CANCEL_RPC = 12;
 	static inline var VIS_RESET	 = 13;
+	static inline var PONG		 = 0xFC;
 	static inline var PING_READY = 0xFD;
 	static inline var PING		 = 0xFE;
 	static inline var EOM		 = 0xFF;
