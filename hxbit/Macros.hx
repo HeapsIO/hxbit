@@ -2418,7 +2418,7 @@ class Macros {
 					exprs.push(macro {
 						if( __host != null && __host.isAuth ) return false;
 					});
-				case Server:
+				case Server | Checked	:
 					exprs.push(macro {
 						if( __host == null || !__host.isAuth || !networkAllow(RPCServer, $v{id}, __host.rpcClient.ownerObject) )
 							return false;
