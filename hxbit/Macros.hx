@@ -2246,7 +2246,7 @@ class Macros {
 					@:privateAccess __host.targetRPC(this,$v{id},$resultCall,$serializeRPC,client);
 				};
 
-				if( hasResult && r.mode != Server && r.mode != Owner )
+				if( hasResult && r.mode != Server && r.mode != Checked && r.mode != Owner )
 					Context.error("Cannot use return value with default rpc mode, use @:rpc(server/owner/checked)", r.f.pos);
 
 				doCall = wrapRPC(r, doCall, id);
