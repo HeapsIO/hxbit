@@ -54,6 +54,10 @@ enum RpcMode {
 		When called on the server: will forward the call to the clients (and force its execution), then execute.
 	*/
 	Immediate;
+	/*
+		Variant of @:rpc(server) that also generates check{Name} and can{Name} functions that skip execution of code within @:do { } blocks.
+	*/
+	Checked;
 }
 
 enum PropTypeDesc<PropType> {
@@ -222,6 +226,22 @@ class Macros {
 		case PNull(t):
 			f(t);
 		default:
+		}
+	}
+
+	public static macro function checkSuccess(e: Expr): Expr {
+		var t = Context.typeof(e);
+		switch(t) {
+		case TEnum(en, _):
+			var enumType = en.get();
+			for (m in enumType.meta.get())
+				if (m.name == ":rpcSuccess" && m.params.length > 0)
+					return macro $e == $e{m.params[0]};
+			return macro $e == cast null;
+		default:
+			if(!Context.unify(t, Context.typeof(macro true)))
+				Context.error("Checked value must unify with Bool, got " + t.toString(), e.pos);
+			return e;
 		}
 	}
 
@@ -1739,6 +1759,15 @@ class Macros {
 		}
 	}
 
+	static function replaceDo( e:Expr ) {
+		switch(e.expr) {
+		case EMeta({ name: ":do" }, doBody):
+			e.expr = EIf(macro __do, doBody, null);
+		default:
+			haxe.macro.ExprTools.iter(e, replaceDo);
+		}
+	}
+
 	static function superImpl( name : String, e : Expr ) {
 		switch( e.expr ) {
 		case EField( esup = { expr : EConst(CIdent("super")) }, fname) if( fname == name ):
@@ -1865,8 +1894,9 @@ class Macros {
 						case EConst(CIdent("server")): mode = Server;
 						case EConst(CIdent("owner")): mode = Owner;
 						case EConst(CIdent("immediate")): mode = Immediate;
+						case EConst(CIdent("checked")): mode = Checked;
 						default:
-							Context.error("Unexpected Rpc mode : should be all|clients|server|owner|immediate", meta.params[0].pos);
+							Context.error("Unexpected Rpc mode : should be all|clients|server|owner|immediate|checked", meta.params[0].pos);
 						}
 					rpc.push( { f : f, mode:mode } );
 					superRPC.set(f.name, true);
@@ -2144,12 +2174,19 @@ class Macros {
 				var retType = f.ret;
 				r.f.name += "__impl";
 
-				var cargs = [for( a in f.args ) { expr : EConst(CIdent(a.name)), pos : p } ];
-				var fcall = { expr : ECall( { expr : EField( { expr : EConst(CIdent("this")), pos:p }, r.f.name), pos : p }, cargs), pos : p };
+				var rpcArgs = f.args.copy();
+				var funArgs = rpcArgs;
+
+				var cargs = [for( a in rpcArgs ) { expr : EConst(CIdent(a.name)), pos : p } ];
+
+				if (r.mode == Checked) {
+					f.args.unshift({ name: "__do", type: macro : Bool });
+					cargs.unshift(macro true);
+				}
+				var implFunc = { expr : EField( { expr : EConst(CIdent("this")), pos:p }, r.f.name), pos : p };
+				var fcall = { expr : ECall(implFunc, cargs), pos : p };
 
 				var doCall = fcall;
-				var rpcArgs = f.args;
-				var funArgs = f.args;
 				var resultCall = macro null;
 
 				var conds = new haxe.EnumFlags<Condition>();
@@ -2159,13 +2196,14 @@ class Macros {
 					if( m.name == ":allowCDB" )
 						conds.unset(PreventCDB);
 
+				if(r.mode == Checked)
+					replaceDo(f.expr);
+
 				var hasResult = returnVal.value || returnVal.call;
 				if( hasResult ) {
 					var typeValue;
 					if( returnVal.call ) {
 						replaceReturns(f.expr);
-						rpcArgs = f.args.copy();
-						funArgs = f.args.copy();
 						f.ret = macro : Void;
 						cargs.push(macro onResult);
 						f.args.push({ name : "__return" });
@@ -2209,7 +2247,7 @@ class Macros {
 				};
 
 				if( hasResult && r.mode != Server && r.mode != Owner )
-					Context.error("Cannot use return value with default rpc mode, use @:rpc(server) or @:rpc(owner)", r.f.pos);
+					Context.error("Cannot use return value with default rpc mode, use @:rpc(server/owner/checked)", r.f.pos);
 
 				doCall = wrapRPC(r, doCall, id);
 
@@ -2235,7 +2273,7 @@ class Macros {
 						}
 						$doCall;
 					}
-				case Server:
+				case Server|Checked:
 					macro {
 						if( __host == null ) return; // not shared object --> no server
 						if( !__host.isAuth ) {
@@ -2297,6 +2335,33 @@ class Macros {
 					pos : p,
 				};
 				fields.push(rpc);
+
+				if( r.mode == Checked ) {
+					var capitalized = name.charAt(0).toUpperCase() + name.substr(1);
+					var cargs = [for( a in funArgs ) { expr : EConst(CIdent(a.name)), pos : p } ];
+					cargs.unshift(macro false);
+					var implCall = withPos(macro $implFunc($a{cargs}), p);
+					fields.push({
+						name : "check" + capitalized,
+						pos : p,
+						access : [APublic, AFinal],
+						kind : FFun({
+							args: funArgs,
+							params: [],
+							expr : macro return $implCall,
+						}),
+					});
+					fields.push({
+						name : "can" + capitalized,
+						pos : p,
+						access : [APublic, AFinal],
+						kind : FFun({
+							args: funArgs,
+							params: [],
+							expr : macro return hxbit.Macros.checkSuccess($implCall),
+						}),
+					});
+				}
 
 				r.f.access.remove(APublic);
 				r.f.meta.push( { name : ":noCompletion", pos : p } );
