@@ -94,7 +94,7 @@ class NetworkClient {
 
 		if( !wasSync && !host.isAuth ) {
 			switch( mid ) {
-			case NetworkHost.FULLSYNC, NetworkHost.MSG, NetworkHost.BMSG:
+			case NetworkHost.FULLSYNC, NetworkHost.MSG, NetworkHost.BMSG, NetworkHost.PING, NetworkHost.PONG:
 			default:
 				host.logError("Message "+mid+" was received before sync");
 			}
