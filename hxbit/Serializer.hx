@@ -743,6 +743,7 @@ class Serializer {
 			if( CLIDS[clidx] != 0 ) {
 				var realIdx = getCLID();
 				c = cast CL_BYID[realIdx];
+				if( c == null ) throw "Missing class #"+realIdx+" subclass of "+Type.getClassName(c)+"#"+clidx;
 				clidx = (c:Dynamic).__clid;
 			}
 		}
