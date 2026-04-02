@@ -5,6 +5,9 @@ abstract Weak<T:NetworkSerializable>(UID) {
 	@:from static inline function from<T:NetworkSerializable>( v : T ) : Weak<T> {
 		return cast v?.__uid;
 	}
+	@:from static inline function fromChild<T1:NetworkSerializable, T2:T1>( v : T2 ) : Weak<T1> {
+        return cast v?.__uid;
+    }
 	static function resolve( uid : UID ) : Dynamic {
 		var host = NetworkHost.current;
 		var r = @:privateAccess host.globalCtx.refs.get(uid);
@@ -25,4 +28,7 @@ abstract WeakOpt<T:NetworkSerializable>(Null<UID>) {
 	@:from static inline function from<T:NetworkSerializable>( v : T ) : WeakOpt<T> {
 		return cast v?.__uid;
 	}
+	@:from static inline function fromChild<T1:NetworkSerializable, T2:T1>( v : T2 ) : WeakOpt<T1> {
+        return cast v?.__uid;
+    }
 }
