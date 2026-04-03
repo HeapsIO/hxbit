@@ -1196,6 +1196,9 @@ class NetworkHost {
 		}
 		var o = markHead;
 		while( o != null ) {
+			var next = o.__next;
+			o.__next = null;
+			if( markHead == o ) markHead = null;
 			if( (o.__bits1|o.__bits2 #if hxbit_visibility | o.__dirtyVisibilityGroups #end) != 0 ) {
 				if( logger != null ) {
 					var props = [];
@@ -1269,9 +1272,10 @@ class NetworkHost {
 				o.__dirtyVisibilityGroups = 0;
 				#end
 			}
-			var n = o.__next;
-			o.__next = null;
-			o = n;
+			o = next;
+			// var n = o.__next;
+			// o.__next = null;
+			// o = n;
 		}
 		markHead = null;
 	}
