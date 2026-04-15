@@ -1298,7 +1298,7 @@ class Serializer {
 	function writeValue( v : Dynamic, t : Schema.FieldType )  {
 		switch( t ) {
 		case PInt64:
-			addInt64(v);
+			addInt64(#if js (v != null ? v : 0) #else v #end);
 		case PInt:
 			addInt(v);
 		case PFloat:
