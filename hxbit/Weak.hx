@@ -10,6 +10,8 @@ abstract Weak<T:NetworkSerializable>(UID) {
     }
 	static function resolve( uid : UID ) : Dynamic {
 		var host = NetworkHost.current;
+		if (host == null)
+			return null;
 		var r = @:privateAccess host.globalCtx.refs.get(uid);
 		if( r == null ) {
 			var h = @:privateAccess host.registerHead;
