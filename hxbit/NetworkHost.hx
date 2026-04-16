@@ -376,7 +376,7 @@ class NetworkClient {
 	}
 
 	function beginRPCResult() {
-		host?.flush();
+		@:privateAccess host?.partialFlush();
 		if( host == null ) return; // disconnect in RPC
 
 		if( host.logger != null )
@@ -720,7 +720,7 @@ class NetworkHost {
 	}
 
 	public function sendMessage( msg : Dynamic, ?to : NetworkClient ) {
-		flush();
+		partialFlush();
 		var prev = targetClient;
 		targetClient = to;
 		if( Std.isOfType(msg, haxe.io.Bytes) ) {
@@ -803,7 +803,7 @@ class NetworkHost {
 	function fullSync( c : NetworkClient ) {
 		if( !pendingClients.remove(c) )
 			return;
-		flush();
+		partialFlush();
 
 		// unique client sequence number
 		var seq = clients.length + 1;
@@ -945,8 +945,16 @@ class NetworkHost {
 		#end
 	}
 
-	inline function dispatchClients( callb : NetworkClient -> Void ) {
+	inline function partialFlush() {
+		#if hxbit_visibility
+		flushProps();
+		#else
 		flush();
+		#end
+	}
+
+	inline function dispatchClients( callb : NetworkClient -> Void ) {
+		partialFlush();
 		var old = targetClient;
 		var newRefs : Array<Array<Serializable>> = null;
 		isDispatching = true;
