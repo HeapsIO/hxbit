@@ -1364,8 +1364,10 @@ class NetworkHost {
 			}
 		}
 		if( toRemove != null ) {
-			for( key in toRemove )
+			for( key in toRemove ) {
 				client.ctx.refs.remove(key);
+				client.ctx.cachedVisibility.remove(key);
+			}
 		}
 		doSend();
 		targetClient = null;
