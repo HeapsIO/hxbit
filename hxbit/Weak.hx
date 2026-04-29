@@ -1,5 +1,6 @@
 package hxbit;
 
+@:fromNull
 abstract Weak<T:NetworkSerializable>(UID) {
 	public inline function get() : T return resolve(this);
 	@:from static inline function from<T:NetworkSerializable>( v : T ) : Weak<T> {
@@ -23,14 +24,5 @@ abstract Weak<T:NetworkSerializable>(UID) {
 		}
 		return r;
 	}
-}
 
-abstract WeakOpt<T:NetworkSerializable>(Null<UID>) {
-	public inline function get() : T return this == null ? null : @:privateAccess Weak.resolve(this);
-	@:from static inline function from<T:NetworkSerializable>( v : T ) : WeakOpt<T> {
-		return cast v?.__uid;
-	}
-	@:from static inline function fromChild<T1:NetworkSerializable, T2:T1>( v : T2 ) : WeakOpt<T1> {
-        return cast v?.__uid;
-    }
 }
