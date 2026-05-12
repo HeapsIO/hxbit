@@ -1186,6 +1186,7 @@ class Serializer {
 		case PInt64: getInt64();
 		case PInt: getInt();
 		case PFloat: getFloat();
+		case PDouble: getDouble();
 		case PAlias(t), PAliasCDB(t): readValue(t);
 		case PBool: getBool();
 		case PString: getString();
@@ -1303,6 +1304,8 @@ class Serializer {
 			addInt(v);
 		case PFloat:
 			addFloat(v);
+		case PDouble:
+			addDouble(v);
 		case PAlias(t), PAliasCDB(t):
 			writeValue(v,t);
 		case PBool:

@@ -73,6 +73,7 @@ class NetworkStats {
 		switch( t ) {
 		case PInt: size += intSize(v);
 		case PFloat: size += 4;
+		case PDouble: size += 8;
 		case PBool: size += 1;
 		case PString:
 			if( v == null )

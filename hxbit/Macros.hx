@@ -84,6 +84,7 @@ enum PropTypeDesc<PropType> {
 	PAliasCDB( k : PropType );
 	PNoSave( k : PropType );
 	PStruct( name : String );
+	PDouble;
 }
 
 typedef PropType = {
@@ -255,6 +256,7 @@ class Macros {
 		case PBool: PBool;
 		case PString: PString;
 		case PBytes: PBytes;
+		case PDouble: PDouble;
 		case PSerializable(name): PSerializable(name);
 		case PEnum(name): PEnum(name);
 		case PMap(k, v): PMap(toFieldType(k), toFieldType(v));
@@ -408,6 +410,8 @@ class Macros {
 				PInt64;
 			case "Float", "Single":
 				PFloat;
+			case "hxbit.Double":
+				PDouble;
 			case "Int","UInt":
 				PInt;
 			case "Bool":
@@ -610,6 +614,8 @@ class Macros {
 			return macro $ctx.addInt64($v);
 		case PFloat:
 			return macro $ctx.addFloat($v);
+		case PDouble:
+			return macro $ctx.addDouble($v);
 		case PInt:
 			return macro $ctx.addInt($v);
 		case PBool:
@@ -700,6 +706,8 @@ class Macros {
 			return macro $v = $ctx.getInt64();
 		case PFloat:
 			return macro $v = $ctx.getFloat();
+		case PDouble:
+			return macro $v = $ctx.getDouble();
 		case PInt:
 			return macro $v = $ctx.getInt();
 		case PBool:
@@ -875,7 +883,7 @@ class Macros {
 
 	static function clearExpr( expr : Expr, t : PropType, pos : Position, fset : Expr -> Expr ) {
 		switch( t.d ) {
-		case PInt, PFloat, PBool, PString, PBytes, PInt64, PFlags(_), PUnknown, PAliasCDB(_), POldStruct(_):
+		case PInt, PFloat, PDouble, PBool, PString, PBytes, PInt64, PFlags(_), PUnknown, PAliasCDB(_), POldStruct(_):
 			return null;
 		case PSerializable(_), PSerInterface(_):
 			return macro if( $expr != null ) {
@@ -2736,7 +2744,7 @@ class Macros {
 
 	static function makeRecExpr( expr : Expr, t : PropType, pos : Position, mk : Expr -> PropType -> Expr ) {
 		switch( t.d ) {
-		case PInt, PFloat, PBool, PString, PBytes, PInt64, PFlags(_), PUnknown, PAliasCDB(_), POldStruct(_):
+		case PInt, PFloat, PDouble, PBool, PString, PBytes, PInt64, PFlags(_), PUnknown, PAliasCDB(_), POldStruct(_):
 		case PSerializable(_), PSerInterface(_), PStruct(_), PDynamic, PEnum(_), PCustom:
 			return macro if( $expr != null ) ${mk(expr,t)};
 		case PMap(k,v):
