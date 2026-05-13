@@ -83,6 +83,8 @@ interface NetworkSerializable extends Serializable extends ProxyHost {
 	public function networkGetName( propId : Int, isRPC : Bool = false ) : String;
 	public function networkSetBit( bit : Int ) : Void;
 
+	public function getRPCSchema() : Schema;
+
 	#if hxbit_visibility
 	public var __dirtyVisibilityGroups : Int;
 	public function evalVisibility( group : VisibilityGroup, from : NetworkSerializable ) : Bool;

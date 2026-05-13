@@ -161,19 +161,6 @@ class Serializer {
 		}
 	}
 
-	static var __SIGN = null;
-	public static function getSignature() : haxe.io.Bytes {
-		if( __SIGN != null ) return __SIGN;
-		var s = new Serializer();
-		s.begin();
-		s.addInt(CLASSES.length);
-		for( i in 0...CLASSES.length ) {
-			s.addInt(CLIDS[i]);
-			s.addInt32((Type.createEmptyInstance(CLASSES[i]) : Serializable).getSerializeSchema().checkSum);
-		}
-		return __SIGN = haxe.crypto.Md5.make(s.end());
-	}
-
 	public static function isClassFinal( index : Int ) {
 		if( CLIDS == null ) initClassIDS();
 		return CLIDS[index] == 0;
@@ -1291,7 +1278,7 @@ class Serializer {
 		case PNoSave(t):
 			if( forSave ) return null;
 			return readValueImpl(t);
-		case PUnknown:
+		case PUnknown, PRPC(_):
 			throw "assert";
 		}
 	}
@@ -1396,7 +1383,7 @@ class Serializer {
 			}
 		case PNoSave(t):
 			if( !forSave ) writeValue(v, t);
-		case PUnknown, POldStruct(_):
+		case PUnknown, POldStruct(_), PRPC(_):
 			throw "assert";
 		}
 	}

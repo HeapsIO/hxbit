@@ -223,7 +223,7 @@ class NetworkClient {
 				ctx.newObjects = [];
 			};
 			var sign = ctx.getBytes();
-			if( sign.compare(Serializer.getSignature()) != 0 ) {
+			if( sign.compare(NetworkHost.getSignature()) != 0 ) {
 				var host = host;
 				stop();
 				host.onInvalidSignature();
@@ -830,7 +830,7 @@ class NetworkHost {
 		ctx.begin();
 		ctx.addByte(FULLSYNC);
 		ctx.addByte(c.seqID);
-		ctx.addBytes(Serializer.getSignature());
+		ctx.addBytes(getSignature());
 
 		var objs = [for( o in refs ) if( o != null ) o];
 		objs.sort(@:privateAccess Serializer.sortByUID);
@@ -846,6 +846,26 @@ class NetworkHost {
 		doSend();
 		targetClient = null;
 		c.lastMessage = haxe.Timer.stamp() + fullSyncExtraTime;
+	}
+
+	static var __SIGN = null;
+
+	public static function getSignature() : haxe.io.Bytes {
+		if( __SIGN != null ) return __SIGN;
+		var s = new Serializer();
+		var CLASSES = @:privateAccess Serializer.CLASSES;
+		var CLIDS = @:privateAccess Serializer.CLIDS;
+		s.begin();
+		s.addInt(CLASSES.length);
+		for( i in 0...CLASSES.length ) {
+			s.addInt(CLIDS[i]);
+			var inst = (Type.createEmptyInstance(CLASSES[i]) : Serializable);
+			s.addInt32(inst.getSerializeSchema().checkSum);
+			var ns = Std.downcast(inst,NetworkSerializable);
+			if( ns != null )
+				s.addInt32(ns.getRPCSchema().checkSum);
+		}
+		return __SIGN = haxe.crypto.Md5.make(s.end());
 	}
 
 	public function defaultLogger( ?filter : String -> Bool ) {

@@ -184,7 +184,7 @@ class NetworkStats {
 			size += intSize(v);
 		case PCustom:
 			// TODO
-		case POldStruct(_):
+		case POldStruct(_), PRPC(_):
 			throw "assert";
 		}
 		return size;

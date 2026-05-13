@@ -85,6 +85,7 @@ enum PropTypeDesc<PropType> {
 	PNoSave( k : PropType );
 	PStruct( name : String );
 	PDouble;
+	PRPC( mode : RpcMode, args : Array<PropType>, ret : PropType );
 }
 
 typedef PropType = {
@@ -210,6 +211,35 @@ class Macros {
 		return macro $v{v};
 	}
 
+	public static macro function getRPCFieldType( v : Expr, rpcMode : Int ) {
+		var t = Context.typeof(v);
+		var conds = new haxe.EnumFlags<Condition>();
+		conds.set(IsParam);
+		var pt : PropType = switch( t ) {
+		case TFun(args, ret):
+			var ret = switch( ret ) {
+			case TAbstract(a,_) if( a.toString() == "Void" ): null;
+			default: getPropType(ret,conds);
+			}
+			if( ret == null && args.length > 0 && args[args.length-1].name == "__return" ) {
+				var a = args[args.length-1];
+				ret = switch( a.t ) {
+				case TFun([v],_): args.pop(); getPropType(v.t,conds);
+				default: throw "assert";
+				}
+			}
+			{ d : PRPC(RpcMode.createByIndex(rpcMode),[for( a in args ) {
+				var at = getPropType(a.t,conds);
+				if( at == null ) Context.error(haxe.macro.ExprTools.toString(v)+a.name+" is not serializable", v.pos);
+				at;
+			}],ret), t : null };
+		default:
+			throw "assert";
+		}
+		var v = toFieldType(pt);
+		return macro $v{v};
+	}
+
 	public static function iterType<T>( t : PropTypeDesc<T>, f : T -> Void ) {
 		switch( t ) {
 		case PMap(k, v):
@@ -271,6 +301,7 @@ class Macros {
 		case PDynamic: PDynamic;
 		case PSerInterface(name): PSerInterface(name);
 		case PStruct(name): PStruct(name);
+		case PRPC(mode,args,ret): PRPC(mode,[for( v in args ) toFieldType(v)], ret == null ? null : toFieldType(ret));
 		case POldStruct(_): throw "assert";
 		};
 	}
@@ -695,7 +726,7 @@ class Macros {
 				else
 					v.serialize($ctx);
 			}
-		case PUnknown, POldStruct(_):
+		case PUnknown, POldStruct(_), PRPC(_):
 			throw "assert";
 		}
 	}
@@ -839,7 +870,7 @@ class Macros {
 					$v = @:privateAccess cast $cexpr.doUnserialize($ctx);
 				}
 			}
-		case PUnknown, POldStruct(_):
+		case PUnknown, POldStruct(_), PRPC(_):
 			throw "assert";
 		}
 	}
@@ -883,7 +914,7 @@ class Macros {
 
 	static function clearExpr( expr : Expr, t : PropType, pos : Position, fset : Expr -> Expr ) {
 		switch( t.d ) {
-		case PInt, PFloat, PDouble, PBool, PString, PBytes, PInt64, PFlags(_), PUnknown, PAliasCDB(_), POldStruct(_):
+		case PInt, PFloat, PDouble, PBool, PString, PBytes, PInt64, PFlags(_), PUnknown, PAliasCDB(_), POldStruct(_), PRPC(_):
 			return null;
 		case PSerializable(_), PSerInterface(_):
 			return macro if( $expr != null ) {
@@ -2171,7 +2202,7 @@ class Macros {
 
 		// BUILD RPC
 		var firstRPCID = rpcID;
-		var rpcCases = [];
+		var rpcCases = [], rpcSchema = [];
 		for( r in rpc ) {
 			switch( r.f.kind ) {
 			case FFun(f):
@@ -2387,6 +2418,8 @@ class Macros {
 				}
 				exprs.push(macro if( __ctx.error ) return false);
 				exprs.push(macro if( __host != null ) __host.makeAlive());
+
+				rpcSchema.push(macro { schema.fieldsNames.push($v{name}); schema.fieldsTypes.push(hxbit.Macros.getRPCFieldType($i{r.f.name},$v{r.mode.getIndex()})); });
 
 				// -- when receiving the rpc, check for additional security
 
@@ -2694,6 +2727,23 @@ class Macros {
 					expr : if( isSubSer && firstRPCID > 0 ) macro { if( __id < $v { firstRPCID } ) return super.networkRPC(__ctx, __id, __clientResult); $swExpr; return true; } else macro { $swExpr; return true; }
 				}),
 			});
+
+
+			fields.push({
+				name : "getRPCSchema",
+				pos : pos,
+				access : access,
+				meta : noComplete,
+				kind : FFun({
+					args : [],
+					ret : macro : hxbit.Schema,
+					expr : macro {
+						var schema = ${if( isSubSer ) macro super.getRPCSchema() else macro new hxbit.Schema()};
+						$b{rpcSchema};
+						return schema;
+					}
+				}),
+			});
 		}
 
 
@@ -2744,7 +2794,7 @@ class Macros {
 
 	static function makeRecExpr( expr : Expr, t : PropType, pos : Position, mk : Expr -> PropType -> Expr ) {
 		switch( t.d ) {
-		case PInt, PFloat, PDouble, PBool, PString, PBytes, PInt64, PFlags(_), PUnknown, PAliasCDB(_), POldStruct(_):
+		case PInt, PFloat, PDouble, PBool, PString, PBytes, PInt64, PFlags(_), PUnknown, PAliasCDB(_), POldStruct(_), PRPC(_):
 		case PSerializable(_), PSerInterface(_), PStruct(_), PDynamic, PEnum(_), PCustom:
 			return macro if( $expr != null ) ${mk(expr,t)};
 		case PMap(k,v):
