@@ -39,6 +39,7 @@ class NetworkClient {
 
 	public function new(h) {
 		this.host = h;
+		processID = 0;
 		lastMessage = haxe.Timer.stamp();
 		#if hxbit_visibility
 		if( host.isAuth ) {
