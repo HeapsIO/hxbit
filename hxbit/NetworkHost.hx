@@ -338,7 +338,7 @@ class NetworkClient {
 			if( host.checkEOM ) ctx.addByte(NetworkHost.EOM);
 
 		case NetworkHost.PONG:
-			// nothing
+			host.onPong(this);
 
 		case NetworkHost.PING_READY:
 			// discard extra time
@@ -717,6 +717,9 @@ class NetworkHost {
 	}
 
 	public dynamic function onSync( obj : hxbit.NetworkSerializable, bits1 : Int, bits2 : Int ) {
+	}
+
+	public dynamic function onPong( from : NetworkClient ) {
 	}
 
 	public function sendMessage( msg : Dynamic, ?to : NetworkClient ) {
