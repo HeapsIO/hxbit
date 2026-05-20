@@ -1035,21 +1035,23 @@ class Serializer {
 			return convertValue(path, v, from, to);
 		case [_,PNull(to)]:
 			return convertValue(path, v, from, to);
-		case [PInt, PFloat]:
+		case [PInt, PFloat|PDouble]:
 			return (v:Int) * 1.0;
 		case [PBool, PInt]:
 			return (v:Bool) ? 1 : 0;
-		case [PBool, PFloat]:
+		case [PBool, PFloat|PDouble]:
 			return (v:Bool) ? 1. : 0.;
-		case [PFloat, PInt]:
+		case [PFloat|PDouble, PInt]:
 			return Std.int(v);
-		case [PFloat, PInt64]:
+		case [PFloat|PDouble, PFloat|PDouble]:
+			return v;
+		case [PFloat|PDouble, PInt64]:
 			return haxe.Int64.ofInt(Std.int((v:Float)));
 		case [PInt, PInt64]:
 			return ((v:Int):haxe.Int64);
 		case [PInt64, PInt]:
 			return haxe.Int64.toInt((v:haxe.Int64));
-		case [PInt64, PFloat]:
+		case [PInt64, PFloat|PDouble]:
 			return haxe.Int64.toInt((v:haxe.Int64)) * 1.0;
 		case [PSerializable(_),PSerializable(to)]:
 			var cl = Type.resolveClass(to);
