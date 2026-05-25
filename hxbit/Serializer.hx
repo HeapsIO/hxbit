@@ -649,9 +649,10 @@ class Serializer {
 				addCLID(clid); // hash
 		}
 		#if hxbit_visibility
+		var ns = Std.downcast(s, NetworkSerializable);
+		if( ns != null ) ns.__visibilityCount++;
 		var prevVis = visibilityGroups;
 		if( hasVisibility ) {
-			var ns = Std.downcast(s, NetworkSerializable);
 			visibilityGroups = ns == null ? -1 : evalVisibility(ns);
 			addVisBits(visibilityGroups);
 		}

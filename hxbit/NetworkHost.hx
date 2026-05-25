@@ -475,6 +475,12 @@ class NetworkClient {
 		if( host == null ) return;
 		host.clients.remove(this);
 		host.pendingClients.remove(this);
+		#if hxbit_visibility
+		for( r in ctx.refs ) {
+			var ns = Std.downcast(r,NetworkSerializable);
+			if( ns != null ) ns.__visibilityCount--;
+		}
+		#end
 		if( host.rpcClientValue == this ) host.rpcClientValue = null;
 		host = null;
 	}
@@ -1169,6 +1175,7 @@ class NetworkHost {
 			if( checkEOM ) ctx.addByte(EOM);
 			ctx.refs.remove(o.__uid);
 		#if hxbit_visibility
+			o.__visibilityCount--;
 			ctx.cachedVisibility.remove(o.__uid);
 		}
 		#end
@@ -1228,6 +1235,13 @@ class NetworkHost {
 		}
 		var o = markHead;
 		while( o != null ) {
+			#if hxbit_visibility
+			if( o.__visibilityCount == 0 && isAuth ) {
+				o.__bits1 = 0;
+				o.__bits2 = 0;
+				o.__dirtyVisibilityGroups = 0;
+			}
+			#end
 			if( (o.__bits1|o.__bits2 #if hxbit_visibility | o.__dirtyVisibilityGroups #end) != 0 ) {
 				if( logger != null ) {
 					var props = [];
@@ -1384,10 +1398,10 @@ class NetworkHost {
 			if( checkEOM ) ctx.addByte(EOM);
 			if( toRemove == null ) toRemove = [];
 			toRemove.push(key);
-			if( logger != null ) {
-				var ns = Std.downcast(o, NetworkSerializable);
+			var ns = Std.downcast(o, NetworkSerializable);
+			if( ns != null ) ns.__visibilityCount--;
+			if( logger != null )
 				logger("UNREF > " + (ns == null ? ""+ns.__uid : objStr(ns)));
-			}
 		}
 		if( toRemove != null ) {
 			for( key in toRemove ) {

@@ -1962,7 +1962,8 @@ class Macros {
 				@:noCompletion public var __bits2 : Int = 0;
 				@:noCompletion public var __next : hxbit.NetworkSerializable;
 				#if hxbit_visibility
-				@:noCompletion public var __dirtyVisibilityGroups : Int;
+				@:noCompletion public var __dirtyVisibilityGroups : Int = 0;
+				@:noCompletion public var __visibilityCount : Int = -1; // will get 0 when replicated
 				#end
 				@:noCompletion public function networkSetBit( b : Int ) {
 					if( __host != null && @:privateAccess __host.checkSyncingProperty(b) && (__host.isAuth || @:privateAccess __host.checkWrite(this,b)) && (__next != null || @:privateAccess __host.mark(this)) ) {
