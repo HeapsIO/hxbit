@@ -1300,6 +1300,8 @@ class NetworkHost {
 				}
 				o.__dirtyVisibilityGroups = 0;
 				#end
+				o.__bits1 = 0;
+				o.__bits2 = 0;
 			}
 			var n = o.__next;
 			o.__next = null;
