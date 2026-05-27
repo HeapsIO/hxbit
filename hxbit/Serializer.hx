@@ -730,8 +730,9 @@ class Serializer {
 		} else {
 			if( CLIDS[clidx] != 0 ) {
 				var realIdx = getCLID();
+				var c1 = c;
 				c = cast CL_BYID[realIdx];
-				if( c == null ) throw "Missing class #"+realIdx+" subclass of "+Type.getClassName(c)+"#"+clidx;
+				if( c == null ) throw "Missing class #"+realIdx+" subclass of "+Type.getClassName(c1)+"#"+clidx;
 				clidx = (c:Dynamic).__clid;
 			}
 		}
