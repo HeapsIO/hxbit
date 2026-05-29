@@ -1237,9 +1237,19 @@ class NetworkHost {
 		while( o != null ) {
 			#if hxbit_visibility
 			if( o.__visibilityCount == 0 && isAuth ) {
-				o.__bits1 = 0;
-				o.__bits2 = 0;
-				o.__dirtyVisibilityGroups = 0;
+				var has = false;
+				for( c in clients )
+					if( c.ctx.refs[o.__uid] != null ) {
+						has = true;
+						break;
+					}
+				if( has ) {
+					trace("***** "+o+" was marked invisible but it is ****");
+				} else {
+					o.__bits1 = 0;
+					o.__bits2 = 0;
+					o.__dirtyVisibilityGroups = 0;
+				}
 			}
 			#end
 			if( (o.__bits1|o.__bits2 #if hxbit_visibility | o.__dirtyVisibilityGroups #end) != 0 ) {
