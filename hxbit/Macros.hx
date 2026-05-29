@@ -504,7 +504,13 @@ class Macros {
 					isMutable = false;
 				} else if( ainf.meta.has(":noProxy") )
 					isMutable = false;
-				var pt = getPropType(ainf.type.applyTypeParameters(ainf.params,pl),conds);
+				var subt = ainf.type.applyTypeParameters(ainf.params,pl);
+				switch( subt ) {
+				case TAbstract(a2,_) if( a2.toString() == path ):
+					return null;
+				default:
+				}
+				var pt = getPropType(subt,conds);
 				if( pt == null ) return null;
 				isCDB ? PAliasCDB(pt) : PAlias(pt);
 			}
