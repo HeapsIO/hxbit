@@ -174,7 +174,7 @@ class Macros {
 				}
 			}
 		}
-		return withPos(unserializeExpr(ctx, v, pt, depth, conds),v.pos);
+		return withPos(unserializeExpr(ctx, v, pt, depth, conds), v.pos);
 	}
 
 	public static macro function markValue( v : Expr ) : Expr {
@@ -787,10 +787,10 @@ class Macros {
 							vars.push( { field : f.name, expr : { expr : EConst(CIdent(name)), pos:v.pos } } );
 							if( nidx < 0 ) {
 								exprs.unshift(macro var $name : $ct);
-								exprs.push(macro hxbit.Macros.unserializeValue($ctx, $i{name}, $v{depth+1}, $v{conds.toInt()}));
+								exprs.push(macro hxbit.Macros.unserializeValue($ctx, @:pos(v.pos) $i{name}, $v{depth+1}, $v{conds.toInt()}));
 							} else {
 								exprs.unshift(macro var $name : $ct = null);
-								exprs.push(macro if( fbits & $v { 1 << nidx } != 0 ) hxbit.Macros.unserializeValue($ctx, $i{name}, $v{depth+1}, $v{conds.toInt()}));
+								exprs.push(macro if( fbits & $v { 1 << nidx } != 0 ) hxbit.Macros.unserializeValue($ctx, @:pos(v.pos) $i{name}, $v{depth+1}, $v{conds.toInt()}));
 							}
 						}
 						exprs.push( { expr : EBinop(OpAssign,v, { expr : EObjectDecl(vars), pos:v.pos } ), pos:v.pos } );
@@ -806,7 +806,7 @@ class Macros {
 			var ename = "e" + depth;
 			return macro {
 				var $ename : $at;
-				$v = $ctx.getArray(function() { hxbit.Macros.unserializeValue($ctx, $i{ename}, $v{depth+1}, $v{conds.toInt()}); return $i{ename}; });
+				$v = $ctx.getArray(function() { hxbit.Macros.unserializeValue($ctx, @:pos(v.pos) $i{ename}, $v{depth+1}, $v{conds.toInt()}); return $i{ename}; });
 			};
 		case PVector(at):
 			var at = toProxy(at);
@@ -814,7 +814,7 @@ class Macros {
 			var ename = "e" + depth;
 			return macro {
 				var $ename : $at;
-				$v = $ctx.getVector(function() { hxbit.Macros.unserializeValue($ctx, $i{ename}, $v{depth+1}, $v{conds.toInt()}); return $i{ename}; });
+				$v = $ctx.getVector(function() { hxbit.Macros.unserializeValue($ctx, @:pos(v.pos) $i{ename}, $v{depth+1}, $v{conds.toInt()}); return $i{ename}; });
 			};
 		case PSerializable(_):
 			function loop(t:ComplexType) {
@@ -1531,7 +1531,7 @@ class Macros {
 							var aname = "_" + a.name;
 							var at = haxe.macro.TypeTools.applyTypeParameters(a.t,e.params,tparams).toComplexType();
 							evals.push(macro var $aname : $at);
-							evals.push(macro @:pos(e.pos) hxbit.Macros.unserializeValue(ctx,$i{aname},0,$v{conds.toInt()}));
+							evals.push(macro @:pos(e.pos) hxbit.Macros.unserializeValue(ctx, @:pos(pos) $i{aname}, 0, $v{conds.toInt()}));
 							etypes.push(macro { name : $v{a.name}, type : { var v : $at; hxbit.Macros.getFieldType(v); }, opt : $v{a.opt} });
 						}
 						evals.push({ expr : ECall({ expr : EConst(CIdent(c.name)), pos : pos },[for( a in args ) { expr : EConst(CIdent("_"+a.name)), pos : pos }]), pos : pos });
@@ -2419,7 +2419,7 @@ class Macros {
 				} else
 					exprs.push(macro if( false ) $fcall); // force typing
 				for( a in funArgs ) {
-					var e = macro hxbit.Macros.unserializeValue(__ctx, $i{ a.name }, 0, $v{conds.toInt()});
+					var e = macro hxbit.Macros.unserializeValue(__ctx, @:pos(p) $i{ a.name }, 0, $v{conds.toInt()});
 					e.pos = p;
 					exprs.push(e);
 				}
