@@ -5,6 +5,7 @@ typedef StatClass = {
 	var props : Array<Stat>;
 	var rpcs : Array<Stat>;
 	var schema : Schema;
+	var syncCount : Int;
 }
 
 typedef Stat = {
@@ -33,7 +34,7 @@ class NetworkStats {
 		var cid = o.getCLID();
 		var c = classes[cid];
 		if( c == null ) {
-			c = { name : Type.getClassName(Type.getClass(o)), props : [], rpcs : [], schema : o.getSerializeSchema(false) };
+			c = { name : Type.getClassName(Type.getClass(o)), props : [], rpcs : [], schema : o.getSerializeSchema(false), syncCount : 0 };
 			classes[cid] = c;
 		}
 		return c;
@@ -43,7 +44,7 @@ class NetworkStats {
 		var name = Type.getClassName(Type.getClass(o)); // concrete type
 		var c = structs[name];
 		if( c == null ) {
-			c = { name : name, props : [], rpcs : null, schema : o.getSerializeSchema(false) };
+			c = { name : name, props : [], rpcs : null, schema : o.getSerializeSchema(false), syncCount : 0 };
 			structs[name] = c;
 		}
 		return c;
@@ -212,6 +213,11 @@ class NetworkStats {
 		calc(o.__bits2, 30);
 	}
 
+	public function preSync( o : NetworkSerializable ) {
+		var c = getClass(o);
+		c.syncCount++;
+	}
+
 	public function beginRPC( o : NetworkSerializable, id : Int ) {
 		var c = getClass(o);
 		var r = c.rpcs[id];
@@ -246,6 +252,7 @@ class NetworkStats {
 				if( p != null && p.count > 0 )
 					all.push(p);
 			}
+			all.push({cl:c,name:null,count:c.syncCount,size:0,bytes:0});
 		}
 		all.sort(function(p1, p2) return scoreSort(p1) - scoreSort(p2));
 		var tot = 0;
@@ -255,7 +262,7 @@ class NetworkStats {
 			print = #if sys Sys.println #else function(str) trace(str) #end;
 		print("Stats\tClass name\tCount\tBytes\t%");
 		for( p in all )
-			print("\t"+p.cl.name+"." + p.name+"\t" + p.count + "\t" + p.bytes + "\t" + (Std.int(p.bytes*1000.0/tot)/10));
+			print("\t"+p.cl.name+(p.name == null ? "" : "." + p.name)+"\t" + p.count + "\t" + p.bytes + "\t" + (Std.int(p.bytes*1000.0/tot)/10));
 	}
 
 	public function reset() {

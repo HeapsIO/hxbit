@@ -1261,7 +1261,7 @@ class NetworkHost {
 						logger("SYNC > " + objStr(o) + " " + props.join("|"));
 				}
 				if( stats != null )
-					stats.sync(o);
+					stats.preSync(o);
 				#if hxbit_visibility
 				var bits1 = o.__bits1, bits2 = o.__bits2;
 				for( c in clients ) {
@@ -1303,6 +1303,8 @@ class NetworkHost {
 						@:privateAccess ctx.visibilityGroups = newGroups;
 					}
 				#end
+					if( stats != null )
+						stats.sync(o);
 					ctx.addByte(SYNC);
 					ctx.addUID(o.__uid);
 					var position = ctx.getPosition(true);
