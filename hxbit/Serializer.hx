@@ -89,7 +89,7 @@ class Serializer {
 	static var UID : UID = 0;
 	static var SEQ : UID = 0;
 	#end
-	static inline var SEQ_BITS = 8;
+	static inline var SEQ_BITS = #if hxbit64 12 #else 8 #end;
 	static #if (!js || !hxbit64) inline #end var SEQ_MASK = (-1:UID) >>> SEQ_BITS;
 
 	public static function resetCounters() {

@@ -220,7 +220,7 @@ class NetworkClient {
 			ctx.refs = new Serializer.UIDMap();
 			@:privateAccess {
 				hxbit.Serializer.UID = 0;
-				hxbit.Serializer.SEQ = seqID = ctx.getByte();
+				hxbit.Serializer.SEQ = seqID = ctx.getInt();
 				ctx.newObjects = [];
 			};
 			var sign = ctx.getBytes();
@@ -816,7 +816,9 @@ class NetworkHost {
 		partialFlush();
 
 		// unique client sequence number
+		var maxSeq = 1 << @:privateAccess hxbit.Serializer.SEQ_BITS;
 		var seq = clients.length + 1;
+		var start = seq;
 		while( true ) {
 			var found = false;
 			for( c in clients )
@@ -826,11 +828,15 @@ class NetworkHost {
 				}
 			if( !found ) break;
 			seq++;
+			if( seq == maxSeq )
+				seq = 1; // 0 reserved for host
+			if( seq == start ) {
+				c.stop();
+				logError("Out of sequence number");
+				return;
+			}
 		}
-		if( seq > 0xFF ) throw "Out of sequence number";
 		targetClient = c;
-
-		ctx.addByte(seq);
 		c.seqID = seq;
 
 		clients.push(c);
@@ -839,7 +845,7 @@ class NetworkHost {
 		ctx.enableChecks = false;
 		ctx.begin();
 		ctx.addByte(FULLSYNC);
-		ctx.addByte(c.seqID);
+		ctx.addInt(c.seqID);
 		ctx.addBytes(getSignature());
 
 		var objs = [for( o in refs ) if( o != null ) o];
