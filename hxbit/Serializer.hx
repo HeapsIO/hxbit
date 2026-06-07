@@ -1004,7 +1004,7 @@ class Serializer {
 	function convertValue( path : String, v : Dynamic, from : Schema.FieldType, to : Schema.FieldType ) : Dynamic {
 
 		if( v == null )
-			return Convert.getDefault(to);
+			return Convert.getDefault(to,null);
 
 		if( Convert.sameType(from,to) )
 			return v;
@@ -1027,7 +1027,7 @@ class Serializer {
 					}
 				if( !found ) {
 					if( f.opt ) continue;
-					field = Convert.getDefault(f.type);
+					field = Convert.getDefault(f.type,null);
 				} else if( field == null && f.opt )
 					continue;
 				Reflect.setField(v2, f.name, field);
