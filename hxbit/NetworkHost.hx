@@ -445,6 +445,12 @@ class NetworkClient {
 			return;
 		var end = pos + length;
 		host.receivingClient = this;
+		var count = 0;
+		var startPos = pos;
+		if( host.isAuth && length > 1000000 ) {
+			host.onMessageFlood(this, data, startPos, length);
+			count = 0x80000000;
+		}		
 		while( pos < end ) {
 			var oldPos = pos;
 			pos = processMessage(data, pos);
@@ -457,6 +463,10 @@ class NetworkClient {
 					throw "Message missing EOM @"+(pos - oldPos)+":"+data.sub(oldPos, len).toHex();
 				}
 				pos++;
+			}
+			if( count++ > 100 ) {
+				host.onMessageFlood(this, data, startPos, length);
+				count = 0x80000000;
 			}
 		}
 		if( host != null )
@@ -712,6 +722,9 @@ class NetworkHost {
 
 	public dynamic function onInvalidSignature() {
 		logError("Network signature mismatch");
+	}
+
+	public dynamic function onMessageFlood( from : NetworkClient, bytes : haxe.io.Bytes, pos : Int, length : Int ) {
 	}
 
 	public dynamic function onMessage( from : NetworkClient, msg : Dynamic ) {
