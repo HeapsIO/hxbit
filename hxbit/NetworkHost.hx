@@ -878,6 +878,7 @@ class NetworkHost {
 	}
 
 	static var __SIGN = null;
+	public static var VERSION = 0;
 
 	public static function getSignature() : haxe.io.Bytes {
 		if( __SIGN != null ) return __SIGN;
@@ -894,6 +895,7 @@ class NetworkHost {
 			if( ns != null )
 				s.addInt32(ns.getRPCSchema().checkSum);
 		}
+		if( VERSION > 0 ) s.addInt(VERSION);
 		return __SIGN = haxe.crypto.Md5.make(s.end());
 	}
 
