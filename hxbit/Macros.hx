@@ -2006,7 +2006,7 @@ class Macros {
 					__host = old;
 				}
 				#if hxbit_visibility
-				public inline function setVisibilityDirty( group : hxbit.VisibilityGroup ) {
+				public function setVisibilityDirty( group : hxbit.VisibilityGroup ) {
 					__dirtyVisibilityGroups |= 1 << group.getIndex();
 					if( __next == null && __host != null ) @:privateAccess __host.mark(this);
 				}
