@@ -2387,6 +2387,9 @@ class Macros {
 					var cargs = [for( a in funArgs ) { expr : EConst(CIdent(a.name)), pos : p } ];
 					cargs.unshift(macro false);
 					var implCall = withPos(macro $implFunc($a{cargs}), p);
+					var doArgs = cargs.copy();
+					doArgs[0] = macro true;
+					var doCall = withPos(macro $implFunc($a{doArgs}), p);
 					fields.push({
 						name : "check" + capitalized,
 						pos : p,
@@ -2405,6 +2408,19 @@ class Macros {
 							args: funArgs,
 							params: [],
 							expr : macro return hxbit.Macros.checkSuccess($implCall),
+						}),
+					});
+					fields.push({
+						name : "do" + capitalized,
+						pos : p,
+						access : [APublic, AFinal],
+						kind : FFun({
+							args: funArgs,
+							params: [],
+							expr : macro {
+								if( __host != null && !__host.isAuth ) throw "Cannot execute " + $v{name} + " synchronously on a client";
+								return $doCall;
+							},
 						}),
 					});
 				}
