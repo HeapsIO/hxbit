@@ -263,12 +263,9 @@ class Macros {
 	public static macro function checkSuccess(e: Expr): Expr {
 		var t = Context.typeof(e);
 		switch(t) {
-		case TEnum(en, _):
-			var enumType = en.get();
-			for (m in enumType.meta.get())
-				if (m.name == ":rpcSuccess" && m.params.length > 0)
-					return macro $e == $e{m.params[0]};
-			return macro $e == cast null;
+		case TEnum(_):
+			var v = getSuccessVal(t);
+			return v == null ? macro $e == cast null : macro $e == $v;
 		default:
 			if(!Context.unify(t, Context.typeof(macro true)))
 				Context.error("Checked value must unify with Bool, got " + t.toString(), e.pos);
@@ -277,6 +274,17 @@ class Macros {
 	}
 
 	#if macro
+
+	static function getSuccessVal( t : haxe.macro.Type ) : Expr {
+		switch( Context.follow(t) ) {
+		case TEnum(en, _):
+			for( m in en.get().meta.get() )
+				if( m.name == ":rpcSuccess" && m.params.length > 0 )
+					return m.params[0];
+		default:
+		}
+		return null;
+	}
 
 	static function toFieldType( t : PropType ) : Schema.FieldType {
 		return switch( t.d ) {
@@ -2214,6 +2222,16 @@ class Macros {
 			switch( r.f.kind ) {
 			case FFun(f):
 				var id = rpcID++;
+				if( r.mode == Checked ) {
+					var body = switch( f.expr.expr ) { case EBlock(el): el; default: null; };
+					var last = body == null ? null : body[body.length-1];
+					if( last != null && last.expr.match(EMeta({ name : ":do" }, _)) ) {
+						if( f.ret == null )
+							Context.error("Checked RPC ending with @:do requires an explicit return type", r.f.pos);
+						var v = getSuccessVal(Context.resolveType(f.ret, r.f.pos));
+						body.push(macro return $v);  // allow last return to be inside the @:do block
+					}
+				}
 				var returnVal = hasReturnVal(f.expr);
 				var name = r.f.name;
 				var p = r.f.pos;
