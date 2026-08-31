@@ -364,6 +364,7 @@ class Macros {
 			} else
 				return idx;
 		default:
+			Context.error("Invalid visibility value", m.params[0].pos);
 		}
 		return null;
 	}
