@@ -1049,7 +1049,13 @@ class NetworkHost {
 		// we received a new object as part of our serialization data
 		// can be either inside a REG event or an auto serialized one
 		if( ns != null && !ns.networkAllow(Register,0,client.ownerObject) ) {
-			globalCtx.refs.remove(o.__uid);
+			#if hxbit_visibility
+			var rctx = client.ctx;
+			#else
+			var rctx = globalCtx;
+			#end
+			rctx.refs.remove(o.__uid);
+			@:privateAccess rctx.hasError = true;
 			logError("Client registering unallowed object "+o, o.__uid);
 			return;
 		}
