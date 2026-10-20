@@ -103,8 +103,8 @@ class Serializer {
 	}
 
 	static var CLASSES : Array<Class<Dynamic>> = [];
-	static var CL_BYID = null;
-	static var CLIDS = null;
+	static var CL_BYID : Null<Array<Class<Dynamic>>> = null;
+	static var CLIDS : Null<Array<Int>> = null;
 	static function registerClass( c : Class<Dynamic> ) {
 		if( CLIDS != null ) throw "Too late to register class";
 		var idx = CLASSES.length;
@@ -914,7 +914,7 @@ class Serializer {
 		setInput(null, 0);
 	}
 
-	static var EMPTY_MAP = new Map();
+	static var EMPTY_MAP : Map<String,Convert.TypeConvert> = new Map();
 
 	function convertType( econv : Convert.TypeConvert ) : Dynamic {
 		inPos--;
@@ -1138,7 +1138,7 @@ class Serializer {
 		return false;
 	}
 
-	static var ENUM_CLASSES = new Map();
+	static var ENUM_CLASSES : Map<String,Dynamic> = new Map();
 	static function getEnumClass( name : String ) : Dynamic {
 		var cl = ENUM_CLASSES.get(name);
 		if( cl != null ) return cl;
@@ -1149,7 +1149,7 @@ class Serializer {
 		return cl;
 	}
 
-	static var STRUCT_CLASSES = new Map();
+	static var STRUCT_CLASSES : Map<String,Dynamic> = new Map();
 	static function getStructClass( name : String ) : Dynamic {
 		var cl = STRUCT_CLASSES.get(name);
 		if( cl != null ) return cl;

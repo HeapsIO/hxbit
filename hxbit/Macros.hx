@@ -109,7 +109,7 @@ class Macros {
 
 	static var PREFIX_VARS : Map<String,Bool> = null;
 	public static var IGNORED_META : Map<String,Bool> = new Map();
-	public static var VISIBILITY_VALUES = [];
+	public static var VISIBILITY_VALUES : Array<String> = [];
 
 	/** Generate game-specific property getters, mostly to be used in networkAllow() **/
 	public static var CUSTOM_GETTERS : Array<{name: String, ret: ComplexType, func : {id: Int, name: String, field: Field} -> Dynamic }> = [];
@@ -131,7 +131,7 @@ class Macros {
 
 	#end
 
-	public static function initVisibility(vis) {
+	public static function initVisibility(vis:Array<String>) {
 		VISIBILITY_VALUES = vis;
 	}
 
@@ -2902,7 +2902,7 @@ class Macros {
 		return mark;
 	}
 
-	static function typeName(t:PropType) {
+	static function typeName(t:PropType) : String {
 		var str = _typeName(t);
 		if( str.length > 50 )
 			str = haxe.crypto.Md5.encode(str);
@@ -2973,7 +2973,7 @@ class Macros {
 					@:noCompletion public var __value(get, never) : $pt;
 					inline function get___value() : $pt return cast this;
 					public inline function mark() if( obj != null ) obj.networkSetBitCond(bit);
-					@:noCompletion public inline function networkSetBitCond(_) mark();
+					@:noCompletion public inline function networkSetBitCond(_:Int) mark();
 					@:noCompletion public function bindHost(obj, bit) { this.obj = obj; this.bit = bit; }
 					@:noCompletion public function unbindHost() this.obj = null;
 					@:noCompletion public function toString() return hxbit.NetworkSerializable.BaseProxy.objToString(this);
