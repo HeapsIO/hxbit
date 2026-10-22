@@ -108,12 +108,15 @@ private enum Condition {
 class Macros {
 
 	static var PREFIX_VARS : Map<String,Bool> = null;
-	public static var IGNORED_META : Map<String,Bool> = new Map();
-	public static var VISIBILITY_VALUES : Array<String> = [];
+	// configuration, written by initialization macros: macro statics are reset
+	// for every expansion, @:persistent ones are kept (Haxe 6)
+	@:persistent public static var IGNORED_META : Map<String,Bool> = new Map();
+	@:persistent public static var VISIBILITY_VALUES : Array<String> = [];
 
 	/** Generate game-specific property getters, mostly to be used in networkAllow() **/
-	public static var CUSTOM_GETTERS : Array<{name: String, ret: ComplexType, func : {id: Int, name: String, field: Field} -> Dynamic }> = [];
+	@:persistent public static var CUSTOM_GETTERS : Array<{name: String, ret: ComplexType, func : {id: Int, name: String, field: Field} -> Dynamic }> = [];
 
+	// the classes marked by initialization macros (the others implement Serializable)
 	@:persistent static var SERIALIZABLES : Map<String,String> = [];
 	@:persistent static var UNSERIALIZABLES : Map<String,Bool> = [];
 
@@ -1846,9 +1849,6 @@ class Macros {
 		var cl = Context.getLocalClass().get();
 		if( cl.isInterface )
 			return null;
-
-		var clName = Context.getLocalClass().toString();
-		SERIALIZABLES.set(clName, getNativePath(cl));
 
 		if(fields == null)
 			fields = Context.getBuildFields();
