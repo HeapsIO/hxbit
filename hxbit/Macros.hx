@@ -2956,7 +2956,9 @@ class Macros {
 			try {
 				return Context.getType("hxbit." + name).toComplexType();
 			} catch( e : Dynamic ) {
-				var pos = Context.currentPos();
+				// a position that does not depend on the use that defines the type first:
+				// the output must not depend on the typing order (Haxe 6 parallel typing)
+				var pos = (macro null).pos;
 				var pt = p.t;
 
 				var hasProxy = false;
@@ -3091,7 +3093,9 @@ class Macros {
 			try {
 				return Context.getType("hxbit." + name).toComplexType();
 			} catch( e : Dynamic ) {
-				var pos = Context.currentPos();
+				// a position that does not depend on the use that defines the type first:
+				// the output must not depend on the typing order (Haxe 6 parallel typing)
+				var pos = (macro null).pos;
 				var tfields : Array<Field> = [];
 				for( f in fields ) {
 					var ro = buildReadOnlyType(f.type);
