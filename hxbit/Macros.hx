@@ -1793,7 +1793,7 @@ class Macros {
 				checkRetVal(e);
 			}
 		case ECall({ expr : EConst(CIdent("__return")) },[v]):
-			e.expr = (macro { (__return($v) : Void); return; }).expr;
+			e.expr = (macro { __return($v); return; }).expr;
 			hasRetCall = true;
 		case EFunction(_):
 			var prev = hasRetVal;
@@ -1808,7 +1808,7 @@ class Macros {
 	static function replaceReturns( e : Expr ) {
 		switch( e.expr ) {
 		case EReturn(v) if( v != null ):
-			e.expr = (macro { (__return($v) : Void); return; }).expr;
+			e.expr = (macro { __return($v); return; }).expr;
 		case EFunction(_):
 			return;
 		default:
@@ -2285,7 +2285,7 @@ class Macros {
 						typeValue = macro _v = $fcall;
 						doCall = macro {
 							var _v = $fcall;
-							if( onResult != null ) (onResult(_v) : Void);
+							if( onResult != null ) onResult(_v);
 						}
 					}
 					resultCall = withPos(macro function(__ctx:hxbit.NetworkSerializable.NetworkSerializer) {
@@ -2293,7 +2293,7 @@ class Macros {
 						if( false ) $typeValue;
 						hxbit.Macros.unserializeValue(__ctx, _v, 0, $v{conds});
 						if( __ctx.error ) return false;
-						if( onResult != null ) (onResult(_v) : Void);
+						if( onResult != null ) onResult(_v);
 						return true;
 					},f.expr.pos);
 					rpcArgs = rpcArgs.copy();
