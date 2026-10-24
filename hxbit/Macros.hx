@@ -1793,7 +1793,7 @@ class Macros {
 				checkRetVal(e);
 			}
 		case ECall({ expr : EConst(CIdent("__return")) },[v]):
-			e.expr = (macro { __return($v); return; }).expr;
+			e.expr = (macro { (__return($v) : Void); return; }).expr;
 			hasRetCall = true;
 		case EFunction(_):
 			var prev = hasRetVal;
@@ -1808,7 +1808,7 @@ class Macros {
 	static function replaceReturns( e : Expr ) {
 		switch( e.expr ) {
 		case EReturn(v) if( v != null ):
-			e.expr = (macro { __return($v); return; }).expr;
+			e.expr = (macro { (__return($v) : Void); return; }).expr;
 		case EFunction(_):
 			return;
 		default:
@@ -1860,6 +1860,10 @@ class Macros {
 		{
 			var sup = cl.superClass;
 			while( sup != null ) {
+				#if haxe6
+				// :rpcCalls and :sFields are added by the build of the super class
+				Context.buildType(TInst(sup.t, sup.params));
+				#end
 				var c = sup.t.get();
 				for( m in c.meta.get() )
 					switch( m.name)  {
@@ -2281,7 +2285,7 @@ class Macros {
 						typeValue = macro _v = $fcall;
 						doCall = macro {
 							var _v = $fcall;
-							if( onResult != null ) onResult(_v);
+							if( onResult != null ) (onResult(_v) : Void);
 						}
 					}
 					resultCall = withPos(macro function(__ctx:hxbit.NetworkSerializable.NetworkSerializer) {
@@ -2289,7 +2293,7 @@ class Macros {
 						if( false ) $typeValue;
 						hxbit.Macros.unserializeValue(__ctx, _v, 0, $v{conds});
 						if( __ctx.error ) return false;
-						if( onResult != null ) onResult(_v);
+						if( onResult != null ) (onResult(_v) : Void);
 						return true;
 					},f.expr.pos);
 					rpcArgs = rpcArgs.copy();
