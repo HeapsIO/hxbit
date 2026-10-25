@@ -134,7 +134,7 @@ class Macros {
 
 	#end
 
-	public static function initVisibility(vis:Array<String>) {
+	public static function initVisibility(vis) {
 		VISIBILITY_VALUES = vis;
 	}
 
@@ -2979,7 +2979,7 @@ class Macros {
 					@:noCompletion public var __value(get, never) : $pt;
 					inline function get___value() : $pt return cast this;
 					public inline function mark() if( obj != null ) obj.networkSetBitCond(bit);
-					@:noCompletion public inline function networkSetBitCond(_:Int) mark();
+					@:noCompletion public inline function networkSetBitCond(_) mark();
 					@:noCompletion public function bindHost(obj, bit) { this.obj = obj; this.bit = bit; }
 					@:noCompletion public function unbindHost() this.obj = null;
 					@:noCompletion public function toString() return hxbit.NetworkSerializable.BaseProxy.objToString(this);

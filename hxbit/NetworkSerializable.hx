@@ -98,7 +98,7 @@ interface NetworkSerializable extends Serializable extends ProxyHost {
 class BaseProxy implements ProxyHost implements ProxyChild {
 	public var obj : ProxyHost;
 	public var bit : Int;
-	@:noCompletion public inline function networkSetBitCond(_:Int) {
+	@:noCompletion public inline function networkSetBitCond(_) {
 		mark();
 	}
 	public inline function mark() {
