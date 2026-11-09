@@ -631,7 +631,7 @@ class Macros {
 
 	static function isNullable( t : PropType ) {
 		switch( t.d ) {
-		case PInt, PFloat, PBool, PFlags(_), PInt64:
+		case PInt, PFloat, PDouble, PBool, PFlags(_), PInt64:
 			return false;
 		case PAlias(t), PAliasCDB(t), PNoSave(t):
 			return isNullable(t);
@@ -2897,7 +2897,7 @@ class Macros {
 				name : rname,
 				pos : mark.pos,
 				meta : [{ name : ":noCompletion", pos : mark.pos }],
-				kind : FVar(t.t, switch( t.d ) { case PInt, PFloat: macro 0; default: macro null; }),
+				kind : FVar(t.t, switch( t.d ) { case PInt, PFloat, PDouble: macro 0; default: macro null; }),
 			});
 		return mark;
 	}
