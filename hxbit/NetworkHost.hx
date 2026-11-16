@@ -209,12 +209,18 @@ class NetworkClient {
 			var o : hxbit.NetworkSerializable = cast ctx.refs[oid];
 			if( o == null ) {
 				host.logError("Could not unregister object", oid);
+			} else if( host.isAuth && !o.networkAllow(Unregister,0,ownerObject) ) {
+				host.logError("Client unregistering unallowed object "+o, o.__uid);
 			} else {
 				o.__host = null;
 				ctx.refs.remove(o.__uid);
 				host.onUnregister(o);
 			}
 		case NetworkHost.FULLSYNC:
+			if( host.isAuth ) {
+				host.logError("Client sent unallowed FULLSYNC");
+				return -1;
+			}
 			wasSync = true;
 			host.receivingClient = null;
 			ctx.refs = new Serializer.UIDMap();
@@ -347,6 +353,10 @@ class NetworkClient {
 
 		#if hxbit_visibility
 		case NetworkHost.VIS_RESET:
+			if( host.isAuth ) {
+				host.logError("Client sent unallowed VIS_RESET");
+				return -1;
+			}
 			var oid = ctx.getUID();
 			var o : hxbit.NetworkSerializable = cast ctx.refs[oid];
 			var groups = ctx.getInt();
