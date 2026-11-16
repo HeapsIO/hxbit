@@ -204,6 +204,17 @@ class NetworkSerializer extends Serializer {
 		super.addKnownRef(s);
 	}
 
+	override function onNewUID( id : UID ) {
+		var c = host == null || !host.isAuth ? null : @:privateAccess host.receivingClient;
+		if( c == null ) {
+			super.onNewUID(id);
+			return;
+		}
+		// client objects must be in the client sequence, and must not move our UID counter
+		if( id >>> (#if hxbit64 64 #else 32 #end - @:privateAccess Serializer.SEQ_BITS) != c.seqID )
+			throw "Client creating object with invalid UID " + id;
+	}
+
 	override function onNewObject(i:Serializable) {
 		@:privateAccess host.onNewObject(i);
 	}

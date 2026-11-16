@@ -672,9 +672,13 @@ class Serializer {
 		addRef(s,false);
 	}
 
-	inline function makeRef(id:UID, clidx:Int) : Serializable {
+	function onNewUID( id : UID ) {
 		var rid = id & SEQ_MASK;
 		if( UID < rid && !remapIds ) UID = rid;
+	}
+
+	inline function makeRef(id:UID, clidx:Int) : Serializable {
+		onNewUID(id);
 		var i : Serializable = Type.createEmptyInstance(CLASSES[clidx]);
 		if( newObjects != null ) newObjects.push(i);
 		i.__uid = id;

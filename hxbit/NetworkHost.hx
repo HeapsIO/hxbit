@@ -211,6 +211,9 @@ class NetworkClient {
 				host.logError("Could not unregister object", oid);
 			} else if( host.isAuth && !o.networkAllow(Unregister,0,ownerObject) ) {
 				host.logError("Client unregistering unallowed object "+o, o.__uid);
+			} else if( host.isAuth ) {
+				host.unregister(o, this);
+				host.onUnregister(o);
 			} else {
 				o.__host = null;
 				ctx.refs.remove(o.__uid);
@@ -323,6 +326,10 @@ class NetworkClient {
 
 			var resultID = ctx.getInt();
 			var callb = host.rpcWaits.get(resultID);
+			if( callb == null ) {
+				host.logError("Unknown RPC result #" + resultID);
+				return -1;
+			}
 			host.rpcWaits.remove(resultID);
 			host.makeAlive();
 			callb(ctx);
@@ -1058,7 +1065,14 @@ class NetworkHost {
 
 		// we received a new object as part of our serialization data
 		// can be either inside a REG event or an auto serialized one
-		if( ns != null && !ns.networkAllow(Register,0,client.ownerObject) ) {
+		var err = null;
+		if( ns != null && !ns.networkAllow(Register,0,client.ownerObject) )
+			err = "Client registering unallowed object ";
+		#if hxbit_visibility
+		else if( globalCtx.refs[o.__uid] != null )
+			err = "Client registering object with conflicting UID ";
+		#end
+		if( err != null ) {
 			#if hxbit_visibility
 			var rctx = client.ctx;
 			#else
@@ -1066,7 +1080,7 @@ class NetworkHost {
 			#end
 			rctx.refs.remove(o.__uid);
 			@:privateAccess rctx.hasError = true;
-			logError("Client registering unallowed object "+o, o.__uid);
+			logError(err+o, o.__uid);
 			return;
 		}
 
@@ -1170,7 +1184,7 @@ class NetworkHost {
 		return false;
 	}
 
-	function unregister( o : NetworkSerializable ) {
+	function unregister( o : NetworkSerializable, ?exclude : NetworkClient ) {
 		if( o.__host == null )
 			return;
 		if( !isAuth && !o.networkAllow(Unregister,0,self.ownerObject) )
@@ -1202,22 +1216,34 @@ class NetworkHost {
 		unmark(o);
 		if( logger != null )
 			logger("Unregister " + objStr(o));
+		inline function sendUnreg( ctx : NetworkSerializer ) {
+			ctx.addByte(UNREG);
+			ctx.addUID(o.__uid);
+			if( checkEOM ) ctx.addByte(EOM);
+		}
 		#if hxbit_visibility
 		for( c in clients ) {
 			var ctx = c.ctx;
 			if( !ctx.refs.exists(o.__uid) ) continue;
-		#end
-			ctx.addByte(UNREG);
-			ctx.addUID(o.__uid);
-			if( checkEOM ) ctx.addByte(EOM);
+			if( c != exclude ) sendUnreg(ctx);
 			ctx.refs.remove(o.__uid);
-		#if hxbit_visibility
 			o.__visibilityCount--;
 			ctx.cachedVisibility.remove(o.__uid);
 		}
-		#end
-		#if hxbit_visibility
 		globalCtx.refs.remove(o.__uid);
+		#else
+		if( exclude == null )
+			sendUnreg(ctx);
+		else {
+			for( c in clients ) {
+				if( c == exclude ) continue;
+				targetClient = c;
+				sendUnreg(ctx);
+				doSend();
+				targetClient = null;
+			}
+		}
+		ctx.refs.remove(o.__uid);
 		#end
 	}
 
