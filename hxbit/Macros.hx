@@ -1347,6 +1347,8 @@ class Macros {
 				var name = s.f.name;
 				var acall = s.f == serializePriority ? "unshift" : "push";
 				var e = macro { schema.fieldsNames.$acall($v{name}); schema.fieldsTypes.$acall(hxbit.Macros.getFieldType(this.$name)); };
+				if( s.f == serializePriority )
+					e = macro { $e; schema.priority = $v{name}; };
 				for( m in s.meta ) {
 					switch( m.name ) {
 					case ":noSave":

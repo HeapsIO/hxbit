@@ -30,6 +30,7 @@ class Schema implements Serializable {
 	@:s public var isFinal : Bool;
 	@:s @:notMutable public var fieldsNames : Array<String>;
 	@:s @:notMutable public var fieldsTypes : Array<FieldType>;
+	public var priority : String;
 
 	public function new() {
 		fieldsNames = [];

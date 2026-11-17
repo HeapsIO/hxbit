@@ -950,8 +950,12 @@ class Serializer {
 
 	function convertRef( i : Serializable, c : Convert ) {
 		var values = new haxe.ds.Vector<Dynamic>(c.read.length);
-		for( r in c.read )
+		for( r in c.read ) {
 			values[r.index] = readValue(r.from);
+			// apply before the next fields are read, which might fetch references to i
+			if( r == c.priority )
+				setPriority(i, c, values[r.index]);
+		}
 		var bytes = writeConvValues(c, values);
 		var oldIn = input;
 		var oldPos = inPos;
@@ -969,26 +973,38 @@ class Serializer {
 		typeConvert = oldConv;
 	}
 
+	function readPriority( i : Serializable, c : Convert ) {
+		for( r in c.read ) {
+			var v = readValue(r.from);
+			if( r == c.priority ) {
+				setPriority(i, c, v);
+				break;
+			}
+		}
+	}
+
+	function setPriority( i : Serializable, c : Convert, v : Dynamic ) {
+		var p = c.priority;
+		Reflect.setProperty(i, p.path.split(".").pop(), convField(p, v));
+	}
+
+	function convField( w : Convert.ConvertField, v : Dynamic ) : Dynamic {
+		if( w.same )
+			return v;
+		if( v == null )
+			return w.defaultValue;
+		if( w.conv != null )
+			return w.conv(v);
+		return convertValue(w.path, v, w.from, w.to);
+	}
+
 	function writeConvValues( c : Convert, values : haxe.ds.Vector<Dynamic>, ?extraByte ) {
 		var oldOut = this.out;
 		out = new haxe.io.BytesBuffer();
 		if( extraByte != null )
 			out.addByte(extraByte);
 		for( w in c.write ) {
-			var v : Dynamic;
-			if( w.from == null )
-				v = w.defaultValue;
-			else {
-				v = values[w.index];
-				if( !w.same ) {
-					if( v == null )
-						v = w.defaultValue;
-					else if( w.conv != null )
-						v = w.conv(v);
-					else
-						v = convertValue(w.path, v, w.from, w.to);
-				}
-			}
+			var v : Dynamic = w.from == null ? w.defaultValue : convField(w, values[w.index]);
 			writeValue(v, w.to);
 		}
 		var bytes = out.getBytes();

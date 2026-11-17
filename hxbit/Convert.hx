@@ -43,6 +43,7 @@ class Convert {
 	public var write : Array<ConvertField>;
 	public var hasCID : Bool;
 	public var hadCID : Bool;
+	public var priority : ConvertField;
 
 	public function new( classPath : String, ourSchema : Schema, schema : Schema ) {
 		var ourMap = new Map();
@@ -77,6 +78,8 @@ class Convert {
 			read.push(c);
 			map.set(fname, c);
 		}
+		if( ourSchema.priority != null )
+			priority = map.get(ourSchema.priority);
 
 		write = [];
 		for( i in 0...ourSchema.fieldsNames.length ) {
