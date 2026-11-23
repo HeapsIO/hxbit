@@ -24,10 +24,24 @@ class NetworkStats {
 	var classes : Map<Int,StatClass>;
 	var structs : Map<String,StatClass>;
 	var curRPC : Stat;
+	var events : Map<String,{ name : String, stack : Array<haxe.CallStack.StackItem>, count : Int }>;
 
 	public function new() {
 		classes = new Map();
 		structs = new Map();
+		events = new Map();
+	}
+
+	public function addEvent( name : String ) {
+		var stack = haxe.CallStack.callStack();
+		stack.shift(); // addEvent
+		var key = name + haxe.CallStack.toString(stack);
+		var s = events.get(key);
+		if( s == null ) {
+			s = { name : name, stack : stack, count : 0 };
+			events.set(key, s);
+		}
+		s.count++;
 	}
 
 	function getClass( o : NetworkSerializable ) {
@@ -263,10 +277,20 @@ class NetworkStats {
 		print("Stats\tClass name\tCount\tBytes\t%");
 		for( p in all )
 			print("\t"+p.cl.name+(p.name == null ? "" : "." + p.name)+"\t" + p.count + "\t" + p.bytes + "\t" + (Std.int(p.bytes*1000.0/tot)/10));
+		var all = [for( s in events ) s];
+		if( all.length == 0 )
+			return;
+		all.sort((s1, s2) -> s1.count - s2.count);
+		print("Events\tName\tCount");
+		for( s in all ) {
+			print("\t" + s.name + "\t" + s.count);
+			print(StringTools.replace(haxe.CallStack.toString(s.stack), "\n", "\n\t\t"));
+		}
 	}
 
 	public function reset() {
 		classes = new Map();
+		events = new Map();
 	}
 
 }
