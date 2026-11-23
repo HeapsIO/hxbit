@@ -23,17 +23,59 @@ package hxbit;
 
 #if !macro
 
-abstract MarkInfo(Int) {
-	public var set(get,never) : Int;
-	public var mask(get,never) : Int;
-	public inline function new(set:Int,mask:Int) {
-		this = set | (mask << 16);
+class MarkInfo {
+	static inline var MAX_DEPTH = 128;
+	public var set(default,null) : Int;
+	public var mask(default,null) : Int;
+	var depth = 0;
+	var delayed : Array<AnySerializable>;
+	public function new(set:Int,mask:Int) {
+		var v = set | (mask << 16);
+		this.set = v & 0xFFFF;
+		this.mask = v >>> 16;
 	}
-	inline function get_set() return this & 0xFFFF;
-	inline function get_mask() return this >>> 16;
 	#if hxbit_clear
 	public var clear(get,never) : Int;
 	inline function get_clear() return 0x80000000;
+
+	public function clearRef( s : AnySerializable ) {
+		if( depth >= MAX_DEPTH ) {
+			if( delayed == null ) delayed = [];
+			delayed.push(s);
+			return;
+		}
+		depth++;
+		s.clearReferences(this);
+		depth--;
+		if( depth == 0 && delayed != null && delayed.length > 0 ) {
+			depth = 1;
+			while( delayed.length > 0 )
+				delayed.pop().clearReferences(this);
+			depth = 0;
+		}
+	}
+	#end
+	#if (hxbit_visibility || hxbit_mark)
+	var delayedFrom : MarkParam;
+
+	public function markRef( s : AnySerializable, from : MarkParam ) {
+		if( depth >= MAX_DEPTH ) {
+			if( delayed == null ) delayed = [];
+			delayed.push(s);
+			delayedFrom = from;
+			return;
+		}
+		depth++;
+		s.markReferences(this, from);
+		depth--;
+		if( depth == 0 && delayed != null && delayed.length > 0 ) {
+			depth = 1;
+			while( delayed.length > 0 )
+				delayed.pop().markReferences(this, delayedFrom);
+			depth = 0;
+			delayedFrom = null;
+		}
+	}
 	#end
 }
 

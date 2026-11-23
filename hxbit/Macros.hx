@@ -921,6 +921,8 @@ class Macros {
 				return macro @:privateAccess hxbit.Serializer.markReferencesDyn($expr, mark, from);
 			case PEnum(_):
 				return makeEnumCall(t,"markReferences",[macro cast $expr,macro mark, macro from]);
+			case PSerializable(_), PSerInterface(_):
+				return macro mark.markRef($expr,from);
 			default:
 				return macro $expr.markReferences(mark,from);
 			}
@@ -936,7 +938,7 @@ class Macros {
 				if( ($expr.__mark & mark.clear) != 0 )
 					${fset(macro null)}
 				else
-					$expr.clearReferences(mark);
+					mark.clearRef($expr);
 			}
 		case PStruct(_), PCustom:
 			return macro if( $expr != null ) $expr.clearReferences(mark);

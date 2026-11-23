@@ -1474,11 +1474,11 @@ class Serializer {
 			default:
 				var s = Std.downcast(value, hxbit.Serializable.AnySerializable);
 				if( s != null )
-					s.markReferences(mark, from);
+					mark.markRef(s, from);
 			}
 		case TEnum(_):
 			for( v in Type.enumParameters(value) )
-				markReferencesDyn(value, mark, from);
+				markReferencesDyn(v, mark, from);
 		default:
 		}
 	}
@@ -1504,13 +1504,13 @@ class Serializer {
 			default:
 				var s = Std.downcast(value, hxbit.Serializable.AnySerializable);
 				if( s != null )
-					s.clearReferences(mark);
+					mark.clearRef(s);
 			}
 		case TEnum(e):
 			var vl = Type.enumParameters(value);
 			var changed = false;
 			for( i => v in vl ) {
-				var v2 = clearReferencesDyn(value, mark);
+				var v2 = clearReferencesDyn(v, mark);
 				if( v != v2 ) {
 					vl[i] = v2;
 					changed = true;
