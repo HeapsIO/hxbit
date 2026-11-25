@@ -109,7 +109,7 @@ class Macros {
 
 	static var PREFIX_VARS : Map<String,Bool> = null;
 	public static var IGNORED_META : Map<String,Bool> = new Map();
-	public static var VISIBILITY_VALUES = [];
+	public static var VISIBILITY_VALUES : Array<String> = [];
 
 	/** Generate game-specific property getters, mostly to be used in networkAllow() **/
 	public static var CUSTOM_GETTERS : Array<{name: String, ret: ComplexType, func : {id: Int, name: String, field: Field} -> Dynamic }> = [];
@@ -2906,7 +2906,7 @@ class Macros {
 		return mark;
 	}
 
-	static function typeName(t:PropType) {
+	static function typeName(t:PropType) : String {
 		var str = _typeName(t);
 		if( str.length > 50 )
 			str = haxe.crypto.Md5.encode(str);

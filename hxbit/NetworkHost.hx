@@ -894,7 +894,7 @@ class NetworkHost {
 		c.lastMessage = haxe.Timer.stamp() + fullSyncExtraTime;
 	}
 
-	static var __SIGN = null;
+	static var __SIGN : haxe.io.Bytes = null;
 	public static var VERSION = 0;
 
 	public static function getSignature() : haxe.io.Bytes {
